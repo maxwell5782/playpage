@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
-<title>怪獸單字大富翁</title>
+<title>可愛怪獸大富翁</title>
 <style>
 /* Layout: explorer's map board — square 20×20 board on blueprint grid paper, controls under it, monster team running along a trail fixed to the bottom */
 :root{
@@ -34,7 +34,10 @@ h1,h2,h3{margin:0;text-wrap:balance}
 
 /* ---------- title ---------- */
 .hero{background:var(--paper);border-radius:28px;padding:22px 18px;text-align:center;box-shadow:0 6px 0 var(--line);display:flex;flex-direction:column;gap:10px;align-items:center}
-.hero h1{font-weight:900;font-size:clamp(34px,9vw,56px);color:var(--pink);letter-spacing:.06em;text-shadow:3px 3px 0 var(--sun2)}
+.hero h1{font-weight:900;font-size:clamp(38px,11vw,64px);letter-spacing:.06em;line-height:1.1}
+.gtitle{display:flex;flex-direction:column;align-items:center}
+.gtitle span{background:linear-gradient(90deg,#FF8A1F 0%,#FFC93C 22%,#2FAE55 45%,#2F9BEA 70%,#8A5CF0 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;filter:drop-shadow(0 3px 0 rgba(30,47,85,.18));padding:0 .05em}
+.gtitle .gt2{font-size:1.18em;letter-spacing:.12em}
 .hero .sub{color:var(--soft);font-size:15px}
 .idol-row{display:flex;justify-content:center;gap:2px;flex-wrap:wrap}
 .idol-row .mon{width:clamp(56px,15vw,92px);height:auto}
@@ -100,7 +103,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 @keyframes hop{50%{transform:translateY(-18%)}}
 
 .hub{grid-row:2/6;grid-column:2/10;background:radial-gradient(circle at 20% 20%,#fff 0,#F3F8FF 60%,#E2EEFF 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*.3);padding:calc(var(--u)*.3);text-align:center}
-.hub .logo{font-weight:900;font-size:calc(var(--u)*1.25);color:var(--pink);letter-spacing:.06em;text-shadow:2px 2px 0 var(--sun2);line-height:1.1}
+.hub .logo{font-weight:900;font-size:calc(var(--u)*.95);letter-spacing:.06em;line-height:1.05}
 .hub .who{font-size:calc(var(--u)*.6);display:flex;align-items:center;gap:6px;font-weight:700}
 .hub .who .dot{width:calc(var(--u)*.6);height:calc(var(--u)*.6)}
 .dicerow{display:flex;align-items:center;gap:calc(var(--u)*.5)}
@@ -256,7 +259,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
   <section id="scrTitle" class="wrap">
     <div class="hero">
       <div class="idol-row" id="heroMons"></div>
-      <h1>怪獸單字大富翁</h1>
+      <h1 class="gtitle"><span class="gt1">可愛怪獸</span><span class="gt2">大富翁</span></h1>
       <div class="sub">和怪獸夥伴一起闖關背單字・快來收集吧！</div>
       <button class="btn pri" id="btnNew" style="min-width:200px;font-size:18px">開始新遊戲</button>
     </div>
@@ -1049,7 +1052,7 @@ function buildBoard(){
  const b=$('#board');let h='';
  for(let i=0;i<N;i++){const[r,c]=coord(i);h+=`<div class="cell" id="c${i}" data-i="${i}" style="grid-row:${r+1};grid-column:${c+1}"></div>`}
  for(let c=1;c<=8;c++)h+=`<div class="bridge" id="b${c}" style="grid-row:6;grid-column:${c+1}"><div class="toks"></div></div>`;
- h+=`<div class="hub"><div class="logo">怪獸單字大富翁</div><div class="who" id="who"></div><div class="dicerow"><div class="dice" id="dice">${'<i></i>'.repeat(9)}</div><button class="btn pri" id="btnRoll">擲骰子</button></div></div>`;
+ h+=`<div class="hub"><div class="logo gtitle"><span class="gt1">可愛怪獸</span><span class="gt2">大富翁</span></div><div class="who" id="who"></div><div class="dicerow"><div class="dice" id="dice">${'<i></i>'.repeat(9)}</div><button class="btn pri" id="btnRoll">擲骰子</button></div></div>`;
  h+=`<div class="gallery" data-act="team" title="編輯隊伍"><div class="gt" id="galT"></div><div class="gl" id="gal"></div></div>`;
  b.innerHTML=h;
  $('#btnRoll').onclick=onRoll;
