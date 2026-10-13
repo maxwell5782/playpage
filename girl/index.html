@@ -231,6 +231,46 @@ h1,h2,h3{margin:0;text-wrap:balance}
 #musicBtn{position:fixed;right:16px;bottom:calc(126px + env(safe-area-inset-bottom,0px));z-index:6;width:48px;height:48px;border-radius:50%;border:0;background:var(--paper);box-shadow:0 3px 0 var(--line),0 0 0 2px var(--line) inset;font-size:22px;font-weight:900;color:var(--pink);display:grid;place-items:center}
 #musicBtn.off{color:var(--soft);opacity:.75}
 #musicBtn.off::after{content:"";position:absolute;width:30px;height:3px;background:var(--soft);border-radius:2px;transform:rotate(-45deg)}
+
+/* ---------- themed maps ---------- */
+#board.world{display:block;position:relative;padding:0;gap:0;background:var(--paper);border-radius:calc(var(--u)*1.2)}
+#board.world .scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+#board.world .cell{position:absolute;width:8.2%;height:8.2%;border-radius:30%;background:var(--tile);box-shadow:0 2px 0 var(--edge),0 0 0 1.5px var(--edge) inset;overflow:visible}
+#board.world .cell.w0{background:#FFF1F6}#board.world .cell.w1{background:#F4EFFF}#board.world .cell.w2{background:#EEFBF5}#board.world .cell.w3{background:#FFF9E6}
+#board.world .cell .ico{width:84%;height:84%}
+#board.world .cell.here{box-shadow:0 0 0 calc(var(--u)*.16) #fff,0 0 0 calc(var(--u)*.3) var(--pink)}
+#board.world .cell .toks{inset:-12%}
+#board.world .tok{border:3px solid #fff;box-shadow:0 2px 4px rgba(90,46,87,.5);background-image:radial-gradient(circle at 35% 30%,rgba(255,255,255,.7) 0 22%,transparent 24%)}
+#board.world .tok.me{width:calc(var(--u)*1.05);height:calc(var(--u)*1.05)}
+#board.world .sc{position:absolute;width:4%;height:4%;transform:translate(-50%,-50%);border-radius:50%}
+#board.world .sc .toks{position:absolute;inset:-60%;display:grid;place-items:center;padding:0}
+#ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;background:var(--paper);border-radius:18px;padding:8px 12px;box-shadow:0 3px 0 var(--line)}
+.mapchip{display:flex;align-items:center;gap:6px;font-weight:900;font-size:16px;border:0;background:var(--pink2);color:var(--ink);border-radius:999px;padding:3px 14px 3px 3px;min-height:44px;cursor:pointer}
+.mapchip svg{width:38px;height:38px;background:#fff;border-radius:50%}
+.mapchip b{color:var(--soft);font-size:12px}
+#ctrl .who{font-weight:700;font-size:14px;line-height:1.3;text-align:center}
+#ctrl .who b{color:#D69A00;font-size:17px;font-variant-numeric:tabular-nums}
+.dicebox{display:flex;align-items:center;gap:8px}
+#ctrl .dice{width:50px;height:50px;padding:7px;border-radius:12px}
+#ctrl #btnRoll{font-size:18px;min-height:48px;padding:0 20px}
+.idolstrip{display:flex;gap:2px;align-items:center;cursor:pointer;background:var(--lav2);border-radius:14px;padding:2px 6px}
+.idolstrip svg{width:38px;height:38px;display:block}
+.idolstrip .locked svg{filter:grayscale(.9) opacity(.45)}
+.wm{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;width:100%}
+.wm button{border:3px solid var(--line);border-radius:18px;padding:0;overflow:hidden;background:#fff;display:flex;flex-direction:column;cursor:pointer;color:var(--ink);text-align:left}
+.wm button.here{border-color:var(--pink);box-shadow:0 0 0 2px var(--pink)}
+.wm button:disabled{cursor:not-allowed;opacity:.7}
+.wm .pv{position:relative}
+.wm .pv svg{width:100%;height:auto;display:block;aspect-ratio:1}
+.wm button.lock .pv>svg{filter:grayscale(.75) brightness(1.05)}
+.wm .lk{position:absolute;inset:auto 8px 8px auto;background:rgba(90,46,87,.8);color:#fff;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+.wm .who-ic{position:absolute;left:6px;top:6px;width:42px;height:42px;background:#fff;border-radius:50%;box-shadow:0 2px 0 var(--line)}
+.wm .who-ic svg{width:100%;height:100%}
+.wm .wi{display:flex;flex-direction:column;gap:2px;padding:8px 10px}
+.wm .wi b{font-size:16px}
+.wm .wi small{color:var(--soft)}
+.wm .st{align-self:flex-start;background:var(--pink2);border-radius:999px;padding:1px 10px;font-size:12px;font-weight:700;margin-top:2px}
+.wm button.here .st{background:var(--pink);color:#fff}
 </style>
 </head>
 <body>
@@ -292,6 +332,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
   <section id="scrGame" class="wrap" hidden>
     <div class="topbar">
       <div class="t" id="gTitle"></div>
+      <button class="btn sm dress" data-act="world">世界地圖</button>
       <button class="btn sm dress" data-act="dress">換裝間</button>
       <button class="btn sm dress" data-act="book">收集冊</button>
       <button class="btn sm" data-act="level">換關卡</button>
@@ -301,6 +342,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
       <button class="btn sm" data-act="home">主選單</button>
     </div>
     <div id="boardWrap"><div id="board"></div></div>
+    <div id="ctrl"></div>
     <div id="msg">擲骰子出發吧！</div>
     <div class="players" id="players"></div>
   </section>
@@ -1014,30 +1056,126 @@ const starSVG=`<svg class="ico" viewBox="0 0 24 24"><polygon points="12,2.5 14.8
 const gateSVG=`<svg class="ico" viewBox="0 0 24 24"><path d="M2.5 19 A9.5 9.5 0 0 1 21.5 19" stroke="#FF6FA8" stroke-width="2.6" fill="none"/><path d="M5.6 19 A6.4 6.4 0 0 1 18.4 19" stroke="#FFC93C" stroke-width="2.6" fill="none"/><path d="M8.7 19 A3.3 3.3 0 0 1 15.3 19" stroke="#2EC4A0" stroke-width="2.6" fill="none"/></svg>`;
 
 /* ================= 地圖 ================= */
-const N=36, START=100, IDOL_PRICE=200, BAG_PRICE=100, BAG_N=2, BONUS_START=50;
+const START=100, IDOL_PRICE=200, BAG_PRICE=100, BAG_N=2, BONUS_START=50, PASS_PRICE=150, HOME_MAP=0;
 const REWARD=[30,50,80,120];
 const LEVELS=['小朋友','普通人','有一點厲害的人','超級厲害的人'];
 const PCOLORS=['#FF5C9D','#8C6CFF','#1FB98F','#FF9A2E'];
 const PDEFAULT=['小兔','小貓','小熊','小狗'];
-const GATE_L=31, GATE_R=14;
-const CELL=[];
+/* 每張地圖屬於一位團員；字元圖：# 環狀路、A/B 捷徑兩端、+ 捷徑、. 風景 */
+const MAPS=[
+ {idol:0,name:'甜點王國',start:[0,1],short:'彩虹糖橋',
+  art:['####......','#..#..###.','#..####.#.','#.......#.','#A++++++B#','.#.......#','.#...###.#','.#####.#.#','.......###','..........'],
+  bg:['#FFEFF6','#FFC6DE'],road:'#FFFFFF',edge:'#E58AB2',tile:'#FFFFFF',shortC:'#FF6FA8',
+  spots:[{n:'馬卡龍店',ic:'馬',c:'#FF8FBF',d:60,txt:'馬卡龍店的老闆請你吃一盒彩色馬卡龍！'},{n:'冰淇淋車',ic:'冰',c:'#5DB8E8',d:80,txt:'幫冰淇淋車賣完所有冰淇淋，老闆送你獎勵！'},{n:'糖果工廠',ic:'糖',c:'#B79CFF',d:0,txt:'參觀糖果工廠，拿到一大袋驚喜糖果！'}]},
+ {idol:1,name:'星空舞台',start:[8,4],short:'流星滑梯',
+  art:['###....###','#.##..##.#','#..####..#','#........#','###....###','..A++++B..','###....###','#........#','##########','..........'],
+  bg:['#3A2F78','#8A76D6'],road:'#D8CCFF',edge:'#1F1850',tile:'#FFFFFF',shortC:'#FFE066',
+  spots:[{n:'演唱會',ic:'唱',c:'#FF6FA8',d:80,txt:'在星空下開了一場演唱會，粉絲大聲歡呼！'},{n:'月亮鞦韆',ic:'月',c:'#9B7BFF',d:60,txt:'坐在月亮鞦韆上盪呀盪，好浪漫！'},{n:'許願台',ic:'願',c:'#E5A52E',d:0,txt:'對著流星許願，願望實現了！'}]},
+ {idol:2,name:'陽光海灘',start:[8,4],short:'香蕉船',
+  art:['..####....','.##..###..','.#.....##.','##......#.','A+++++++B#','##.......#','.#.....###','.##...##..','..#####...','..........'],
+  bg:['#FFF7D6','#FFDF97'],road:'#FFFFFF',edge:'#D9AE5E',tile:'#FFFFFF',shortC:'#FFC93C',
+  spots:[{n:'椰子汁攤',ic:'椰',c:'#2EC4A0',d:60,txt:'喝一杯冰涼的椰子汁，好消暑！'},{n:'沙灘排球',ic:'球',c:'#FF8A5B',d:80,txt:'沙灘排球比賽拿到冠軍！'},{n:'貝殼寶箱',ic:'寶',c:'#FFB31F',d:0,txt:'在沙子裡挖到一個貝殼寶箱！'}]},
+ {idol:3,name:'花園森林',start:[8,2],short:'藤蔓鞦韆',
+  art:['.###.###..','.#.#.#.#..','##.#A#.##.','#...+...#.','#...+...##','##..+....#','.#..+....#','.#.#B#.###','.###.###..','..........'],
+  bg:['#EEFAE4','#B4E3A0'],road:'#FFFFFF',edge:'#86B86E',tile:'#FFFDF5',shortC:'#3FA34D',
+  spots:[{n:'花店',ic:'花',c:'#FF8FBF',d:60,txt:'在花店綁了一束漂亮的花！'},{n:'蝴蝶小屋',ic:'蝶',c:'#9B7BFF',d:80,txt:'幫蝴蝶小屋找回迷路的蝴蝶！'},{n:'野餐籃',ic:'餐',c:'#22B893',d:0,txt:'打開野餐籃，裡面有好多好吃的！'}]},
+ {idol:4,name:'遊樂園',start:[9,2],short:'雲霄飛車',
+  art:['...#A##...','..##+.##..','.##.+..##.','##..+...#.','#...+...##','####+....#','...#+.####','.###+.#...','.#..+.#...','.###B##...'],
+  bg:['#FFF3E6','#FFCBA6'],road:'#FFFFFF',edge:'#E0905F',tile:'#FFFFFF',shortC:'#FF5C9D',
+  spots:[{n:'旋轉木馬',ic:'馬',c:'#FF8FBF',d:60,txt:'坐上旋轉木馬轉了好幾圈！'},{n:'咖啡杯',ic:'杯',c:'#5DB8E8',d:80,txt:'咖啡杯轉得好快，大家笑得好開心！'},{n:'抽獎攤',ic:'獎',c:'#FF8A5B',d:0,txt:'在抽獎攤抽中大獎！'}]}
+];
 (function(){
- const idolAt={2:0,7:1,13:2,22:3,29:4}, wardAt={4:0,11:1,20:2,25:3,33:4};
- const chance=[5,16,24];
- let k=0;
- for(let i=0;i<N;i++){
-  if(i===0)CELL[i]={t:'start'};
-  else if(i===9)CELL[i]={t:'stage'};
-  else if(i===18)CELL[i]={t:'sweet'};
-  else if(i===27)CELL[i]={t:'wish'};
-  else if(i===GATE_L||i===GATE_R)CELL[i]={t:'gate'};
-  else if(i in idolAt)CELL[i]={t:'idol',idol:idolAt[i]};
-  else if(i in wardAt)CELL[i]={t:'ward',idol:wardAt[i]};
-  else if(chance.includes(i))CELL[i]={t:'chance'};
-  else CELL[i]={t:'word',v:(k++)%4};
- }
+ MAPS.forEach(m=>{
+  const at=(r,c)=>(m.art[r]||'')[c]||'.';
+  const isLoop=(r,c)=>'#AB'.includes(at(r,c));
+  const nb=(r,c)=>[[r,c+1],[r+1,c],[r,c-1],[r-1,c]];
+  const path=[m.start];let prev=null,cur=m.start;
+  for(let guard=0;guard<200;guard++){
+   const nx=nb(...cur).find(([y,x])=>isLoop(y,x)&&!(prev&&y===prev[0]&&x===prev[1]));
+   if(!nx||(nx[0]===m.start[0]&&nx[1]===m.start[1]))break;
+   prev=cur;cur=nx;path.push(nx);
+  }
+  m.path=path;
+  const idx=(r,c)=>path.findIndex(p=>p[0]===r&&p[1]===c);
+  let A=null,B=null;
+  m.art.forEach((row,r)=>[...row].forEach((ch,c)=>{if(ch==='A')A=[r,c];if(ch==='B')B=[r,c]}));
+  const sc=[];let p=A,seen=new Set();
+  for(let guard=0;guard<30;guard++){
+   const nx=nb(...p).find(([y,x])=>at(y,x)==='+'&&!seen.has(y+','+x));
+   if(!nx)break;seen.add(nx.join());sc.push(nx);p=nx;
+  }
+  m.sc=sc;m.gA=idx(...A);m.gB=idx(...B);
+  const L=path.length,cells=path.map(()=>null);
+  cells[0]={t:'start'};cells[m.gA]={t:'gate'};cells[m.gB]={t:'gate'};
+  const place=(f,obj)=>{let i=Math.round(L*f)%L;for(let k=0;k<L;k++){const j=(i+(k%2?1:-1)*Math.ceil(k/2)+L)%L;if(!cells[j]){cells[j]=obj;return}}};
+  place(.4,{t:'idol'});
+  [.13,.5,.8].forEach(f=>place(f,{t:'ward'}));
+  [.3,.64,.93].forEach((f,k)=>place(f,{t:'spot',s:k}));
+  [.21,.57,.87].forEach(f=>place(f,{t:'chance'}));
+  let v=0;m.cells=cells.map(c=>c||{t:'word',v:(v++)%4});
+  m.empty=[];m.art.forEach((row,r)=>[...row].forEach((ch,c)=>{if(ch==='.')m.empty.push([r,c])}));
+ });
 })();
-function coord(i){ if(i<10)return[0,i]; if(i<19)return[i-9,9]; if(i<28)return[9,27-i]; return[36-i,0]; }
+const MAP=()=>MAPS[cur().map];
+const ctr=([r,c])=>[c*10+5,r*10+5];
+
+/* ---- 地圖風景 ---- */
+const hash=(r,c,z)=>(((r+3)*73856093)^((c+7)*19349663)^((z+1)*83492791))>>>0;
+const D={
+ candy:(x,y)=>`<path d="M${x-2.4} ${y} l-2 -1.6 v3.2z M${x+2.4} ${y} l2 -1.6 v3.2z" fill="#FFD23F"/><circle cx="${x}" cy="${y}" r="2.4" fill="#FF8FBF"/><path d="M${x-1.2} ${y-.8} q1.2 -1 2.4 0 q-1.2 1 -2.4 1.6" stroke="#fff" stroke-width=".6" fill="none"/>`,
+ lolly:(x,y)=>`<rect x="${x-.35}" y="${y}" width=".7" height="4" fill="#fff"/><circle cx="${x}" cy="${y-.6}" r="2.6" fill="#B79CFF"/><path d="M${x} ${y-.6} m-1.6 0 a1.6 1.6 0 1 1 1.6 1.6 a.9 .9 0 1 1 -.9 -.9" stroke="#fff" stroke-width=".55" fill="none"/>`,
+ donut:(x,y)=>`<circle cx="${x}" cy="${y}" r="2.9" fill="#E8B27A"/><circle cx="${x}" cy="${y-.2}" r="2.4" fill="#FF8FBF"/><circle cx="${x}" cy="${y}" r=".9" fill="#FFD7E8"/><g stroke-width=".45" stroke-linecap="round"><path d="M${x-1.6} ${y-1} l.6 .3" stroke="#fff"/><path d="M${x+1} ${y-1.6} l.4 .5" stroke="#FFD23F"/><path d="M${x+1.4} ${y+.6} l.6 -.2" stroke="#7EC8F0"/></g>`,
+ cupcake:(x,y)=>`<path d="M${x-2.2} ${y} L${x+2.2} ${y} L${x+1.5} ${y+3} L${x-1.5} ${y+3}Z" fill="#7EC8F0"/><circle cx="${x-1.2}" cy="${y-.4}" r="1.4" fill="#fff"/><circle cx="${x+1.2}" cy="${y-.4}" r="1.4" fill="#fff"/><circle cx="${x}" cy="${y-1.4}" r="1.6" fill="#fff"/><circle cx="${x}" cy="${y-3}" r=".8" fill="#F2557A"/>`,
+ star:(x,y)=>STARP(x,y,2.6,'#FFE066'),
+ spark:(x,y)=>`<path d="M${x} ${y-2.4} L${x+.6} ${y-.6} L${x+2.4} ${y} L${x+.6} ${y+.6} L${x} ${y+2.4} L${x-.6} ${y+.6} L${x-2.4} ${y} L${x-.6} ${y-.6}Z" fill="#fff"/>`,
+ note:(x,y)=>`<ellipse cx="${x-.8}" cy="${y+1.8}" rx="1.4" ry="1" fill="#FFB8D8" transform="rotate(-20 ${x-.8} ${y+1.8})"/><path d="M${x+.4} ${y+1.6} V${y-2.6} L${x+2.6} ${y-1.8}" stroke="#FFB8D8" stroke-width=".7" fill="none"/>`,
+ shell:(x,y)=>`<path d="M${x} ${y+2} L${x-2.6} ${y-.4} Q${x} ${y-3.4} ${x+2.6} ${y-.4}Z" fill="#FFB8C8"/><path d="M${x} ${y+2} L${x-1.2} ${y-1.6} M${x} ${y+2} L${x} ${y-2} M${x} ${y+2} L${x+1.2} ${y-1.6}" stroke="#fff" stroke-width=".4"/>`,
+ starfish:(x,y)=>STARP(x,y,2.8,'#FF8A5B'),
+ palm:(x,y)=>`<path d="M${x} ${y+3.6} Q${x+.8} ${y} ${x} ${y-2}" stroke="#A0703A" stroke-width="1" fill="none"/><g fill="#3FA34D"><path d="M${x} ${y-2} Q${x-3} ${y-3} ${x-3.6} ${y-.6} Q${x-2} ${y-2} ${x} ${y-2}Z"/><path d="M${x} ${y-2} Q${x+3} ${y-3} ${x+3.6} ${y-.6} Q${x+2} ${y-2} ${x} ${y-2}Z"/><path d="M${x} ${y-2} Q${x-.6} ${y-4.4} ${x+1.8} ${y-4.2} Q${x+.4} ${y-3.2} ${x} ${y-2}Z"/></g>`,
+ flowerP:(x,y)=>[0,1,2,3,4].map(k=>{const a=k*Math.PI*.4;return `<circle cx="${(x+1.4*Math.cos(a)).toFixed(1)}" cy="${(y+1.4*Math.sin(a)).toFixed(1)}" r="1.05" fill="#FF8FBF"/>`}).join('')+`<circle cx="${x}" cy="${y}" r=".8" fill="#FFD23F"/>`,
+ flowerY:(x,y)=>[0,1,2,3,4].map(k=>{const a=k*Math.PI*.4;return `<circle cx="${(x+1.4*Math.cos(a)).toFixed(1)}" cy="${(y+1.4*Math.sin(a)).toFixed(1)}" r="1.05" fill="#fff"/>`}).join('')+`<circle cx="${x}" cy="${y}" r=".8" fill="#FFB31F"/>`,
+ butterfly:(x,y)=>`<ellipse cx="${x-1.3}" cy="${y-.8}" rx="1.4" ry="1.7" fill="#B79CFF" transform="rotate(-25 ${x-1.3} ${y-.8})"/><ellipse cx="${x+1.3}" cy="${y-.8}" rx="1.4" ry="1.7" fill="#B79CFF" transform="rotate(25 ${x+1.3} ${y-.8})"/><ellipse cx="${x-1}" cy="${y+1}" rx="1" ry="1.2" fill="#FF8FBF"/><ellipse cx="${x+1}" cy="${y+1}" rx="1" ry="1.2" fill="#FF8FBF"/><rect x="${x-.25}" y="${y-1.6}" width=".5" height="3.6" rx=".25" fill="#5A2E57"/>`,
+ tree:(x,y)=>`<rect x="${x-.8}" y="${y}" width="1.6" height="3.6" fill="#A0703A"/><circle cx="${x}" cy="${y-1}" r="3.4" fill="#5DBB63"/><circle cx="${x-1.2}" cy="${y-1.8}" r=".7" fill="#FF8FBF"/><circle cx="${x+1.2}" cy="${y-.4}" r=".7" fill="#FF8FBF"/>`,
+ balloon:(x,y)=>`<path d="M${x} ${y+2} q.8 1.2 0 2.2" stroke="#93698F" stroke-width=".35" fill="none"/><ellipse cx="${x}" cy="${y-.6}" rx="2.1" ry="2.6" fill="#FF6FA8"/><ellipse cx="${x-.7}" cy="${y-1.6}" rx=".5" ry=".8" fill="#fff" opacity=".6"/>`,
+ balloon2:(x,y)=>`<path d="M${x} ${y+2} q-.8 1.2 0 2.2" stroke="#93698F" stroke-width=".35" fill="none"/><ellipse cx="${x}" cy="${y-.6}" rx="2.1" ry="2.6" fill="#9B7BFF"/><ellipse cx="${x-.7}" cy="${y-1.6}" rx=".5" ry=".8" fill="#fff" opacity=".6"/>`,
+ popcorn:(x,y)=>`<path d="M${x-2} ${y-.4} L${x+2} ${y-.4} L${x+1.4} ${y+3} L${x-1.4} ${y+3}Z" fill="#fff"/><path d="M${x-1} ${y-.4} L${x-.7} ${y+3} M${x+1} ${y-.4} L${x+.7} ${y+3}" stroke="#F2557A" stroke-width=".7"/><g fill="#FFF3C4"><circle cx="${x-1.2}" cy="${y-1}" r="1"/><circle cx="${x+.2}" cy="${y-1.6}" r="1.1"/><circle cx="${x+1.3}" cy="${y-.9}" r=".9"/></g>`,
+ flag:(x,y)=>`<path d="M${x-4} ${y-1.6} Q${x} ${y} ${x+4} ${y-1.6}" stroke="#93698F" stroke-width=".3" fill="none"/><path d="M${x-3} ${y-1.2} l.8 2.2 l.8 -2" fill="#FF6FA8"/><path d="M${x-.6} ${y-.8} l.7 2.2 l.8 -2.2" fill="#FFC93C"/><path d="M${x+1.8} ${y-1.1} l.8 2.1 l.8 -2.2" fill="#2EC4A0"/>`
+};
+const DECOR=[['candy','lolly','donut','cupcake'],['star','spark','note','star'],['shell','starfish','palm','flowerY'],['flowerP','butterfly','tree','flowerY'],['balloon','balloon2','popcorn','flag']];
+function centerpiece(z){
+ switch(z){
+  case 0:return `<path d="M14 34 q5 -3 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#A0603A" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>
+   <rect x="28" y="58" width="36" height="11" rx="2" fill="#FF8FBF"/><rect x="33" y="50" width="26" height="9" rx="2" fill="#FFF0F6"/><rect x="38" y="43" width="16" height="8" rx="2" fill="#FFB8D8"/>
+   <path d="M28 60 q3 3 6 0 t6 0 t6 0 t6 0 t6 0 t6 0" stroke="#fff" stroke-width="1.6" fill="none"/><path d="M33 52 q2.6 2.6 5.2 0 t5.2 0 t5.2 0 t5.2 0 t5.2 0" stroke="#FF8FBF" stroke-width="1.3" fill="none"/>
+   <rect x="45.4" y="37" width="1.2" height="6" fill="#B79CFF"/><path d="M46.6 37 l4 1.4 -4 1.4z" fill="#FF6FA8"/><circle cx="41" cy="42" r="1.4" fill="#F2557A"/><circle cx="51" cy="42" r="1.4" fill="#F2557A"/>`;
+  case 1:return `<g fill="#FFF4B8" opacity=".25"><path d="M20 0 L30 0 L42 66 L26 66Z"/><path d="M70 0 L80 0 L74 66 L58 66Z"/></g>
+   <circle cx="50" cy="35" r="8" fill="#FFE98A"/><circle cx="54" cy="32" r="7" fill="#5B4AA8"/>
+   <rect x="20" y="66" width="60" height="6" rx="1.5" fill="#FF8FBF"/><rect x="20" y="72" width="60" height="4" fill="#C2457F"/>
+   <path d="M20 60 Q24 66 20 72Z M80 60 Q76 66 80 72Z" fill="#C2457F"/><path d="M20 60 L80 60" stroke="#FFE066" stroke-width="1.2" stroke-dasharray="1.2 1.4"/>`;
+  case 2:return `<circle cx="44" cy="25" r="7" fill="#FFC93C"/><g stroke="#FFC93C" stroke-width="1.4" stroke-linecap="round">${[0,1,2,3,4,5,6,7].map(k=>{const a=k*Math.PI/4;return `<path d="M${(44+10*Math.cos(a)).toFixed(1)} ${(25+10*Math.sin(a)).toFixed(1)} L${(44+13*Math.cos(a)).toFixed(1)} ${(25+13*Math.sin(a)).toFixed(1)}"/>`}).join('')}</g>
+   <path d="M60 37 L62 22" stroke="#fff" stroke-width="1"/><path d="M52 25 Q62 14 72 25Z" fill="#FF6FA8"/><path d="M57 25 Q62 14 67 25" fill="#fff" opacity=".7"/>
+   <ellipse cx="45" cy="64" rx="20" ry="9" fill="#7FCDF2"/><path d="M30 63 q3 -2 6 0 t6 0 M46 66 q3 -2 6 0 t6 0" stroke="#fff" stroke-width="1" fill="none"/>
+   <path d="M25 38 L25 32 L27 32 L27 34 L29 34 L29 32 L31 32 L31 38Z" fill="#F3D9A0"/>`;
+  case 3:return `<path d="M20 52 L28 44 L36 52Z" fill="#FF8FBF"/><rect x="21.5" y="52" width="13" height="11" fill="#FFF4E0"/><rect x="26" y="56" width="4" height="7" rx="1" fill="#A0703A"/><circle cx="31.5" cy="55" r="1.4" fill="#8FD3FF"/>
+   <ellipse cx="66" cy="55" rx="11" ry="6" fill="#8CCB6E"/>${[[60,54,'#FF8FBF'],[65,52,'#FFE066'],[70,55,'#B79CFF'],[63,58,'#fff'],[72,52,'#FF8FBF'],[68,58,'#FFE066']].map(([x,y,c])=>`<circle cx="${x}" cy="${y}" r="1.7" fill="${c}"/>`).join('')}`;
+  case 4:{const cab=['#FF6FA8','#FFC93C','#2EC4A0','#5DB8E8','#9B7BFF','#FF8A5B','#FF6FA8','#FFC93C'];
+   return `<path d="M50 50 L38 84 M50 50 L62 84" stroke="#C97B55" stroke-width="2"/><circle cx="50" cy="50" r="24" fill="none" stroke="#fff" stroke-width="2"/><circle cx="50" cy="50" r="24" fill="none" stroke="#E0905F" stroke-width=".8"/>
+   ${cab.map((c,k)=>{const a=k*Math.PI/4;const x=(50+24*Math.cos(a)).toFixed(1),y=(50+24*Math.sin(a)).toFixed(1);return `<path d="M50 50 L${x} ${y}" stroke="#fff" stroke-width=".8"/><rect x="${x-2.6}" y="${+y}" width="5.2" height="4.4" rx="1.4" fill="${c}"/>`}).join('')}<circle cx="50" cy="50" r="2.4" fill="#FF6FA8"/>`}
+ }
+}
+function sceneSVG(m,uid,opt={}){
+ const z=m.idol,pts=m.path.map(p=>ctr(p).join(',')).join(' ');
+ let dec='';
+ m.empty.forEach(([r,c])=>{const h=hash(r,c,z);if(h%100<58){const kind=DECOR[z][h%4],[x,y]=ctr([r,c]);dec+=D[kind](x+((h>>4)%5-2)*.6,y+((h>>7)%5-2)*.6)}});
+ const sc=[m.path[m.gA],...m.sc,m.path[m.gB]].map(p=>ctr(p).join(',')).join(' ');
+ const dots=opt.dots?m.path.map((p,i)=>{const[x,y]=ctr(p);return `<circle cx="${x}" cy="${y}" r="${i===0?3:2.2}" fill="${i===0?'#FF6FA8':'#fff'}" stroke="${m.edge}" stroke-width=".6"/>`}).join(''):'';
+ return `<defs><linearGradient id="bg${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${m.bg[0]}"/><stop offset="1" stop-color="${m.bg[1]}"/></linearGradient></defs>
+ <rect width="100" height="100" fill="url(#bg${uid})"/>${centerpiece(z)}${dec}
+ <polyline points="${sc}" fill="none" stroke="${m.edge}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity=".3"/>
+ <polyline points="${sc}" fill="none" stroke="${m.shortC}" stroke-width="3.8" stroke-dasharray="3 1.5" stroke-linecap="round" stroke-linejoin="round"/>
+ <polygon points="${pts}" fill="none" stroke="${m.edge}" stroke-width="8.6" stroke-linejoin="round" opacity=".55"/>
+ <polygon points="${pts}" fill="none" stroke="${m.road}" stroke-width="6.6" stroke-linejoin="round"/>${dots}`;
+}
 
 /* ================= 工具 ================= */
 const $=s=>document.querySelector(s);
@@ -1057,7 +1195,7 @@ const memStore={};
 function readSlot(n){let g=null;try{const s=localStorage.getItem(KEY+n);if(s)g=JSON.parse(s)}catch(e){}g=g||memStore[n]||null;return g?migrate(g):null}
 function writeSlot(n,g){memStore[n]=JSON.parse(JSON.stringify(g));try{localStorage.setItem(KEY+n,JSON.stringify(g));return true}catch(e){return false}}
 function delSlot(n){delete memStore[n];try{localStorage.removeItem(KEY+n)}catch(e){}}
-function newPlayer(name,k){return{name,color:PCOLORS[k],pos:0,coins:START,right:0,wrong:0,bridge:null,idols:[false,false,false,false,false],items:[],wear:IDOLS.map(()=>({}))}}
+function newPlayer(name,k){return{name,color:PCOLORS[k],pos:0,coins:START,right:0,wrong:0,bridge:null,idols:[false,false,false,false,false],pass:[true,false,false,false,false],map:HOME_MAP,items:[],wear:IDOLS.map(()=>({}))}}
 function migrate(g){
  g.players.forEach((p,k)=>{
   if(!p.idols)p.idols=IDOLS.map((_,i)=>!!(g.idolOwner&&g.idolOwner[i]===k));
@@ -1126,62 +1264,69 @@ $('#btnStart').onclick=()=>{
 /* ================= 遊戲 ================= */
 let G=null,busy=false;
 function startGame(){
- busy=false;G.players.forEach(p=>{p.bridge=null;p.pos=(p.pos||0)%N});G.last=(G.last||0)%N;
+ busy=false;
+ G.players.forEach(p=>{
+  p.bridge=null;
+  if(!p.pass)p.pass=IDOLS.map((_,i)=>i===HOME_MAP||!!p.idols[i]);
+  if(p.map==null||!MAPS[p.map]){p.map=HOME_MAP;p.pos=0;G.last=0}
+ });
+ const L=MAP().path.length;cur().pos=(cur().pos||0)%L;G.last=(G.last||0)%L;
  buildBoard();show('scrGame');render();
- setMsg(`輪到 <b>${esc(cur().name)}</b>，按「擲骰子」出發！`);
+ setMsg(`歡迎來到<b>${MAP().name}</b>！按「擲骰子」出發吧！`);
 }
 const cur=()=>G.players[G.cur];
 const wearOf=(p,i)=>p&&p.idols[i]?p.wear[i]:{};
 function setMsg(h){$('#msg').innerHTML=h}
 
+const pct=v=>v+'%';
 function buildBoard(){
- const b=$('#board');let h='';
- for(let i=0;i<N;i++){const[r,c]=coord(i);h+=`<div class="cell" id="c${i}" data-i="${i}" style="grid-row:${r+1};grid-column:${c+1}"></div>`}
- for(let c=1;c<=8;c++)h+=`<div class="bridge" id="b${c}" style="grid-row:6;grid-column:${c+1}"><div class="toks"></div></div>`;
- h+=`<div class="hub"><div class="logo">單字大富翁</div><div class="who" id="who"></div><div class="dicerow"><div class="dice" id="dice">${'<i></i>'.repeat(9)}</div><button class="btn pri" id="btnRoll">擲骰子</button></div></div>`;
- h+=`<div class="gallery" data-act="dress" title="打開換裝間"><div class="gt" id="galT"></div><div class="gl" id="gal"></div></div>`;
+ const m=MAP(),b=$('#board');
+ b.className='world';b.style.setProperty('--tile',m.tile);b.style.setProperty('--edge',m.edge);
+ let h=`<svg class="scene" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${sceneSVG(m,'B')}</svg>`;
+ m.sc.forEach((p,k)=>{const[x,y]=ctr(p);h+=`<div class="sc" id="s${k}" style="left:${pct(x)};top:${pct(y)}"><div class="toks"></div></div>`});
+ m.path.forEach((p,i)=>{const[r,c]=p;h+=`<div class="cell" id="c${i}" data-i="${i}" style="left:${pct(c*10+.9)};top:${pct(r*10+.9)}"></div>`});
  b.innerHTML=h;
+ $('#ctrl').innerHTML=`<button class="mapchip" data-act="world" title="換地圖" id="mapchip"></button>
+  <div class="who" id="who"></div>
+  <div class="dicebox"><div class="dice" id="dice">${'<i></i>'.repeat(9)}</div><button class="btn pri" id="btnRoll">擲骰子</button></div>
+  <div class="idolstrip" data-act="dress" title="打開換裝間" id="gal"></div>`;
  $('#btnRoll').onclick=onRoll;
  setDice(G.lastDice||1);
 }
 const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 function setDice(n){[...$('#dice').children].forEach((el,k)=>el.className=PIPS[n].includes(k)?'p':'')}
-function fitBoard(){const w=$('#boardWrap').clientWidth||360;const bw=Math.min(w,600,Math.max(300,(window.innerHeight||700)-230));document.documentElement.style.setProperty('--u',(bw/20)+'px')}
+function fitBoard(){const w=$('#boardWrap').clientWidth||360;const bw=Math.min(w,600,Math.max(300,(window.innerHeight||700)-250));document.documentElement.style.setProperty('--u',(bw/20)+'px')}
 window.addEventListener('resize',fitBoard);
 
 function cellInner(i){
- const c=CELL[i],p=cur();
+ const m=MAP(),c=m.cells[i],p=cur();
  switch(c.t){
   case 'start':return `<div class="cn" style="background:var(--pink)">GO</div>`;
-  case 'stage':return `<div class="cn" style="background:var(--lav)">舞</div>`;
-  case 'sweet':return `<div class="cn" style="background:#FF8A5B">甜</div>`;
-  case 'wish':return `<div class="cn" style="background:var(--mint)">願</div>`;
+  case 'spot':{const s=m.spots[c.s];return `<div class="cn" style="background:${s.c}">${s.ic}</div>`}
   case 'gate':return gateSVG;
   case 'chance':return starSVG;
-  case 'idol':return idolSVG(c.idol,wearOf(p,c.idol),{view:'head',cls:'ico'})+(p.idols[c.idol]?`<span class="own" style="background:${p.color}"></span>`:'');
-  case 'ward':return dressIcon(IDOLS[c.idol].color);
+  case 'idol':return idolSVG(m.idol,wearOf(p,m.idol),{view:'head',cls:'ico'})+(p.idols[m.idol]?`<span class="own" style="background:${p.color}"></span>`:'');
+  case 'ward':return dressIcon(IDOLS[m.idol].color);
   default:return `<span class="abc">Ab</span>`;
  }
 }
 function render(){
- const at={};
- G.players.forEach((p,k)=>{const key=p.bridge!=null?'b'+p.bridge:'c'+p.pos;(at[key]=at[key]||[]).push(k)});
- const tok=k=>`<span class="tok${k===G.cur?' me':''}" style="background:${G.players[k].color}" title="${esc(G.players[k].name)}"></span>`;
- for(let i=0;i<N;i++){
-  const el=$('#c'+i),c=CELL[i];
-  el.className='cell'+(c.t==='word'?' w'+c.v:'')+(i===G.last?' here':'');
-  el.innerHTML=cellInner(i)+`<div class="toks">${(at['c'+i]||[]).map(tok).join('')}</div>`;
- }
- for(let c=1;c<=8;c++)$('#b'+c).firstElementChild.innerHTML=(at['b'+c]||[]).map(tok).join('');
- const p=cur();
- $('#who').innerHTML=`<span class="dot" style="background:${p.color}"></span>${esc(p.name)}・★ ${p.coins}`;
+ const p=cur(),m=MAP();
+ const tok=`<span class="tok me" style="background-color:${p.color}"></span>`;
+ m.path.forEach((_,i)=>{
+  const el=$('#c'+i),c=m.cells[i];
+  el.className='cell t-'+c.t+(c.t==='word'?' w'+c.v:'')+(i===G.last?' here':'');
+  el.innerHTML=cellInner(i)+`<div class="toks">${p.bridge==null&&p.pos===i?tok:''}</div>`;
+ });
+ m.sc.forEach((_,k)=>{$('#s'+k).firstElementChild.innerHTML=p.bridge===k?tok:''});
+ $('#mapchip').innerHTML=`${idolSVG(m.idol,wearOf(p,m.idol),{view:'head'})}<span>${m.name}</span><b>▾</b>`;
+ $('#who').innerHTML=`${esc(p.name)}<br><b>★ ${p.coins}</b>`;
  $('#btnRoll').disabled=busy;
- $('#galT').textContent=`${p.name} 的星星女孩・收集 ${p.items.length}/${TOTAL}・點我換裝`;
- $('#gal').innerHTML=IDOLS.map((d,i)=>`<div class="gm${p.idols[i]?'':' locked'}">${idolSVG(i,wearOf(p,i))}<div class="n" style="color:${d.color}">${p.idols[i]?d.name:'？？'}</div></div>`).join('');
- $('#gTitle').innerHTML=`${partName(G.part)}・${LEVELS[G.level]}<small>存檔 ${G.slot}・第 ${G.round} 回合・答對 +${REWARD[G.level]}</small>`;
+ $('#gal').innerHTML=IDOLS.map((d,i)=>`<span class="${p.idols[i]?'':'locked'}">${idolSVG(i,wearOf(p,i),{view:'head'})}</span>`).join('');
+ $('#gTitle').innerHTML=`${m.name}・${LEVELS[G.level]}<small>${partName(G.part)}・存檔 ${G.slot}・第 ${G.round} 回合・答對 +${REWARD[G.level]}</small>`;
  $('#players').innerHTML=G.players.map((q,k)=>{
   const n=q.idols.filter(Boolean).length;
-  return `<div class="pc${k===G.cur?' cur':''}"><div class="nm"><span class="dot" style="background:${q.color}"></span>${esc(q.name)}</div>
+  return `<div class="pc cur"><div class="nm"><span class="dot" style="background:${q.color}"></span>${esc(q.name)}</div>
   <div class="coins"><span>★</span> ${q.coins}</div>
   <div class="mini">${n?IDOLS.map((_,i)=>q.idols[i]?idolSVG(i,q.wear[i],{view:'head'}):'').join(''):'<small>還沒有團員</small>'}</div>
   <small>收集 ${q.items.length}/${TOTAL}・答對 ${q.right}・答錯 ${q.wrong}</small>
@@ -1189,21 +1334,37 @@ function render(){
  renderRunners();
 }
 
-/* 點格子看說明 */
 $('#board').addEventListener('click',e=>{const el=e.target.closest('.cell');if(!el)return;toast(cellInfo(+el.dataset.i))});
 function cellInfo(i){
- const c=CELL[i],p=cur();
+ const m=MAP(),c=m.cells[i],p=cur(),d=IDOLS[m.idol];
  switch(c.t){
   case 'start':return `起點：每次經過拿 ${BONUS_START} 星星幣`;
-  case 'stage':return '閃亮舞台：上台表演拿獎勵';
-  case 'sweet':return '甜點店：老闆會送你小禮物';
-  case 'wish':return '許願池：隨機拿到星星幣';
-  case 'gate':return '彩虹捷徑：剛好停在這格，可以選擇穿越到另一邊';
+  case 'spot':{const s=m.spots[c.s];return `${s.n}：${s.d?`可以拿 ${s.d} 星星幣`:'會有隨機獎勵'}`}
+  case 'gate':return `${m.short}：剛好停在這格，可以選擇要不要走捷徑`;
   case 'chance':return '幸運星：抽一張驚喜卡';
-  case 'idol':{const d=IDOLS[c.idol];return p.idols[c.idol]?`${d.name}：已經是你的團員了`:`${d.name}：花 ${IDOL_PRICE} 收集她`}
-  case 'ward':{const d=IDOLS[c.idol];return p.idols[c.idol]?`${d.name}的衣櫃：花 ${BAG_PRICE} 開福袋，拿 ${BAG_N} 件新衣服`:`${d.name}的衣櫃：要先收集 ${d.name} 才能打開`}
-  default:return `單字格：答對拿 ${REWARD[G.level]} 星星幣，還有機會拿到新衣服`;
+  case 'idol':return p.idols[m.idol]?`${d.name}：已經是你的團員了`:`${d.name}：花 ${IDOL_PRICE} 邀請她加入`;
+  case 'ward':return p.idols[m.idol]?`${d.name}的衣櫃：花 ${BAG_PRICE} 開福袋，拿 ${BAG_N} 件她的新衣服`:`${d.name}的衣櫃：要先邀請 ${d.name} 加入才能打開`;
+  default:return `單字格：答對拿 ${REWARD[G.level]} 星星幣，還有機會拿到${d.name}的新衣服`;
  }
+}
+
+/* ---------- 世界地圖 ---------- */
+async function openWorld(){
+ const p=cur();
+ const v=await openModal(`<h3>世界地圖</h3><p>每位團員都住在自己的地圖，<br>她的衣服和髮型只有在她的地圖才拿得到喔！</p>
+ <div class="wm">${MAPS.map((m,k)=>{const d=IDOLS[m.idol],here=k===p.map,open=p.pass[k],can=p.coins>=PASS_PRICE;
+  return `<button data-v="M${k}" class="${here?'here':''}${open?'':' lock'}" ${!open&&!can?'disabled':''}>
+   <div class="pv"><svg viewBox="0 0 100 100" aria-hidden="true">${sceneSVG(m,'W'+k,{dots:true})}</svg>${open?'':'<span class="lk">未解鎖</span>'}<span class="who-ic">${idolSVG(m.idol,wearOf(p,m.idol),{view:'head'})}</span></div>
+   <div class="wi"><b style="color:${d.color}">${m.name}</b><small>${d.name}的衣服 ${countOf(p,m.idol)}/${PER_IDOL}</small>
+   <span class="st">${here?'你在這裡':open?'前往':can?`花 ${PASS_PRICE} 解鎖`:`需要 ${PASS_PRICE} 星星幣`}</span></div></button>`}).join('')}</div>
+ <div class="m-btns"><button class="btn" data-v="x">關閉</button></div>`,true);
+ if(!v||v[0]!=='M')return;
+ const k=+v.slice(1);if(k===p.map)return;
+ if(!p.pass[k]){if(p.coins<PASS_PRICE)return;add(p,-PASS_PRICE);p.pass[k]=true;toast(`解鎖${MAPS[k].name}！`)}
+ p.map=k;p.pos=0;p.bridge=null;G.last=0;
+ buildBoard();fitBoard();render();save(true);
+ const d=IDOLS[MAPS[k].idol];
+ setMsg(`來到<b>${MAPS[k].name}</b>了！${p.idols[MAPS[k].idol]?`可以幫${d.name}收集新衣服囉。`:`找到${d.name}的格子，邀請她加入吧！`}`);
 }
 
 /* ---------- 擲骰子 & 移動 ---------- */
@@ -1219,9 +1380,9 @@ async function onRoll(){
  await finishTurn();
 }
 async function moveSteps(n){
- const p=cur();
+ const p=cur(),L=MAP().path.length;
  for(let s=0;s<n;s++){
-  p.pos=(p.pos+1)%N;G.last=p.pos;
+  p.pos=(p.pos+1)%L;G.last=p.pos;
   if(p.pos===0){p.coins+=BONUS_START;toast(`經過起點 +${BONUS_START} 星星幣`)}
   render();await sleep(230);
  }
@@ -1240,11 +1401,7 @@ function grant(p,i,count){
  const locked=shuffle(lockedAt(p,i));
  const got=locked.slice(0,count);p.items.push(...got);return got;
 }
-function grantRandom(p,count){
- const pool=IDOLS.map((_,i)=>i).filter(i=>p.idols[i]&&lockedAt(p,i).length);
- if(!pool.length)return[];
- return grant(p,pick(pool),count);
-}
+function grantHere(p,count){const i=MAP().idol;return p.idols[i]&&lockedAt(p,i).length?grant(p,i,count):[]}
 const countOf=(p,i)=>p.items.filter(k=>+k[0]===i).length;
 async function showGifts(p,keys,title){
  const v=await openModal(`<h3>${title}</h3><div class="gifts">${keys.map(k=>`<div class="gift">${itemThumb(k)}<span>${IDOLS[+k[0]].name}的<br>${esc(spec(k).name)}</span></div>`).join('')}</div>
@@ -1257,23 +1414,24 @@ async function showGifts(p,keys,title){
 const add=(p,n)=>{p.coins=Math.max(0,p.coins+n)};
 const bigCircle=(bg,t)=>`<div style="background:${bg};width:90px;height:90px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:44px;font-weight:900">${t}</div>`;
 async function landOn(){
- const p=cur(),i=p.pos,c=CELL[i];
+ const p=cur(),m=MAP(),c=m.cells[p.pos],d=IDOLS[m.idol];
  switch(c.t){
   case 'word':{
    const w=nextWord();const ok=await quiz(w);
    if(ok){
     add(p,REWARD[G.level]);p.right++;setMsg(`答對了！<b>${esc(p.name)}</b> 拿到 ${REWARD[G.level]} 星星幣`);
-    if(Math.random()<.3){const g=grantRandom(p,1);if(g.length){render();await showGifts(p,g,'答對加碼！拿到新衣服')}}
+    if(Math.random()<.3){const g=grantHere(p,1);if(g.length){render();await showGifts(p,g,`答對加碼！${d.name}送你新衣服`)}}
    }else{p.wrong++;addMissed(w);setMsg(`「${esc(w.en)}」放進錯字本了，下次一定會！`)}
    break}
-  case 'idol':await onIdol(p,c.idol);break;
-  case 'ward':await onWard(p,c.idol);break;
+  case 'idol':await onIdol(p,m.idol);break;
+  case 'ward':await onWard(p,m.idol);break;
   case 'chance':await onChance(p);break;
-  case 'gate':await onGate(p,i);break;
-  case 'start':setMsg(`回到起點啦！`);break;
-  case 'stage':add(p,80);await choice({art:bigCircle('var(--lav)','舞'),title:'閃亮舞台',body:'你上台唱了一首英文歌，大家都在拍手！<br><b>+80 星星幣</b>',btns:[{t:'好開心',v:'ok',cls:'pri'}]});setMsg('在舞台上表演 +80');break;
-  case 'sweet':add(p,30);await choice({art:bigCircle('#FF8A5B','甜'),title:'甜點店',body:'老闆送你一塊草莓蛋糕，還找你零錢！<br><b>+30 星星幣</b>',btns:[{t:'謝謝老闆',v:'ok',cls:'pri'}]});setMsg('甜點店 +30');break;
-  case 'wish':{const n=(2+rnd(11))*10;add(p,n);await choice({art:bigCircle('var(--mint)','願'),title:'許願池',body:`丟一顆硬幣許願……願望實現了！<br><b>+${n} 星星幣</b>`,btns:[{t:'耶！',v:'ok',cls:'pri'}]});setMsg(`許願池 +${n}`);break}
+  case 'gate':await onGate(p);break;
+  case 'start':setMsg('回到起點啦！');break;
+  case 'spot':{
+   const s=m.spots[c.s],n=s.d||(2+rnd(11))*10;add(p,n);
+   await choice({art:bigCircle(s.c,s.ic),title:s.n,body:`${s.txt}<br><b>+${n} 星星幣</b>`,btns:[{t:'好開心',v:'ok',cls:'pri'}]});
+   setMsg(`${s.n} +${n}`);break}
  }
  render();
 }
@@ -1311,21 +1469,22 @@ const CHANCE=[
 ];
 async function onChance(p){
  let e=pick(CHANCE);
- if(e.item&&!p.idols.some(Boolean))e={t:'粉絲寄來一張卡片和零用錢',d:60};
- if(e.item){const g=grantRandom(p,1);if(g.length){setMsg(`幸運星：${e.t}`);render();await showGifts(p,g,'幸運星：'+e.t);return}e={t:'這個關卡的衣服都收齊了，改送你零用錢',d:60}}
+ if(e.item&&!p.idols[MAP().idol])e={t:'粉絲寄來一張卡片和零用錢',d:60};
+ if(e.item){const g=grantHere(p,1);if(g.length){setMsg(`幸運星：${e.t}`);render();await showGifts(p,g,'幸運星：'+e.t);return}e={t:'這裡的衣服這個關卡都收齊了，改送你零用錢',d:60}}
  const body=e.extra||e.move?e.t:`${e.t}<br><b>${e.d>0?'+':''}${e.d} 星星幣</b>`;
  await choice({art:`<div class="m-art">${starSVG.replace('class="ico"','')}</div>`,title:'幸運星',body,btns:[{t:'好！',v:'ok',cls:'pri'}]});
  if(e.d){add(p,e.d);setMsg(`幸運星：${e.t}`)}
  if(e.extra){G.extra=true;setMsg('幸運星：再擲一次！')}
  if(e.move){await moveSteps(e.move);await landOn()}
 }
-async function onGate(p,i){
- const v=await choice({art:`<div class="m-art">${gateSVG.replace('class="ico"','')}</div>`,title:'彩虹捷徑',body:i===GATE_L?'要走彩虹橋，穿越到地圖右邊嗎？':'要走彩虹橋，穿越到地圖左邊嗎？',btns:[{t:'穿越！',v:'y',cls:'pri'},{t:'留在這裡',v:'n'}]});
+async function onGate(p){
+ const m=MAP(),fromA=p.pos===m.gA;
+ const v=await choice({art:`<div class="m-art">${gateSVG.replace('class="ico"','')}</div>`,title:m.short,body:`要走${m.short}，直接穿過去地圖另一邊嗎？`,btns:[{t:'走捷徑！',v:'y',cls:'pri'},{t:'留在這裡',v:'n'}]});
  if(v!=='y'){setMsg('決定留在原地');return}
- const cols=i===GATE_L?[...Array(8)].map((_,k)=>k+1):[...Array(8)].map((_,k)=>8-k);
- for(const c of cols){p.bridge=c;render();await sleep(80)}
- p.bridge=null;p.pos=i===GATE_L?GATE_R:GATE_L;G.last=p.pos;render();
- setMsg(`<b>${esc(p.name)}</b> 走過彩虹橋，到了另一邊！`);
+ const order=fromA?m.sc.map((_,k)=>k):m.sc.map((_,k)=>m.sc.length-1-k);
+ for(const k of order){p.bridge=k;render();await sleep(130)}
+ p.bridge=null;p.pos=fromA?m.gB:m.gA;G.last=p.pos;render();
+ setMsg(`咻！走${m.short}到了另一邊！`);
 }
 
 /* ---------- 對話框 ---------- */
@@ -1414,7 +1573,7 @@ function drawBook(){
  <div class="lvsum">${[0,1,2,3].map(l=>`<div class="${l===G.level?'on':''}">${lvTag(l)}<span>${p.items.filter(k=>LV_OF[k]===l).length}/${LV_TOTAL[l]}</span></div>`).join('')}</div>
  <small style="color:var(--soft)">每個關卡只能拿到自己那一份，要四個關卡都玩才能全部收齊喔！</small>
  ${idolTabs}
- ${p.idols[i]?'':`<div class="bk-note">還沒收集 ${d.name}，先在地圖上邀請她加入，才能打開她的衣櫃喔！</div>`}
+ ${p.idols[i]?'':`<div class="bk-note">還沒收集 ${d.name}，先去「${MAPS[i].name}」邀請她加入，才能打開她的衣櫃喔！</div>`}
  ${filt}
  <div class="bk-list">${secs}</div>
  <div class="m-btns">${p.idols[i]?`<button class="btn alt" data-bdress="1">幫${d.name}換裝</button>`:''}<button class="btn pri" data-v="ok">關閉</button></div>`;
@@ -1539,13 +1698,14 @@ setInterval(()=>{
 
 /* ---------- 其他按鈕 ---------- */
 function rulesHtml(){return `<h3>遊戲規則</h3><div class="rules">
- <div><b>出發：</b>每人先有 ${START} 星星幣，輪流擲骰子在地圖外圈走。經過起點拿 ${BONUS_START}。</div>
+ <div><b>出發：</b>一開始有 ${START} 星星幣，從甜點王國出發，擲骰子沿著路走。經過起點拿 ${BONUS_START}。</div>
+ <div><b>五張主題地圖：</b>甜點王國（糖糖）、星空舞台（月月）、陽光海灘（小陽）、花園森林（薄荷）、遊樂園（可可）。按「世界地圖」花 ${PASS_PRICE} 解鎖新地圖，解鎖後可以隨時來回。</div>
  <div><b>Ab 單字格：</b>看中文拼英文，答對就賺錢，還有機會拿到新衣服。小朋友填 1/3、普通人填一半、有一點厲害的人整個字自己拼、超級厲害的人要在英文句子裡填空。</div>
- <div><b>星星女孩：</b>停在團員格，花 ${IDOL_PRICE} 收集她，把五位團員都找齊吧！</div>
+ <div><b>星星女孩：</b>每位團員住在自己的地圖，停在她的格子花 ${IDOL_PRICE} 邀請她加入。她的衣服和髮型只有在她的地圖才拿得到！</div>
  <div><b>衣櫃：</b>收集到團員後，停在她的衣櫃可以花 ${BAG_PRICE} 開福袋，拿到 ${BAG_N} 件新寶物。每位團員有套裝、頭飾、上衣、褲子、裙子、外套、鞋子共 60 件衣服，加上 10 個髮型，五位加起來 300 件衣服和 50 個髮型！</div>
- <div><b>換裝間：</b>隨時按上面的「換裝間」或點地圖中間的團員，就能幫她換衣服和髮型。</div>
- <div><b>彩虹捷徑：</b>左右兩邊各有一個彩虹門，<u>剛好停在那一格</u>才可以選擇要不要走彩虹橋穿越到另一邊。</div>
- <div><b>幸運星和四個角落：</b>會有驚喜！</div>
+ <div><b>換裝間：</b>隨時按上面的「換裝間」或地圖下方的團員頭像，就能幫她換衣服和髮型。</div>
+ <div><b>捷徑：</b>每張地圖都有一條捷徑（彩虹糖橋、流星滑梯、香蕉船、藤蔓鞦韆、雲霄飛車），<u>剛好停在捷徑入口</u>才可以選擇要不要走。</div>
+ <div><b>景點和幸運星：</b>每張地圖有三個特色景點，停上去會有驚喜！</div>
  <div><b>關卡收集：</b>衣服和髮型平均分給四個關卡，每個關卡只能拿到自己那一份。按「換關卡」可以隨時切換，四個關卡都要玩才能全部收齊！</div>
  <div><b>目標：</b>全部 ${TOTAL} 件收齊就是造型大師！</div>
  <div><b>存檔：</b>每走完一回合會自動存檔，在主選單可以繼續玩。</div></div>
@@ -1559,6 +1719,7 @@ document.addEventListener('click',e=>{
  const act=a.dataset.act;
  if(act==='rules'&&!modalResolve)openModal(rulesHtml());
  if(act==='missed'&&!modalResolve)openModal(missedHtml());
+ if(act==='world'){if(busy||modalResolve){toast('等這一步走完再換地圖喔');return}openWorld()}
  if(act==='dress'){if(busy||modalResolve){toast('等這一步走完再換裝喔');return}openDress(G.cur)}
  if(act==='book'){if(busy||modalResolve){toast('等這一步走完再看收集冊喔');return}openBook()}
  if(act==='level'){if(busy||modalResolve){toast('等這一步走完再換關卡喔');return}openLevel()}
