@@ -249,6 +249,44 @@ h1,h2,h3{margin:0;text-wrap:balance}
 #musicBtn{position:fixed;right:16px;bottom:calc(126px + env(safe-area-inset-bottom,0px));z-index:6;width:48px;height:48px;border-radius:50%;border:0;background:var(--paper);box-shadow:0 3px 0 var(--line),0 0 0 2px var(--line) inset;font-size:22px;font-weight:900;color:var(--pink);display:grid;place-items:center}
 #musicBtn.off{color:var(--soft);opacity:.75}
 #musicBtn.off::after{content:"";position:absolute;width:30px;height:3px;background:var(--soft);border-radius:2px;transform:rotate(-45deg)}
+
+/* ---------- themed maps ---------- */
+#board.world{display:block;position:relative;padding:0;gap:0;background:var(--paper);border-radius:calc(var(--u)*1.2)}
+#board.world .scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+#board.world .cell{position:absolute;width:8.2%;height:8.2%;border-radius:26%;background:var(--tile);box-shadow:0 2px 0 var(--edge),0 0 0 1.5px var(--edge) inset;overflow:visible}
+#board.world .cell.w0{background:#FFF1F6}#board.world .cell.w1{background:#F1F6FF}#board.world .cell.w2{background:#F0FBF3}#board.world .cell.w3{background:#FFF9E6}
+#board.world .cell .ico{width:82%;height:82%}
+#board.world .cell.here{box-shadow:0 0 0 calc(var(--u)*.16) #fff,0 0 0 calc(var(--u)*.3) var(--pink)}
+#board.world .cell .toks{inset:-12%}
+#board.world .tok{background:var(--blue) radial-gradient(circle at 35% 30%,#8FC3FF 0 22%,transparent 24%);border:3px solid #fff;box-shadow:0 2px 4px rgba(30,47,85,.5)}
+#board.world .tok.me{width:calc(var(--u)*1.05);height:calc(var(--u)*1.05)}
+#board.world .sc{position:absolute;width:4%;height:4%;transform:translate(-50%,-50%);border-radius:50%}
+#board.world .sc .toks{position:absolute;inset:-60%;display:grid;place-items:center;padding:0}
+#ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;background:var(--paper);border-radius:18px;padding:8px 12px;box-shadow:0 3px 0 var(--line)}
+.mapchip{display:flex;align-items:center;gap:6px;font-weight:900;font-size:16px;border:0;background:var(--pink2);color:var(--ink);border-radius:999px;padding:4px 14px 4px 4px;min-height:44px;cursor:pointer}
+.mapchip svg{width:34px;height:34px}
+.mapchip b{color:var(--soft);font-size:12px}
+#ctrl .who{font-weight:700;font-size:14px;line-height:1.3;text-align:center}
+#ctrl .who b{color:#D69A00;font-size:17px;font-variant-numeric:tabular-nums}
+.dicebox{display:flex;align-items:center;gap:8px}
+#ctrl .dice{width:50px;height:50px;padding:7px;border-radius:12px}
+#ctrl #btnRoll{font-size:18px;min-height:48px;padding:0 20px}
+.teamstrip{display:flex;gap:2px;align-items:center;cursor:pointer;background:var(--pink2);border-radius:14px;padding:2px 6px}
+.teamstrip .mon{width:38px;height:38px}
+.teamstrip .slotq{width:28px;height:28px;margin:5px;border-radius:50%;border:2px dashed var(--line);display:grid;place-items:center;color:var(--line);font-weight:900}
+.wm{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;width:100%}
+.wm button{border:3px solid var(--line);border-radius:18px;padding:0;overflow:hidden;background:#fff;display:flex;flex-direction:column;cursor:pointer;color:var(--ink);text-align:left}
+.wm button.here{border-color:var(--pink);box-shadow:0 0 0 2px var(--pink)}
+.wm button:disabled{cursor:not-allowed;opacity:.7}
+.wm .pv{position:relative}
+.wm .pv svg{width:100%;height:auto;display:block;aspect-ratio:1}
+.wm button.lock .pv svg{filter:grayscale(.8) brightness(1.05)}
+.wm .lk{position:absolute;inset:auto 8px 8px auto;background:rgba(30,47,85,.8);color:#fff;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+.wm .wi{display:flex;flex-direction:column;gap:2px;padding:8px 10px}
+.wm .wi b{font-size:16px}
+.wm .wi small{color:var(--soft)}
+.wm .st{align-self:flex-start;background:var(--pink2);border-radius:999px;padding:1px 10px;font-size:12px;font-weight:700;margin-top:2px}
+.wm button.here .st{background:var(--pink);color:#fff}
 </style>
 </head>
 <body>
@@ -310,6 +348,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
   <section id="scrGame" class="wrap" hidden>
     <div class="topbar">
       <div class="t" id="gTitle"></div>
+      <button class="btn sm dress" data-act="world">世界地圖</button>
       <button class="btn sm dress" data-act="team">我的隊伍</button>
       <button class="btn sm dress" data-act="book">怪獸圖鑑</button>
       <button class="btn sm" data-act="level">換關卡</button>
@@ -319,6 +358,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
       <button class="btn sm" data-act="home">主選單</button>
     </div>
     <div id="boardWrap"><div id="board"></div></div>
+    <div id="ctrl"></div>
     <div id="msg">擲骰子出發吧！</div>
     <div class="players" id="players"></div>
   </section>
@@ -946,29 +986,110 @@ const starSVG=`<svg class="ico" viewBox="0 0 24 24"><polygon points="12,2.5 14.8
 const gateSVG=`<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="#1E2F55"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#7ED957" stroke-width="2" stroke-dasharray="3 2"/><circle cx="12" cy="12" r="3" fill="#7ED957"/></svg>`;
 
 /* ================= 地圖 ================= */
-const N=36, START=100, PASS_PRICE=150, EGG_PRICE=100, EGG_N=2, BONUS_START=50, TEAM_MAX=5;
+const START=100, PASS_PRICE=150, EGG_PRICE=100, EGG_N=2, BONUS_START=50, TEAM_MAX=5, HOME_MAP=2;
 const REWARD=[30,50,80,120];
 const LEVELS=['小朋友','普通人','有一點厲害的人','超級厲害的人'];
 const PCOLOR='#2F7BEA';
-const GATE_L=31, GATE_R=14;
-const CELL=[];
+/* 每張地圖用 10×10 的字元圖畫路線：# 環狀路、A/B 捷徑兩端、+ 捷徑、. 風景 */
+const MAPS=[
+ {z:0,name:'火山地圖',start:[8,4],short:'熔岩橋',
+  art:['..####....','.##..###..','.#.....##.','##......#.','A+++++++B#','##.......#','.#.....###','.##...##..','..#####...','..........'],
+  bg:['#FFE9D2','#FFB37E'],road:'#7A4A33',edge:'#4E2B1C',tile:'#FFF6EE',shortC:'#FF7A2E',
+  spots:[{n:'熔岩溫泉',ic:'溫',c:'#FF6B35',d:60,txt:'泡個熔岩溫泉，隊員們都精神起來了！'},{n:'火焰訓練場',ic:'練',c:'#E84A3C',d:80,txt:'在火焰訓練場特訓，變得更強了！'},{n:'火山寶箱',ic:'寶',c:'#B8452A',d:0,txt:'在火山口旁邊找到一個燙燙的寶箱！'}]},
+ {z:1,name:'海洋地圖',start:[0,1],short:'浮木橋',
+  art:['####......','#..#..###.','#..####.#.','#.......#.','#A++++++B#','.#.......#','.#...###.#','.#####.#.#','.......###','..........'],
+  bg:['#D6F2FF','#7CC4F2'],road:'#E9CF98',edge:'#B8955A',tile:'#FFFFFF',shortC:'#A0703A',
+  spots:[{n:'珊瑚礁',ic:'珊',c:'#FF7FA0',d:60,txt:'在珊瑚礁潛水，看到好多漂亮的魚！'},{n:'燈塔',ic:'燈',c:'#3A6FE0',d:80,txt:'幫燈塔守衛修好大燈，他送你獎勵！'},{n:'海盜船',ic:'船',c:'#7A5230',d:0,txt:'登上海盜船，發現一箱金幣！'}]},
+ {z:2,name:'森林地圖',start:[8,2],short:'樹洞小路',
+  art:['.###.###..','.#.#.#.#..','##.#A#.##.','#...+...#.','#...+...##','##..+....#','.#..+....#','.#.#B#.###','.###.###..','..........'],
+  bg:['#E4F7D8','#9ED98A'],road:'#C9A574',edge:'#8C6A3E',tile:'#FFFDF5',shortC:'#4FA84A',
+  spots:[{n:'樹屋',ic:'屋',c:'#9C6B3E',d:60,txt:'爬上樹屋休息，看到整片森林！'},{n:'森林營火',ic:'營',c:'#FF8A1F',d:80,txt:'圍著營火烤棉花糖，大家都好開心！'},{n:'蘑菇小屋',ic:'菇',c:'#E84A6A',d:0,txt:'蘑菇小屋的老爺爺送你一個禮物袋！'}]},
+ {z:3,name:'雷雲地圖',start:[8,4],short:'閃電通道',
+  art:['###....###','#.##..##.#','#..####..#','#........#','###....###','..A++++B..','###....###','#........#','##########','..........'],
+  bg:['#ECEAFF','#A9A2EC'],road:'#5B5794',edge:'#38356B',tile:'#FFFFFF',shortC:'#FFD23F',
+  spots:[{n:'發電廠',ic:'電',c:'#F5B700',d:80,txt:'幫發電廠充滿電，廠長好感謝你！'},{n:'彩虹雲',ic:'虹',c:'#8A5CF0',d:60,txt:'坐在彩虹雲上看風景，好舒服！'},{n:'雲朵城堡',ic:'堡',c:'#5B5794',d:0,txt:'雲朵城堡的國王送你一份神秘禮物！'}]},
+ {z:4,name:'雪山地圖',start:[9,2],short:'滑雪道',
+  art:['...#A##...','..##+.##..','.##.+..##.','##..+...#.','#...+...##','####+....#','...#+.####','.###+.#...','.#..+.#...','.###B##...'],
+  bg:['#F5FBFF','#BFE2FA'],road:'#8FB6D9',edge:'#5E88B0',tile:'#FFFFFF',shortC:'#4CC3E6',
+  spots:[{n:'溫泉小屋',ic:'溫',c:'#FF8A5B',d:60,txt:'在溫泉小屋泡湯，全身暖呼呼！'},{n:'雪人村',ic:'雪',c:'#4CC3E6',d:80,txt:'幫雪人村堆了一個超大雪人！'},{n:'冰雪城堡',ic:'堡',c:'#5A9CE6',d:0,txt:'冰雪城堡的女王送你一顆冰晶寶石！'}]}
+];
 (function(){
- const passAt={2:0,7:1,13:2,22:3,29:4}, eggAt={4:0,11:1,20:2,25:3,33:4};
- const chance=[5,16,24];
- let k=0;
- for(let i=0;i<N;i++){
-  if(i===0)CELL[i]={t:'start'};
-  else if(i===9)CELL[i]={t:'arena'};
-  else if(i===18)CELL[i]={t:'supply'};
-  else if(i===27)CELL[i]={t:'chest'};
-  else if(i===GATE_L||i===GATE_R)CELL[i]={t:'gate'};
-  else if(i in passAt)CELL[i]={t:'pass',z:passAt[i]};
-  else if(i in eggAt)CELL[i]={t:'egg',z:eggAt[i]};
-  else if(chance.includes(i))CELL[i]={t:'chance'};
-  else CELL[i]={t:'word',v:(k++)%4};
- }
+ MAPS.forEach(m=>{
+  const at=(r,c)=>(m.art[r]||'')[c]||'.';
+  const isLoop=(r,c)=>'#AB'.includes(at(r,c));
+  const nb=(r,c)=>[[r,c+1],[r+1,c],[r,c-1],[r-1,c]];
+  const path=[m.start];let prev=null,cur=m.start;
+  for(let guard=0;guard<200;guard++){
+   const nx=nb(...cur).find(([y,x])=>isLoop(y,x)&&!(prev&&y===prev[0]&&x===prev[1]));
+   if(!nx||(nx[0]===m.start[0]&&nx[1]===m.start[1]))break;
+   prev=cur;cur=nx;path.push(nx);
+  }
+  m.path=path;
+  const idx=(r,c)=>path.findIndex(p=>p[0]===r&&p[1]===c);
+  let A=null,B=null;
+  m.art.forEach((row,r)=>[...row].forEach((ch,c)=>{if(ch==='A')A=[r,c];if(ch==='B')B=[r,c]}));
+  const sc=[];let p=A,seen=new Set();
+  for(let guard=0;guard<30;guard++){
+   const nx=nb(...p).find(([y,x])=>at(y,x)==='+'&&!seen.has(y+','+x));
+   if(!nx)break;seen.add(nx.join());sc.push(nx);p=nx;
+  }
+  m.sc=sc;m.gA=idx(...A);m.gB=idx(...B);
+  const L=path.length,cells=path.map(()=>null);
+  cells[0]={t:'start'};cells[m.gA]={t:'gate'};cells[m.gB]={t:'gate'};
+  const place=(f,obj)=>{let i=Math.round(L*f)%L;for(let k=0;k<L;k++){const j=(i+(k%2?1:-1)*Math.ceil(k/2)+L)%L;if(!cells[j]){cells[j]=obj;return}}};
+  [.13,.46,.79].forEach(f=>place(f,{t:'egg'}));
+  [.3,.63,.93].forEach((f,k)=>place(f,{t:'spot',s:k}));
+  [.21,.55,.86].forEach(f=>place(f,{t:'chance'}));
+  let v=0;m.cells=cells.map(c=>c||{t:'word',v:(v++)%4});
+  m.empty=[];m.art.forEach((row,r)=>[...row].forEach((ch,c)=>{if(ch==='.')m.empty.push([r,c])}));
+ });
 })();
-function coord(i){ if(i<10)return[0,i]; if(i<19)return[i-9,9]; if(i<28)return[9,27-i]; return[36-i,0]; }
+const MAP=()=>MAPS[cur().map];
+const ctr=([r,c])=>[c*10+5,r*10+5];
+
+/* ---- 地圖風景 ---- */
+const hash=(r,c,z)=>(((r+3)*73856093)^((c+7)*19349663)^((z+1)*83492791))>>>0;
+const D={
+ rock:(x,y,c)=>`<ellipse cx="${x}" cy="${y+1.5}" rx="3.6" ry="2.4" fill="${c}"/><ellipse cx="${x-1}" cy="${y+.8}" rx="1.4" ry=".7" fill="#fff" opacity=".25"/>`,
+ flame:(x,y)=>`<path d="M${x} ${y-4} Q${x+3.2} ${y-.5} ${x+2} ${y+2.4} Q${x} ${y+3.6} ${x-2} ${y+2.4} Q${x-3.2} ${y-.5} ${x} ${y-4}Z" fill="#FF8A1F"/><path d="M${x} ${y-1} Q${x+1.4} ${y+.8} ${x} ${y+2.6} Q${x-1.4} ${y+.8} ${x} ${y-1}Z" fill="#FFD23F"/>`,
+ wave:(x,y)=>`<path d="M${x-4.5} ${y} q2.2 -2.2 4.5 0 t4.5 0" stroke="#fff" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".8"/>`,
+ fish:(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="2.6" ry="1.6" fill="#FFB020"/><path d="M${x+2.2} ${y} l2 -1.6 v3.2z" fill="#FFB020"/><circle cx="${x-1.2}" cy="${y-.3}" r=".45" fill="#1E2440"/>`,
+ bubble:(x,y)=>`<circle cx="${x}" cy="${y}" r="1.4" fill="none" stroke="#fff" stroke-width=".6"/><circle cx="${x+2.4}" cy="${y-2.4}" r=".9" fill="none" stroke="#fff" stroke-width=".5"/>`,
+ tree:(x,y)=>`<rect x="${x-.8}" y="${y}" width="1.6" height="3.6" fill="#8C6A3E"/><circle cx="${x}" cy="${y-1}" r="3.4" fill="#3FA34D"/><circle cx="${x-1.4}" cy="${y-2}" r="1.6" fill="#6CC45A"/>`,
+ mush:(x,y)=>`<rect x="${x-.7}" y="${y}" width="1.4" height="2.4" rx=".5" fill="#FFF3E0"/><path d="M${x-3} ${y+.3} Q${x} ${y-4} ${x+3} ${y+.3}Z" fill="#E84A6A"/><circle cx="${x-1}" cy="${y-1.2}" r=".55" fill="#fff"/><circle cx="${x+1}" cy="${y-.6}" r=".45" fill="#fff"/>`,
+ flower:(x,y)=>[0,1,2,3,4].map(k=>{const a=k*Math.PI*.4;return `<circle cx="${(x+1.4*Math.cos(a)).toFixed(1)}" cy="${(y+1.4*Math.sin(a)).toFixed(1)}" r="1" fill="#FFF"/>`}).join('')+`<circle cx="${x}" cy="${y}" r=".8" fill="#FFD23F"/>`,
+ cloud:(x,y)=>`<g fill="#fff" opacity=".92"><circle cx="${x-2.4}" cy="${y+.6}" r="2.2"/><circle cx="${x}" cy="${y-.6}" r="3"/><circle cx="${x+2.6}" cy="${y+.6}" r="2.2"/><rect x="${x-4.6}" y="${y+.4}" width="9.4" height="2.4" rx="1.2"/></g>`,
+ bolt:(x,y)=>`<path d="M${x+.8} ${y-4} L${x-2} ${y+.4} L${x} ${y+.4} L${x-1} ${y+4} L${x+2.2} ${y-.8} L${x+.2} ${y-.8}Z" fill="#FFD23F" stroke="#C78A00" stroke-width=".4" stroke-linejoin="round"/>`,
+ spark:(x,y)=>`<path d="M${x} ${y-2.4} L${x+.6} ${y-.6} L${x+2.4} ${y} L${x+.6} ${y+.6} L${x} ${y+2.4} L${x-.6} ${y+.6} L${x-2.4} ${y} L${x-.6} ${y-.6}Z" fill="#fff"/>`,
+ pine:(x,y)=>`<rect x="${x-.6}" y="${y+2}" width="1.2" height="1.8" fill="#8C6A3E"/><path d="M${x} ${y-4} L${x+3} ${y+.4} L${x-3} ${y+.4}Z" fill="#2F8F6A"/><path d="M${x} ${y-2} L${x+3.6} ${y+2.6} L${x-3.6} ${y+2.6}Z" fill="#2F8F6A"/><path d="M${x} ${y-4} L${x+1.2} ${y-2.2} L${x-1.2} ${y-2.2}Z" fill="#fff"/>`,
+ flake:(x,y)=>`<g stroke="#fff" stroke-width=".7" stroke-linecap="round"><path d="M${x} ${y-2.2} V${y+2.2} M${x-1.9} ${y-1.1} L${x+1.9} ${y+1.1} M${x-1.9} ${y+1.1} L${x+1.9} ${y-1.1}"/></g>`,
+ snowman:(x,y)=>`<circle cx="${x}" cy="${y+1.6}" r="2.4" fill="#fff"/><circle cx="${x}" cy="${y-1.6}" r="1.7" fill="#fff"/><path d="M${x} ${y-1.4} l1.4 .4 -1.4 .3z" fill="#FF8A1F"/><circle cx="${x-.6}" cy="${y-2}" r=".3" fill="#1E2440"/><circle cx="${x+.5}" cy="${y-2}" r=".3" fill="#1E2440"/>`
+};
+const DECOR=[[ 'rock','flame','rock','flame'],['wave','fish','wave','bubble'],['tree','tree','mush','flower'],['cloud','bolt','spark','cloud'],['pine','flake','pine','snowman']];
+const ROCKC=['#8A4B2A','#A0603A'];
+function centerpiece(z){
+ switch(z){
+  case 0:return `<path d="M22 43 L42 17 L58 17 L78 43Z" fill="#8A4B2A"/><path d="M42 17 L58 17 L63 24 Q50 28 37 24Z" fill="#B85A30"/><ellipse cx="50" cy="17" rx="8" ry="2.4" fill="#FF6B35"/><path d="M46 17 Q45 24 43 27 M53 17 Q54 23 56 25" stroke="#FF6B35" stroke-width="1.8" fill="none" stroke-linecap="round"/><g fill="#9C8F99" opacity=".55"><circle cx="48" cy="10" r="3"/><circle cx="53" cy="6.5" r="2.4"/><circle cx="57" cy="3.5" r="1.8"/></g><ellipse cx="45" cy="64" rx="19" ry="8.5" fill="#FF7A2E"/><ellipse cx="45" cy="63" rx="13" ry="5" fill="#FFB020"/><circle cx="40" cy="62" r="1" fill="#FFF3B0"/><circle cx="51" cy="65" r=".8" fill="#FFF3B0"/>`;
+  case 1:return `<ellipse cx="45" cy="64" rx="15" ry="6.5" fill="#F6E1A6"/><ellipse cx="45" cy="65.5" rx="15" ry="3" fill="#E9CF98"/><path d="M47 63 Q48 54 45 49" stroke="#8C6A3E" stroke-width="1.6" fill="none"/><g fill="#3FA34D"><path d="M45 49 Q38 47 35 51 Q40 49 45 49Z"/><path d="M45 49 Q51 45 56 48 Q50 48 45 49Z"/><path d="M45 49 Q44 43 39 42 Q43 45 45 49Z"/><path d="M45 49 Q50 52 52 56 Q48 52 45 49Z"/></g><circle cx="46" cy="50" r="1.2" fill="#8C6A3E"/><path d="M20 30 q3 -3 6 0 t6 0 t6 0" stroke="#fff" stroke-width="1.2" fill="none" opacity=".7"/><path d="M58 32 q3 -3 6 0 t6 0" stroke="#fff" stroke-width="1.2" fill="none" opacity=".7"/>`;
+  case 2:return `<ellipse cx="66" cy="54" rx="10" ry="6" fill="#6FC2E8"/><ellipse cx="64" cy="52.5" rx="4" ry="1.4" fill="#fff" opacity=".6"/><rect x="25" y="52" width="4" height="12" rx="1" fill="#8C6A3E"/><circle cx="27" cy="47" r="9" fill="#2F8F4A"/><circle cx="22" cy="44" r="5" fill="#45A85A"/><circle cx="32" cy="43" r="5" fill="#45A85A"/><circle cx="24" cy="49" r="1.2" fill="#E84A6A"/><circle cx="31" cy="47" r="1.2" fill="#E84A6A"/><circle cx="28" cy="42" r="1.2" fill="#E84A6A"/>`;
+  case 3:return `<g fill="#fff" opacity=".95"><circle cx="38" cy="38" r="6"/><circle cx="48" cy="34" r="8"/><circle cx="59" cy="38" r="6"/><rect x="32" y="37" width="33" height="7" rx="3.5"/></g><path d="M50 44 L45 56 L50 56 L46 68 L57 52 L51 52 L55 44Z" fill="#FFD23F" stroke="#C78A00" stroke-width=".7" stroke-linejoin="round"/><g fill="#fff" opacity=".9"><circle cx="30" cy="72" r="3"/><circle cx="35" cy="70" r="4"/><circle cx="40" cy="72" r="3"/><circle cx="62" cy="73" r="3"/><circle cx="67" cy="71" r="4"/><circle cx="72" cy="73" r="3"/></g>`;
+  case 4:return `<path d="M18 86 L42 22 L58 22 L82 86Z" fill="#DDEBF7"/><path d="M50 22 L82 86 L58 86 Z" fill="#B9D3EC" opacity=".8"/><path d="M42 22 L58 22 L63 34 Q56 31 50 36 Q44 31 37 35Z" fill="#fff"/><g fill="#fff" opacity=".85"><circle cx="28" cy="16" r="1"/><circle cx="70" cy="12" r="1.2"/><circle cx="80" cy="28" r=".9"/><circle cx="14" cy="34" r="1"/></g>`;
+ }
+}
+function sceneSVG(m,uid,opt={}){
+ const z=m.z,pts=m.path.map(p=>ctr(p).join(',')).join(' ');
+ let dec='';
+ m.empty.forEach(([r,c])=>{const h=hash(r,c,z);if(h%100<58){const kind=DECOR[z][h%4],[x,y]=ctr([r,c]);const jx=x+((h>>4)%5-2)*.6,jy=y+((h>>7)%5-2)*.6;dec+=kind==='rock'?D.rock(jx,jy,ROCKC[h%2]):D[kind](jx,jy)}});
+ const sc=[m.path[m.gA],...m.sc,m.path[m.gB]].map(p=>ctr(p).join(',')).join(' ');
+ const scStyle={0:`stroke="${m.shortC}" stroke-width="4" stroke-dasharray="3 1.6"`,1:`stroke="${m.shortC}" stroke-width="4.2" stroke-dasharray="1.6 1"`,2:`stroke="${m.shortC}" stroke-width="3.6" stroke-dasharray="4 1.4"`,3:`stroke="${m.shortC}" stroke-width="3.4" stroke-dasharray="2.4 1.6"`,4:`stroke="${m.shortC}" stroke-width="4.4" stroke-dasharray="5 1.2"`}[z];
+ const dots=opt.dots?m.path.map((p,i)=>{const[x,y]=ctr(p);return `<circle cx="${x}" cy="${y}" r="${i===0?3:2.2}" fill="${i===0?'#2F7BEA':'#fff'}" stroke="${m.edge}" stroke-width=".6"/>`}).join(''):'';
+ return `<defs><linearGradient id="bg${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${m.bg[0]}"/><stop offset="1" stop-color="${m.bg[1]}"/></linearGradient></defs>
+ <rect width="100" height="100" fill="url(#bg${uid})"/>${centerpiece(z)}${dec}
+ <polyline points="${sc}" fill="none" stroke="${m.edge}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>
+ <polyline points="${sc}" fill="none" ${scStyle} stroke-linecap="round" stroke-linejoin="round"/>
+ <polygon points="${pts}" fill="none" stroke="${m.edge}" stroke-width="8.6" stroke-linejoin="round" opacity=".55"/>
+ <polygon points="${pts}" fill="none" stroke="${m.road}" stroke-width="6.6" stroke-linejoin="round"/>${dots}`;
+}
 
 /* ================= 工具 ================= */
 const $=s=>document.querySelector(s);
@@ -1033,7 +1154,7 @@ $('#btnStart').onclick=()=>{
  const pool=WORDS[setup.part];
  const name=($('#pname').value.trim()||'小隊長').slice(0,8);
  G={v:1,slot:setup.slot,part:setup.part,level:setup.level,round:1,cur:0,extra:false,
-  players:[{name,color:PCOLOR,pos:0,coins:START,right:0,wrong:0,bridge:null,pass:[false,false,false,false,false],items:[],team:[]}],
+  players:[{name,color:PCOLOR,pos:0,coins:START,right:0,wrong:0,bridge:null,pass:[false,false,true,false,false],map:HOME_MAP,items:[],team:[]}],
   deck:shuffle(pool.map((_,i)=>i)),dp:0,missed:[],last:0,savedAt:Date.now()};
  save(true);startGame();
 };
@@ -1041,60 +1162,65 @@ $('#btnStart').onclick=()=>{
 /* ================= 遊戲 ================= */
 let G=null,busy=false;
 function startGame(){
- busy=false;G.players.forEach(p=>{p.bridge=null;p.pos=(p.pos||0)%N});G.last=(G.last||0)%N;
+ busy=false;
+ G.players.forEach(p=>{
+  p.bridge=null;
+  if(p.map==null||!MAPS[p.map]){p.pass[HOME_MAP]=true;p.map=p.pass[HOME_MAP]?HOME_MAP:p.pass.findIndex(Boolean);p.pos=0;G.last=0}
+ });
+ const L=MAP().path.length;cur().pos=(cur().pos||0)%L;G.last=(G.last||0)%L;
  buildBoard();show('scrGame');render();
- setMsg(`<b>${esc(cur().name)}</b> 隊長，按「擲骰子」出發冒險！`);
+ setMsg(`<b>${esc(cur().name)}</b> 隊長，歡迎來到${MAP().name}！按「擲骰子」出發冒險！`);
 }
 const cur=()=>G.players[G.cur];
 function setMsg(h){$('#msg').innerHTML=h}
 
+const pct=v=>v+'%';
 function buildBoard(){
- const b=$('#board');let h='';
- for(let i=0;i<N;i++){const[r,c]=coord(i);h+=`<div class="cell" id="c${i}" data-i="${i}" style="grid-row:${r+1};grid-column:${c+1}"></div>`}
- for(let c=1;c<=8;c++)h+=`<div class="bridge" id="b${c}" style="grid-row:6;grid-column:${c+1}"><div class="toks"></div></div>`;
- h+=`<div class="hub"><div class="logo gtitle"><span class="gt1">可愛怪獸</span><span class="gt2">大富翁</span></div><div class="who" id="who"></div><div class="dicerow"><div class="dice" id="dice">${'<i></i>'.repeat(9)}</div><button class="btn pri" id="btnRoll">擲骰子</button></div></div>`;
- h+=`<div class="gallery" data-act="team" title="編輯隊伍"><div class="gt" id="galT"></div><div class="gl" id="gal"></div></div>`;
+ const m=MAP(),b=$('#board');
+ b.className='world z'+m.z;b.style.setProperty('--tile',m.tile);b.style.setProperty('--edge',m.edge);
+ let h=`<svg class="scene" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${sceneSVG(m,'B')}</svg>`;
+ m.sc.forEach((p,k)=>{const[x,y]=ctr(p);h+=`<div class="sc" id="s${k}" style="left:${pct(x)};top:${pct(y)}"><div class="toks"></div></div>`});
+ m.path.forEach((p,i)=>{const[r,c]=p;h+=`<div class="cell" id="c${i}" data-i="${i}" style="left:${pct(c*10+.9)};top:${pct(r*10+.9)}"></div>`});
  b.innerHTML=h;
+ $('#ctrl').innerHTML=`<button class="mapchip" data-act="world" title="換地圖">${zoneSVG(m.z,'')}<span>${m.name}</span><b>▾</b></button>
+  <div class="who" id="who"></div>
+  <div class="dicebox"><div class="dice" id="dice">${'<i></i>'.repeat(9)}</div><button class="btn pri" id="btnRoll">擲骰子</button></div>
+  <div class="teamstrip" data-act="team" title="編輯隊伍" id="gal"></div>`;
  $('#btnRoll').onclick=onRoll;
  setDice(G.lastDice||1);
 }
 const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 function setDice(n){[...$('#dice').children].forEach((el,k)=>el.className=PIPS[n].includes(k)?'p':'')}
-function fitBoard(){const w=$('#boardWrap').clientWidth||360;const bw=Math.min(w,600,Math.max(300,(window.innerHeight||700)-230));document.documentElement.style.setProperty('--u',(bw/20)+'px')}
+function fitBoard(){const w=$('#boardWrap').clientWidth||360;const bw=Math.min(w,600,Math.max(300,(window.innerHeight||700)-250));document.documentElement.style.setProperty('--u',(bw/20)+'px')}
 window.addEventListener('resize',fitBoard);
 
 function cellInner(i){
- const c=CELL[i],p=cur();
+ const m=MAP(),c=m.cells[i];
  switch(c.t){
   case 'start':return `<div class="cn" style="background:var(--blue)">GO</div>`;
-  case 'arena':return `<div class="cn" style="background:var(--orange)">戰</div>`;
-  case 'supply':return `<div class="cn" style="background:var(--green)">補</div>`;
-  case 'chest':return `<div class="cn" style="background:#8A5CF0">寶</div>`;
+  case 'spot':{const s=m.spots[c.s];return `<div class="cn" style="background:${s.c}">${s.ic}</div>`}
   case 'gate':return gateSVG;
   case 'chance':return starSVG;
-  case 'pass':return zoneSVG(c.z)+(p.pass[c.z]?`<span class="own"></span>`:'');
-  case 'egg':return eggSVG(c.z);
+  case 'egg':return eggSVG(m.z);
   default:return `<span class="abc">Ab</span>`;
  }
 }
 function render(){
- const p=cur();
+ const p=cur(),m=MAP();
  const tok=`<span class="tok me"></span>`;
- for(let i=0;i<N;i++){
-  const el=$('#c'+i),c=CELL[i];
-  el.className='cell'+(c.t==='word'?' w'+c.v:'')+(i===G.last?' here':'')+(c.t==='pass'&&!p.pass[c.z]?' lockz':'');
+ m.path.forEach((_,i)=>{
+  const el=$('#c'+i),c=m.cells[i];
+  el.className='cell t-'+c.t+(c.t==='word'?' w'+c.v:'')+(i===G.last?' here':'');
   el.innerHTML=cellInner(i)+`<div class="toks">${p.bridge==null&&p.pos===i?tok:''}</div>`;
- }
- for(let c=1;c<=8;c++)$('#b'+c).firstElementChild.innerHTML=p.bridge===c?tok:'';
- $('#who').innerHTML=`${esc(p.name)} 隊長・★ ${p.coins}`;
+ });
+ m.sc.forEach((_,k)=>{$('#s'+k).firstElementChild.innerHTML=p.bridge===k?tok:''});
+ $('#who').innerHTML=`${esc(p.name)}<br><b>★ ${p.coins}</b>`;
  $('#btnRoll').disabled=busy;
- $('#galT').textContent=`我的隊伍・圖鑑 ${p.items.length}/${TOTAL}・點我換隊員`;
- $('#gal').innerHTML=[...Array(TEAM_MAX)].map((_,k)=>{const key=p.team[k];
-  return key?`<div class="gm">${monSVG(key)}<div class="n">${esc(mon(key).name)}</div></div>`:`<div class="gm empty"><div class="slotq">?</div><div class="n">空位</div></div>`}).join('');
- $('#gTitle').innerHTML=`${partName(G.part)}・${LEVELS[G.level]}<small>存檔 ${G.slot}・第 ${G.round} 回合・答對 +${REWARD[G.level]}</small>`;
+ $('#gal').innerHTML=[...Array(TEAM_MAX)].map((_,k)=>{const key=p.team[k];return key?monSVG(key):`<span class="slotq">?</span>`}).join('');
+ $('#gTitle').innerHTML=`${m.name}・${LEVELS[G.level]}<small>${partName(G.part)}・存檔 ${G.slot}・第 ${G.round} 回合・答對 +${REWARD[G.level]}</small>`;
  $('#players').innerHTML=`<div class="pc cur"><div class="nm">${esc(p.name)} 隊長</div>
   <div class="coins"><span>★</span> ${p.coins}</div>
-  <div class="mini">${ZONES.map((z,k)=>`<span class="zp${p.pass[k]?' on':''}" style="--zc:${z.color}">${z.zone}</span>`).join('')}</div>
+  <div class="mini">${ZONES.map((z,k)=>`<span class="zp${p.pass[k]?' on':''}" style="--zc:${z.color}">${z.zone} ${countOf(p,k)}</span>`).join('')}</div>
   <small>怪獸圖鑑 ${p.items.length}/${TOTAL}・答對 ${p.right}・答錯 ${p.wrong}</small>
   <div class="bar"><i style="width:${(p.items.length/TOTAL*100).toFixed(1)}%"></i></div></div>`;
  renderRunners();
@@ -1102,18 +1228,33 @@ function render(){
 
 $('#board').addEventListener('click',e=>{const el=e.target.closest('.cell');if(!el)return;toast(cellInfo(+el.dataset.i))});
 function cellInfo(i){
- const c=CELL[i],p=cur();
+ const m=MAP(),c=m.cells[i],Z=ZONES[m.z];
  switch(c.t){
   case 'start':return `基地：每次經過拿 ${BONUS_START} 星星幣`;
-  case 'arena':return '競技場：上場比賽拿獎勵';
-  case 'supply':return '補給站：補充星星幣';
-  case 'chest':return '寶箱：打開會有隨機獎勵';
-  case 'gate':return '傳送門：剛好停在這格，可以選擇傳送到地圖另一邊';
+  case 'spot':{const s=m.spots[c.s];return `${s.n}：${s.d?`可以拿 ${s.d} 星星幣`:'會有隨機獎勵'}`}
+  case 'gate':return `${m.short}：剛好停在這格，可以選擇要不要走捷徑`;
   case 'chance':return '幸運星：抽一張驚喜卡';
-  case 'pass':{const z=ZONES[c.z];return p.pass[c.z]?`${z.zone}：已經有通行證了`:`${z.zone}：花 ${PASS_PRICE} 買通行證，才能去${z.zone}找怪獸`}
-  case 'egg':{const z=ZONES[c.z];return p.pass[c.z]?`${z.zone}怪獸蛋：花 ${EGG_PRICE} 孵 ${EGG_N} 隻${z.el}系怪獸`:`${z.zone}怪獸蛋：要先買${z.zone}通行證`}
-  default:return `單字格：答對拿 ${REWARD[G.level]} 星星幣，還有機會遇到怪獸`;
+  case 'egg':return `${Z.el}系怪獸蛋：花 ${EGG_PRICE} 孵出 ${EGG_N} 隻${Z.el}系怪獸，只有${m.name}才有喔`;
+  default:return `單字格：答對拿 ${REWARD[G.level]} 星星幣，還有機會遇到${Z.el}系怪獸`;
  }
+}
+
+/* ---------- 世界地圖 ---------- */
+async function openWorld(){
+ const p=cur();
+ const v=await openModal(`<h3>世界地圖</h3><p>每張地圖住著不同屬性的怪獸，<br>要去那張地圖才抓得到喔！</p>
+ <div class="wm">${MAPS.map((m,k)=>{const Z=ZONES[m.z],here=k===p.map,open=p.pass[k],can=p.coins>=PASS_PRICE;
+  return `<button data-v="M${k}" class="${here?'here':''}${open?'':' lock'}" ${!open&&!can?'disabled':''}>
+   <div class="pv"><svg viewBox="0 0 100 100" aria-hidden="true">${sceneSVG(m,'W'+k,{dots:true})}</svg>${open?'':'<span class="lk">未解鎖</span>'}</div>
+   <div class="wi"><b style="color:${Z.color}">${m.name}</b><small>${Z.el}系怪獸 ${countOf(p,k)}/${PER_ZONE}</small>
+   <span class="st">${here?'你在這裡':open?'前往':can?`花 ${PASS_PRICE} 解鎖`:`需要 ${PASS_PRICE} 星星幣`}</span></div></button>`}).join('')}</div>
+ <div class="m-btns"><button class="btn" data-v="x">關閉</button></div>`,true);
+ if(!v||v[0]!=='M')return;
+ const k=+v.slice(1);if(k===p.map)return;
+ if(!p.pass[k]){if(p.coins<PASS_PRICE)return;add(p,-PASS_PRICE);p.pass[k]=true;toast(`解鎖${MAPS[k].name}！`)}
+ p.map=k;p.pos=0;p.bridge=null;G.last=0;
+ buildBoard();fitBoard();render();save(true);
+ setMsg(`來到<b>${MAPS[k].name}</b>了！這裡可以找到${ZONES[MAPS[k].z].el}系怪獸。`);
 }
 
 /* ---------- 擲骰子 & 移動 ---------- */
@@ -1129,9 +1270,9 @@ async function onRoll(){
  await finishTurn();
 }
 async function moveSteps(n){
- const p=cur();
+ const p=cur(),L=MAP().path.length;
  for(let s=0;s<n;s++){
-  p.pos=(p.pos+1)%N;G.last=p.pos;
+  p.pos=(p.pos+1)%L;G.last=p.pos;
   if(p.pos===0){p.coins+=BONUS_START;toast(`經過基地 +${BONUS_START} 星星幣`)}
   render();await sleep(230);
  }
@@ -1151,10 +1292,7 @@ function grant(p,z,count){
  got.forEach(k=>{if(p.team.length<TEAM_MAX)p.team.push(k)});
  return got;
 }
-function grantRandom(p,count){
- const pool=ZONES.map((_,z)=>z).filter(z=>p.pass[z]&&lockedAt(p,z).length);
- return pool.length?grant(p,pick(pool),count):[];
-}
+function grantHere(p,count){const z=MAP().z;return lockedAt(p,z).length?grant(p,z,count):[]}
 const countOf=(p,z)=>p.items.filter(k=>+k.split('-')[0]===z).length;
 async function showCatch(p,keys,title){
  const v=await openModal(`<h3>${title}</h3><div class="gifts">${keys.map(k=>`<div class="gift">${monSVG(k)}<span>${esc(mon(k).name)}<br><small>${ZONES[mon(k).z].el}系</small></span></div>`).join('')}</div>
@@ -1167,23 +1305,23 @@ async function showCatch(p,keys,title){
 const add=(p,n)=>{p.coins=Math.max(0,p.coins+n)};
 const bigCircle=(bg,t)=>`<div style="background:${bg};width:90px;height:90px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:44px;font-weight:900">${t}</div>`;
 async function landOn(){
- const p=cur(),i=p.pos,c=CELL[i];
+ const p=cur(),m=MAP(),c=m.cells[p.pos];
  switch(c.t){
   case 'word':{
    const w=nextWord();const ok=await quiz(w);
    if(ok){
     add(p,REWARD[G.level]);p.right++;setMsg(`答對了！拿到 ${REWARD[G.level]} 星星幣`);
-    if(Math.random()<.3){const g=grantRandom(p,1);if(g.length){render();await showCatch(p,g,'答對加碼！野生怪獸跑來了')}}
+    if(Math.random()<.3){const g=grantHere(p,1);if(g.length){render();await showCatch(p,g,`答對加碼！野生${ZONES[m.z].el}系怪獸跑來了`)}}
    }else{p.wrong++;addMissed(w);setMsg(`「${esc(w.en)}」放進錯字本了，下次一定會！`)}
    break}
-  case 'pass':await onPass(p,c.z);break;
-  case 'egg':await onEgg(p,c.z);break;
+  case 'egg':await onEgg(p,m.z);break;
   case 'chance':await onChance(p);break;
-  case 'gate':await onGate(p,i);break;
+  case 'gate':await onGate(p);break;
   case 'start':setMsg('回到基地啦！');break;
-  case 'arena':add(p,80);await choice({art:bigCircle('var(--orange)','戰'),title:'競技場',body:'你的隊伍贏得友誼賽，觀眾大聲歡呼！<br><b>+80 星星幣</b>',btns:[{t:'太強了',v:'ok',cls:'pri'}]});setMsg('競技場獲勝 +80');break;
-  case 'supply':add(p,30);await choice({art:bigCircle('var(--green)','補'),title:'補給站',body:'補充能量飲料，隊員們精神百倍！<br><b>+30 星星幣</b>',btns:[{t:'出發',v:'ok',cls:'pri'}]});setMsg('補給站 +30');break;
-  case 'chest':{const n=(2+rnd(11))*10;add(p,n);await choice({art:bigCircle('#8A5CF0','寶'),title:'寶箱',body:`打開寶箱，裡面閃閃發亮！<br><b>+${n} 星星幣</b>`,btns:[{t:'耶！',v:'ok',cls:'pri'}]});setMsg(`寶箱 +${n}`);break}
+  case 'spot':{
+   const s=m.spots[c.s],n=s.d||(2+rnd(11))*10;add(p,n);
+   await choice({art:bigCircle(s.c,s.ic),title:s.n,body:`${s.txt}<br><b>+${n} 星星幣</b>`,btns:[{t:'太棒了',v:'ok',cls:'pri'}]});
+   setMsg(`${s.n} +${n}`);break}
  }
  render();
 }
@@ -1194,23 +1332,13 @@ function nextWord(){
 }
 function addMissed(w){if(!G.missed.some(m=>m.en===w.en))G.missed.push({en:w.en,zh:w.zh})}
 
-async function onPass(p,z){
- const Z=ZONES[z],art=`<div class="m-art">${zoneSVG(z,'')}</div>`;
- if(!p.pass[z]){
-  const can=p.coins>=PASS_PRICE;
-  const v=await choice({art,title:`${Z.zone}通行證`,body:`${Z.zone}住著 ${PER_ZONE} 隻${Z.el}系怪獸！<br>${can?`花 <b>${PASS_PRICE}</b> 星星幣買通行證，就能去${Z.zone}孵怪獸蛋。`:`還差 <b>${PASS_PRICE-p.coins}</b> 星星幣才能買喔`}`,btns:[{t:'買通行證',v:'buy',cls:'pri',dis:!can},{t:'下次再說',v:'no'}]});
-  if(v==='buy'){add(p,-PASS_PRICE);p.pass[z]=true;setMsg(`拿到${Z.zone}通行證！快去${Z.zone}怪獸蛋那格孵蛋吧`)}
-  else setMsg(`先繼續冒險吧`);
- }else{add(p,20);await choice({art,title:Z.zone,body:`${Z.zone}的怪獸們跟你打招呼！<br><b>+20 星星幣</b>`,btns:[{t:'嗨！',v:'ok',cls:'pri'}]});setMsg(`${Z.zone} +20`)}
-}
 async function onEgg(p,z){
- const Z=ZONES[z],art=`<div class="m-art">${eggSVG(z,'')}</div>`;
- if(!p.pass[z]){await choice({art,title:`${Z.zone}怪獸蛋`,body:`要先買 <b>${Z.zone}通行證</b>，才能孵這裡的蛋喔！`,btns:[{t:'知道了',v:'ok',cls:'pri'}]});return}
+ const Z=ZONES[z],m=MAP(),art=`<div class="m-art">${eggSVG(z,'')}</div>`;
  const have=countOf(p,z),left=lockedAt(p,z).length,lvAll=zoneKeys(z).filter(k=>LV_OF[k]===G.level).length;
- if(have>=PER_ZONE){add(p,50);await choice({art,title:`${Z.zone}怪獸蛋`,body:`${Z.zone}的怪獸全部收齊了！獎勵 <b>50</b> 星星幣`,btns:[{t:'耶！',v:'ok',cls:'pri'}]});return}
- if(!left){add(p,30);await choice({art,title:`${Z.zone}怪獸蛋`,body:`「${LEVELS[G.level]}」關卡的${Z.zone}怪獸都收齊了！<br>剩下的要去<b>其他關卡</b>才找得到，按上面的「換關卡」試試看。<br>先送你 <b>30</b> 星星幣`,btns:[{t:'好！',v:'ok',cls:'pri'}]});return}
+ if(have>=PER_ZONE){add(p,50);await choice({art,title:`${Z.el}系怪獸蛋`,body:`${m.name}的怪獸全部收齊了！獎勵 <b>50</b> 星星幣<br>去別的地圖找其他屬性的怪獸吧！`,btns:[{t:'耶！',v:'ok',cls:'pri'}]});return}
+ if(!left){add(p,30);await choice({art,title:`${Z.el}系怪獸蛋`,body:`「${LEVELS[G.level]}」關卡的${Z.el}系怪獸都收齊了！<br>剩下的要去<b>其他關卡</b>才找得到，按上面的「換關卡」試試看。<br>先送你 <b>30</b> 星星幣`,btns:[{t:'好！',v:'ok',cls:'pri'}]});return}
  const can=p.coins>=EGG_PRICE;
- const v=await choice({art,title:`${Z.zone}怪獸蛋`,body:`花 <b>${EGG_PRICE}</b> 星星幣孵蛋，會孵出 ${EGG_N} 隻${Z.el}系怪獸！<br><small>${lvTag(G.level)} 這個關卡還有 ${left}/${lvAll} 隻可以找</small>${can?'':`<br>還差 ${EGG_PRICE-p.coins} 星星幣`}`,btns:[{t:'孵蛋！',v:'buy',cls:'pri',dis:!can},{t:'下次再說',v:'no'}]});
+ const v=await choice({art,title:`${Z.el}系怪獸蛋`,body:`花 <b>${EGG_PRICE}</b> 星星幣孵蛋，會孵出 ${EGG_N} 隻${Z.el}系怪獸！<br><small>${lvTag(G.level)} 這個關卡還有 ${left}/${lvAll} 隻可以找</small>${can?'':`<br>還差 ${EGG_PRICE-p.coins} 星星幣`}`,btns:[{t:'孵蛋！',v:'buy',cls:'pri',dis:!can},{t:'下次再說',v:'no'}]});
  if(v==='buy'){add(p,-EGG_PRICE);const g=grant(p,z,EGG_N);render();setMsg(`孵出 ${g.length} 隻新怪獸！`);await showCatch(p,g,'蛋裂開了！')}
 }
 const CHANCE=[
@@ -1221,20 +1349,21 @@ const CHANCE=[
 ];
 async function onChance(p){
  let e=pick(CHANCE);
- if(e.item){const g=grantRandom(p,1);if(g.length){setMsg(`幸運星：${e.t}`);render();await showCatch(p,g,'幸運星：'+e.t);return}e={t:p.pass.some(Boolean)?'這個關卡的怪獸都收齊了，改送你獎金':'先買通行證才能抓怪獸，改送你獎金',d:60}}
+ if(e.item){const g=grantHere(p,1);if(g.length){setMsg(`幸運星：${e.t}`);render();await showCatch(p,g,'幸運星：'+e.t);return}e={t:'這裡的怪獸這個關卡都收齊了，改送你獎金',d:60}}
  const body=e.extra||e.move?e.t:`${e.t}<br><b>${e.d>0?'+':''}${e.d} 星星幣</b>`;
  await choice({art:`<div class="m-art">${starSVG.replace('class="ico"','')}</div>`,title:'幸運星',body,btns:[{t:'好！',v:'ok',cls:'pri'}]});
  if(e.d){add(p,e.d);setMsg(`幸運星：${e.t}`)}
  if(e.extra){G.extra=true;setMsg('幸運星：再擲一次！')}
  if(e.move){await moveSteps(e.move);await landOn()}
 }
-async function onGate(p,i){
- const v=await choice({art:`<div class="m-art">${gateSVG.replace('class="ico"','')}</div>`,title:'傳送門',body:i===GATE_L?'要穿過傳送通道，跑到地圖右邊嗎？':'要穿過傳送通道，跑到地圖左邊嗎？',btns:[{t:'傳送！',v:'y',cls:'pri'},{t:'留在這裡',v:'n'}]});
+async function onGate(p){
+ const m=MAP(),fromA=p.pos===m.gA;
+ const v=await choice({art:`<div class="m-art">${gateSVG.replace('class="ico"','')}</div>`,title:m.short,body:`要走${m.short}，直接穿過去地圖另一邊嗎？`,btns:[{t:'走捷徑！',v:'y',cls:'pri'},{t:'留在這裡',v:'n'}]});
  if(v!=='y'){setMsg('決定留在原地');return}
- const cols=i===GATE_L?[...Array(8)].map((_,k)=>k+1):[...Array(8)].map((_,k)=>8-k);
- for(const c of cols){p.bridge=c;render();await sleep(70)}
- p.bridge=null;p.pos=i===GATE_L?GATE_R:GATE_L;G.last=p.pos;render();
- setMsg('咻！傳送到地圖另一邊了！');
+ const order=fromA?m.sc.map((_,k)=>k):m.sc.map((_,k)=>m.sc.length-1-k);
+ for(const k of order){p.bridge=k;render();await sleep(130)}
+ p.bridge=null;p.pos=fromA?m.gB:m.gA;G.last=p.pos;render();
+ setMsg(`咻！走${m.short}到了另一邊！`);
 }
 
 /* ---------- 對話框 ---------- */
@@ -1260,7 +1389,7 @@ function openTeam(fresh){
 function drawTeam(){
  const s=teamSt,p=cur(),have=new Set(p.items);
  if(!p.items.length){
-  $('#modalCard').innerHTML=`<h3>我的隊伍</h3><div class="idol-row">${SHOWCASE.map(k=>`<div class="sil">${monSVG(k)}</div>`).join('')}</div><p>還沒有怪獸喔！<br>先買通行證，再去孵怪獸蛋。</p><div class="m-btns"><button class="btn pri" data-v="ok">好</button></div>`;return;
+  $('#modalCard').innerHTML=`<h3>我的隊伍</h3><div class="idol-row">${SHOWCASE.map(k=>`<div class="sil">${monSVG(k)}</div>`).join('')}</div><p>還沒有怪獸喔！<br>停在怪獸蛋的格子就能孵蛋。</p><div class="m-btns"><button class="btn pri" data-v="ok">好</button></div>`;return;
  }
  const team=`<div class="teamrow">${[...Array(TEAM_MAX)].map((_,k)=>{const key=p.team[k];return key?`<button class="tm" data-tk="${key}" title="移出隊伍">${monSVG(key)}<span>${esc(mon(key).name)}</span></button>`:`<div class="tm empty"><div class="slotq">?</div><span>空位</span></div>`}).join('')}</div>`;
  const zt=`<div class="tabs">${ZONES.map((z,k)=>`<button data-tz="${k}" class="${k===s.z?'on':''}">${z.el}系 ${countOf(p,k)}</button>`).join('')}</div>`;
@@ -1300,7 +1429,7 @@ function drawBook(){
  <div class="lvsum">${[0,1,2,3].map(l=>`<div class="${l===G.level?'on':''}">${lvTag(l)}<span>${p.items.filter(k=>LV_OF[k]===l).length}/${LV_TOTAL[l]}</span></div>`).join('')}</div>
  <small style="color:var(--soft)">每個關卡只找得到自己那一份怪獸，四個關卡都要玩才能收齊！</small>
  ${zt}
- ${p.pass[z]?'':`<div class="bk-note">還沒有${Z.zone}通行證，先在地圖上買通行證，才能孵${Z.zone}的怪獸蛋喔！</div>`}
+ ${p.pass[z]?'':`<div class="bk-note">還沒解鎖${MAPS[z].name}，按「世界地圖」花 ${PASS_PRICE} 星星幣解鎖，才找得到${Z.el}系怪獸喔！</div>`}
  ${filt}
  <div class="bk-list">${secs}</div>
  <div class="m-btns"><button class="btn alt" data-bteam="1">編輯隊伍</button><button class="btn pri" data-v="ok">關閉</button></div>`;
@@ -1430,11 +1559,12 @@ setInterval(()=>{
 function rulesHtml(){return `<h3>遊戲規則</h3><div class="rules">
  <div><b>出發：</b>一開始有 ${START} 星星幣，擲骰子在地圖外圈冒險。經過基地拿 ${BONUS_START}。</div>
  <div><b>Ab 單字格：</b>看中文拼英文，答對就賺錢，還有機會遇到野生怪獸。小朋友填 1/3、普通人填一半、有一點厲害的人整個字自己拼、超級厲害的人要在英文句子裡填空。</div>
- <div><b>通行證：</b>地圖上有火山、海洋、森林、雷雲、雪山五個地區，花 ${PASS_PRICE} 買通行證才能去那裡找怪獸。</div>
- <div><b>怪獸蛋：</b>有通行證以後，停在那個地區的怪獸蛋格，花 ${EGG_PRICE} 孵出 ${EGG_N} 隻怪獸。</div>
+ <div><b>五張地圖：</b>火山、海洋、森林、雷雲、雪山各有自己的路線和風景。一開始在森林地圖，其他地圖按「世界地圖」花 ${PASS_PRICE} 解鎖，解鎖後可以隨時來回。</div>
+ <div><b>屬性怪獸：</b>每種屬性的怪獸只住在自己的地圖，火系怪獸只在火山地圖抓得到，以此類推。</div>
+ <div><b>怪獸蛋：</b>停在怪獸蛋格，花 ${EGG_PRICE} 孵出 ${EGG_N} 隻這張地圖的怪獸。</div>
  <div><b>隊伍：</b>最多帶 ${TEAM_MAX} 隻怪獸，隨時可以換隊員，他們會在畫面下面跑來跑去。</div>
  <div><b>關卡收集：</b>怪獸平均分給四個關卡，每個關卡只找得到自己那一份。按「換關卡」可以隨時切換，四個關卡都要玩才能收齊！</div>
- <div><b>傳送門：</b>左右兩邊各有一個傳送門，<u>剛好停在那一格</u>才可以選擇要不要傳送到另一邊。</div>
+ <div><b>捷徑：</b>每張地圖都有一條捷徑（熔岩橋、浮木橋、樹洞小路、閃電通道、滑雪道），<u>剛好停在捷徑入口</u>才可以選擇要不要走。</div>
  <div><b>幸運星和四個角落：</b>會有驚喜！</div>
  <div><b>目標：</b>收齊圖鑑就是怪獸大師！</div>
  <div><b>存檔：</b>每走完一回合會自動存檔，在主選單可以繼續玩。</div></div>
@@ -1449,6 +1579,7 @@ document.addEventListener('click',e=>{
  if(act==='rules'&&!modalResolve)openModal(rulesHtml());
  if(act==='missed'&&!modalResolve)openModal(missedHtml());
  if(act==='team'){if(busy||modalResolve){toast('等這一步走完再換隊員喔');return}openTeam()}
+ if(act==='world'){if(busy||modalResolve){toast('等這一步走完再換地圖喔');return}openWorld()}
  if(act==='book'){if(busy||modalResolve){toast('等這一步走完再看圖鑑喔');return}openBook()}
  if(act==='level'){if(busy||modalResolve){toast('等這一步走完再換關卡喔');return}openLevel()}
  if(act==='save')save(false);
