@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>單字大富翁</title>
+<style>
+:root{--f:'Microsoft JhengHei','微軟正黑體','PingFang TC','Noto Sans TC',system-ui,sans-serif;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:var(--f);color:#3B2D52;background:linear-gradient(135deg,#FFF0F7 0 50%,#EEF5FF 50% 100%);display:flex;align-items:center;justify-content:center;padding:24px 16px}
+main{width:100%;max-width:640px;display:flex;flex-direction:column;gap:20px;text-align:center}
+h1{margin:0;font-size:clamp(32px,8vw,48px);font-weight:900;letter-spacing:.06em}
+p{margin:0;color:#6B5E80}
+.pick{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+a.card{display:flex;flex-direction:column;gap:6px;text-decoration:none;color:#fff;border-radius:24px;padding:26px 20px;font-weight:900;font-size:24px}
+a.card small{font-weight:400;font-size:15px;opacity:.95}
+a.girl{background:#FF6FA8;box-shadow:0 6px 0 #D9478A}
+a.boy{background:#2F7BEA;box-shadow:0 6px 0 #1F5CC0}
+a.card:active{transform:translateY(3px)}
+a.card:focus-visible{outline:3px solid #3B2D52;outline-offset:3px}
+</style>
+</head>
+<body>
+<main>
+  <h1>單字大富翁</h1>
+  <p>擲骰子、拼英文單字、一起來收集！</p>
+  <div class="pick">
+    <a class="card girl" href="girl/">女孩版<small>收集星星女孩的衣服和髮型</small></a>
+    <a class="card boy" href="boy/">男孩版<small>孵蛋收集原創怪獸</small></a>
+  </div>
+</main>
+</body>
+</html>
