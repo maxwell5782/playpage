@@ -139,7 +139,7 @@ html,body{margin:0}[hidden]{display:none!important}
   </div>
 </div>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 <script>
 /* ===== settings ===== */
 const SEARCH_MS=10000;     // 最多找 10 秒
@@ -214,7 +214,7 @@ function startGame(seats){
   G={round:1,start:0,phase:"plan",stacks:[null,null,null],active:-1,asking:-1,targets:null,msg:"",
      players:seats.map((s,i)=>({name:P[i].n,c:P[i].c,type:s.type,conn:s.conn||null,token:s.token||null,away:false,
        hand:[...pool.splice(0,14),...makeSpecials()],score:0,plan:[],ready:false,last:null}))};
-  G.players.forEach((p,i)=>{if(p.conn)wireConn(p.conn,i)});
+  G.players.forEach(p=>p.lastSeen=Date.now());
   isHost=true;hideAll();keepAwake();run();
 }
 function view(i){
@@ -230,7 +230,7 @@ function view(i){
 function broadcast(){
   G.players.forEach((p,i)=>{
     if(p.type==="local")show(view(i));
-    else if(p.type==="remote"&&p.conn&&p.conn.open){try{p.conn.send({t:"view",v:view(i)})}catch(e){}}
+    else if(p.type==="remote")sendTo(p.token,{t:"view",v:view(i)});
   });
 }
 function targets(c){
@@ -314,16 +314,6 @@ function hostMsg(i,m){
   if(m.t==="plan"&&waiters.plan[i])waiters.plan[i](m.ids);
   if(m.t==="target"&&waiters.target&&waiters.target.i===i)waiters.target.fn(m.k);
 }
-function wireConn(conn,i){
-  conn.on("data",m=>hostMsg(i,m));
-  conn.on("close",()=>{if(G&&G.players[i].conn===conn)dropToBot(i)});
-}
-function rebind(i,conn){
-  const p=G.players[i];
-  try{p.conn&&p.conn!==conn&&p.conn.close()}catch(_){}
-  p.type="remote";p.conn=conn;p.away=false;wireConn(conn,i);
-  G.msg=`${p.name}回來了！`;broadcast();
-}
 function dropToBot(i){
   if(!G)return;const p=G.players[i];if(p.type==="bot")return;
   p.type="bot";p.conn=null;p.away=true;G.msg=`${p.name}暫時離開，電腦小熊先幫忙，回來就能接著玩。`;
@@ -335,7 +325,7 @@ function dropToBot(i){
 /* ===== client side (host's own screen + guests) ===== */
 function act(m){
   if(isHost)hostMsg(0,m);
-  else if(hostConn&&hostConn.open)hostConn.send(m);
+  else guestSend(m);
 }
 function show(v){
   V=v;if(!V.planning)sel=[];
@@ -377,138 +367,193 @@ const pickSlot=e=>{const s=e.target.closest(".slot.target");if(s&&V&&V.targets){
 $("table").addEventListener("click",pickSlot);
 $("table").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();pickSlot(e)}});
 
-/* ===== matchmaking ===== */
-const MY_TOKEN=Math.random().toString(36).slice(2)+Date.now().toString(36);
-let hostId=null;
-let lobby=null; // host lobby state
-function hideAll(){["start","lobby","end"].forEach(id=>$(id).hidden=true)}
-function cleanup(){
-  try{lobbyPeer&&lobbyPeer.destroy()}catch(e){}try{guestPeer&&guestPeer.destroy()}catch(e){}
-  lobbyPeer=guestPeer=hostConn=null;hostId=null;try{wakeLock&&wakeLock.release()}catch(_){}wakeLock=null;G=null;V=null;isHost=false;waiters={plan:{},target:null};
-  if(lobby){clearInterval(lobby.tick);lobby=null}
-}
+const NS="bearhouse-v2/honey";
+const startArgs=seats=>[seats];
+function resetGame(){G=null;V=null;isHost=false;waiters={plan:{},target:null};}
+const gameOver=()=>G&&G.phase==="end";
+const guestOver=()=>V&&V.phase==="end";
+let lobby=null;
+let note="";function toast(m){note=m;$("msg").textContent=m}
 function lobbyUI(count,leftMs,text){
   $("seats").innerHTML=P.map((p,i)=>`<div class="seat${i<count?' on':''}">${bear(i<count?p.c:"#d9d2c3",40)}</div>`).join("");
   $("timer").textContent=leftMs!=null?`${Math.max(0,Math.ceil(leftMs/1000))} 秒`:"";
   $("lobbyMsg").textContent=text;
 }
-function claim(s){
+/* ===== matchmaking & network =====
+   所有訊息都經過公用 MQTT 伺服器轉送（不是手機之間直接連線），
+   所以不同網路（Wi-Fi、4G/5G）也能玩，手機短暫斷線會自動接回。 */
+const BROKERS=["wss://broker.emqx.io:8084/mqtt","wss://broker.hivemq.com:8884/mqtt","wss://test.mosquitto.org:8081"];
+const MY_TOKEN=Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+const T_ADS=NS+"/ads/", T_UP=id=>NS+"/r/"+id+"/up", T_DOWN=(id,tok)=>NS+"/r/"+id+"/d/"+tok;
+const GUEST_LOST_MS=12000;   // 玩家多久沒回應就先由電腦代打
+const HOST_LOST_MS=25000;    // 房主多久沒回應就結束
+let net=null,roomId=null,ads={},netTimers=[],hostSeen=0,joinState=null,deadRooms=new Set();
+
+function hideAll(){["start","lobby","end"].forEach(id=>$(id).hidden=true)}
+function every(ms,fn){const t=setInterval(fn,ms);netTimers.push(t);return t}
+function stopNet(){
+  netTimers.forEach(clearInterval);netTimers=[];
+  if(net){
+    if(isHost&&roomId&&lobby&&!lobby.started)clearAd();
+    if(!isHost&&roomId)pubUp({t:"bye"});
+    const n=net;net=null;setTimeout(()=>{try{n.end(true)}catch(_){}},300);
+  }
+  roomId=null;ads={};joinState=null;
+}
+function cleanup(){
+  stopNet();
+  if(lobby){clearInterval(lobby.tick);lobby=null}
+  resetGame();
+  try{wakeLock&&wakeLock.release()}catch(_){}wakeLock=null;
+}
+function tryBroker(url){
   return new Promise(res=>{
-    let done=false;const fin=r=>{if(!done){done=true;res(r)}};
-    const p=new Peer(LOBBY+s,{debug:0});
-    p.on("open",()=>fin({peer:p}));
-    p.on("error",e=>{if(done)return;try{p.destroy()}catch(_){}fin(e.type==="unavailable-id"?{taken:true}:{err:e.type})});
-    setTimeout(()=>{if(!done){try{p.destroy()}catch(_){}fin({err:"timeout"})}},9000);
+    let done=false,c;
+    try{c=mqtt.connect(url,{clientId:"bh_"+MY_TOKEN+"_"+Math.random().toString(36).slice(2,6),clean:true,connectTimeout:6000,reconnectPeriod:2000,keepalive:20})}catch(e){return res(null)}
+    const t=setTimeout(()=>{if(!done){done=true;try{c.end(true)}catch(_){}res(null)}},7000);
+    c.once("connect",()=>{if(done)return;done=true;clearTimeout(t);res(c)});
+    c.on("error",()=>{});
   });
 }
-function ensureGuestPeer(){
-  if(guestPeer&&guestPeer.open)return Promise.resolve(guestPeer);
-  return new Promise((res,rej)=>{
-    guestPeer=new Peer({debug:0});
-    guestPeer.on("open",()=>res(guestPeer));
-    guestPeer.on("error",e=>{if(guestPeer&&guestPeer._pending)guestPeer._pending(null);else rej(e)});
-    setTimeout(()=>rej(new Error("timeout")),9000);
-  });
+async function connectBroker(){
+  for(const url of BROKERS){const c=await tryBroker(url);if(c)return c}
+  return null;
 }
-function tryJoin(s){
-  return new Promise(res=>{
-    let done=false;const fin=c=>{if(!done){done=true;guestPeer._pending=null;res(c)}};
-    guestPeer._pending=fin;
-    const conn=guestPeer.connect(LOBBY+s,{reliable:true});
-    conn.on("open",()=>{try{conn.send({t:"hello",token:MY_TOKEN})}catch(_){}});
-    conn.on("data",m=>{if(done)return;if(m.t==="lobby"){hostId=LOBBY+s;fin(conn)}else{try{conn.close()}catch(_){}fin(null)}});
-    conn.on("error",()=>fin(null));
-    setTimeout(()=>{if(!done){try{conn.close()}catch(_){}fin(null)}},8000);
-  });
+const pub=(topic,obj,qos)=>{try{net&&net.publish(topic,JSON.stringify(obj),{qos:qos||0})}catch(_){}};
+const pubUp=m=>pub(T_UP(roomId),{...m,token:MY_TOKEN},1);
+function sendTo(token,m){pub(T_DOWN(roomId,token),m,m.t==="view"?0:1)}
+function clearAd(){try{net&&net.publish(T_ADS+roomId,"",{qos:0,retain:true})}catch(_){}}
+function route(topic,buf){
+  if(topic.startsWith(T_ADS)){
+    const id=topic.slice(T_ADS.length);
+    if(!buf||!buf.length){delete ads[id];return}
+    try{const prev=ads[id];ads[id]={...JSON.parse(buf.toString()),lastRecv:Date.now(),cnt:(prev?prev.cnt:0)+1}}catch(_){}
+    return;
+  }
+  let m;try{m=JSON.parse(buf.toString())}catch(_){return}
+  if(isHost&&roomId&&topic===T_UP(roomId))hostUp(m);
+  else if(!isHost&&roomId&&topic===T_DOWN(roomId,MY_TOKEN))guestDown(m);
 }
+function openAds(){
+  return Object.values(ads).filter(a=>a&&a.id&&a.open&&a.n<4&&!deadRooms.has(a.id)&&a.cnt>=2&&Date.now()-a.lastRecv<4000&&a.id!==roomId).sort((a,b)=>a.id<b.id?-1:1);
+}
+
 async function findMatch(){
   $("start").hidden=true;$("lobby").hidden=false;$("lobbyT").textContent="找朋友中…";
   lobbyUI(1,SEARCH_MS,"正在連線…");
-  const t0=Date.now();
-  for(let s=0;s<SLOTS;s++){
-    if($("lobby").hidden)return; // cancelled
-    const r=await claim(s);
-    if(r.peer){lobbyPeer=r.peer;return hostLobby(t0)}
-    if(r.err){return fallback("連不上配對伺服器，先和電腦玩吧！")}
-    try{await ensureGuestPeer()}catch(e){return fallback("連不上配對伺服器，先和電腦玩吧！")}
-    const c=await tryJoin(s);
-    if(c)return guestLobby(c);
-  }
-  fallback("目前房間都滿了，先和電腦玩吧！");
+  if(typeof mqtt==="undefined")return botGame("連不上配對伺服器，先和電腦玩吧！");
+  net=await connectBroker();
+  if($("lobby").hidden){stopNet();return}
+  if(!net)return botGame("連不上配對伺服器，先和電腦玩吧！");
+  net.on("message",route);
+  net.on("connect",onReconnect);
+  net.subscribe(T_ADS+"+");
+  await sleep(2300); // 開著的房間每秒更新一次，等一下才分得出哪些是真的還開著
+  if($("lobby").hidden){stopNet();return}
+  const a=openAds()[0];
+  if(a)joinRoom(a.id);else hostRoom();
 }
-function hostLobby(t0){
-  lobby={seats:[{type:"local"}],deadline:t0+SEARCH_MS,started:false};
-  lobbyPeer.on("connection",conn=>{
-    const first=m=>{
-      if(!m||m.t!=="hello")return;
-      conn.off("data",first);
-      if(G&&isHost){const i=G.players.findIndex(p=>p.token&&p.token===m.token);if(i>0)return rebind(i,conn)}
-      if(!lobby||lobby.started||lobby.seats.length>=4){try{conn.send({t:"full"})}catch(_){}setTimeout(()=>conn.close(),300);return}
-      lobby.seats.push({type:"remote",conn,token:m.token});
-      if(lobby.seats.length===2)lobby.deadline=Date.now()+EXTRA_MS;
-      conn.on("close",()=>{if(lobby&&!lobby.started){lobby.seats=lobby.seats.filter(x=>x.conn!==conn);lobbyTick()}});
-      lobbyTick();
-      if(lobby.seats.length===4)beginFromLobby();
-    };
-    conn.on("data",first);
-  });
-  lobbyPeer.on("error",()=>{});
-  lobbyPeer.on("disconnected",()=>{try{if(lobbyPeer&&!lobbyPeer.destroyed)lobbyPeer.reconnect()}catch(_){}});
+function onReconnect(){
+  if(!net)return;
+  if(isHost&&lobby&&!lobby.started)ad();
+  if(!isHost&&roomId)pubUp({t:"hello"});
+}
+
+/* ---- 房主 ---- */
+function hostRoom(){
+  isHost=true;roomId=Math.random().toString(36).slice(2,10);
+  lobby={seats:[{type:"local",token:MY_TOKEN}],deadline:Date.now()+SEARCH_MS,started:false};
+  net.subscribe(T_UP(roomId),{qos:1});
+  ad();every(1000,ad);
   lobby.tick=setInterval(lobbyTick,500);lobbyTick();
+  every(2000,hostWatch);
+  every(3000,()=>{if(G)G.players.forEach(p=>{if(p.type==="remote")sendTo(p.token,{t:"hb"})})});
 }
+function ad(){if(lobby&&!lobby.started&&roomId)try{net.publish(T_ADS+roomId,JSON.stringify({id:roomId,open:true,n:lobby.seats.length,t:Date.now()}),{qos:0,retain:true})}catch(_){}}
 function lobbyTick(){
   if(!lobby||lobby.started)return;
   const left=lobby.deadline-Date.now(),n=lobby.seats.length;
-  const text=n>1?`找到 ${n-1} 隻小熊了！再等一下，空位會由電腦補上`:"正在找其他小熊…";
-  lobbyUI(n,left,text);
-  lobby.seats.forEach(s=>{if(s.conn&&s.conn.open)try{s.conn.send({t:"lobby",n,left})}catch(_){}});
+  /* 兩個人同時開房時，房號大的那邊自動併到房號小的那邊 */
+  if(n===1){const other=openAds().find(a=>a.id<roomId);if(other){clearAd();clearInterval(lobby.tick);lobby=null;netTimers.forEach(clearInterval);netTimers=[];try{net.unsubscribe(T_UP(roomId))}catch(_){}isHost=false;return joinRoom(other.id)}}
+  lobbyUI(n,left,n>1?`找到 ${n-1} 隻小熊了！再等一下就開始`:"正在找其他小熊…");
+  lobby.seats.forEach(s=>{if(s.type==="remote")sendTo(s.token,{t:"lobby",n,left})});
   if(left<=0)beginFromLobby();
 }
 function beginFromLobby(){
-  if(!lobby||lobby.started)return;lobby.started=true;clearInterval(lobby.tick);
-  const seats=lobby.seats;
-  if(seats.length===1){try{lobbyPeer.destroy()}catch(_){}lobbyPeer=null;toast("沒有配到人，和電腦小熊玩！")}
-  startGame(seats);
+  if(!lobby||lobby.started)return;lobby.started=true;clearInterval(lobby.tick);clearAd();
+  const seats=lobby.seats.map(s=>({...s}));
+  if(seats.length===1){stopNet();note="沒有配到人，和電腦小熊玩！"}
+  startGame(...startArgs(seats));
 }
-function guestLobby(conn){
-  hostConn=conn;$("lobbyT").textContent="配到了！";
-  conn.on("data",m=>{
-    if(m.t==="lobby")lobbyUI(m.n,m.left,`房間裡有 ${m.n} 隻小熊，等開局…`);
-    if(m.t==="view"){if(!$("lobby").hidden)hideAll();show(m.v)}
-  });
-  conn.on("close",()=>{if(hostConn!==conn||(V&&V.phase==="end"))return;reconnect()});
-  keepAwake();
-}
-/* 斷線後自動重連，最多試 60 秒 */
-let reconnecting=false;
-function rejoin(){
-  return new Promise(res=>{
-    let done=false;const fin=c=>{if(!done){done=true;if(guestPeer)guestPeer._pending=null;res(c)}};
-    guestPeer._pending=fin;
-    const conn=guestPeer.connect(hostId,{reliable:true});
-    conn.on("open",()=>{try{conn.send({t:"hello",token:MY_TOKEN})}catch(_){}});
-    conn.on("data",m=>{if(done)return;if(m.t==="view"){fin(conn);hostConn=conn;show(m.v)}else if(m.t==="full"){fin(null)}});
-    conn.on("error",()=>fin(null));
-    setTimeout(()=>{if(!done){try{conn.close()}catch(_){}fin(null)}},8000);
-  });
-}
-async function reconnect(){
-  if(reconnecting||!hostId)return;reconnecting=true;
-  toast("斷線了，正在重新連線…");
-  const until=Date.now()+60000;
-  while(Date.now()<until){
-    try{
-      if(!guestPeer||guestPeer.destroyed){guestPeer=null;await ensureGuestPeer()}
-      else if(guestPeer.disconnected){guestPeer.reconnect();await sleep(1500)}
-    }catch(e){await sleep(2000);continue}
-    const c=await rejoin();
-    if(c){reconnecting=false;guestLobby(c);toast("連回來了！");return}
-    await sleep(2000);
+function hostUp(m){
+  if(!m||!m.token)return;
+  const now=Date.now();
+  if(G){
+    const i=G.players.findIndex(p=>p.token===m.token);
+    if(i<=0){if(m.t==="hello")sendTo(m.token,{t:"full"});return}
+    const p=G.players[i];p.lastSeen=now;
+    if(m.t==="bye"){dropToBot(i);return}
+    if(p.type==="bot"&&p.away){rebind(i);return}
+    if(m.t==="hello"){sendTo(m.token,{t:"view",v:view(i)});return}
+    if(m.t!=="ping")hostMsg(i,m);
+    return;
   }
-  reconnecting=false;toast("連不回房主了，可能房主離開了遊戲");
-  cleanup();hideAll();$("start").hidden=false;
+  if(!lobby)return;
+  const s=lobby.seats.find(x=>x.token===m.token);
+  if(m.t==="bye"){if(s){lobby.seats=lobby.seats.filter(x=>x!==s);lobbyTick()}return}
+  if(s){s.lastSeen=now;return}
+  if(m.t!=="hello")return;
+  if(lobby.started||lobby.seats.length>=4){sendTo(m.token,{t:"full"});return}
+  lobby.seats.push({type:"remote",token:m.token,lastSeen:now});
+  if(lobby.seats.length===2)lobby.deadline=now+EXTRA_MS;
+  lobbyTick();
+  if(lobby.seats.length===4)beginFromLobby();
 }
-/* 遊戲中讓螢幕保持亮著，避免手機睡著斷線 */
+function hostWatch(){
+  const now=Date.now();
+  if(lobby&&!lobby.started){
+    const before=lobby.seats.length;
+    lobby.seats=lobby.seats.filter(s=>s.type!=="remote"||now-s.lastSeen<GUEST_LOST_MS);
+    if(lobby.seats.length!==before)lobbyTick();
+  }
+  if(G&&!gameOver())G.players.forEach((p,i)=>{if(p.type==="remote"&&now-(p.lastSeen||0)>GUEST_LOST_MS)dropToBot(i)});
+}
+function rebind(i){
+  const p=G.players[i];
+  p.type="remote";p.away=false;p.lastSeen=Date.now();
+  G.msg=`${p.name}回來了！`;broadcast();
+}
+
+/* ---- 加入別人的房間 ---- */
+function joinRoom(id){
+  isHost=false;roomId=id;hostSeen=Date.now();joinState="joining";
+  net.subscribe(T_DOWN(id,MY_TOKEN),{qos:1});
+  pubUp({t:"hello"});
+  every(3000,()=>pubUp({t:"ping"}));
+  every(2000,()=>{
+    if(!roomId||isHost)return;
+    const quiet=Date.now()-hostSeen;
+    if(joinState==="joining"&&quiet>5000){ // 房間已經不在了，換一間或自己開
+      deadRooms.add(roomId);try{net.unsubscribe(T_DOWN(roomId,MY_TOKEN))}catch(_){}
+      netTimers.forEach(clearInterval);netTimers=[];roomId=null;joinState=null;
+      const a=openAds()[0];if(a)joinRoom(a.id);else hostRoom();
+      return;
+    }
+    if(joinState!=="joining"&&quiet>HOST_LOST_MS&&!guestOver()){
+      toast("房主離開遊戲了");cleanup();hideAll();$("start").hidden=false;
+    }
+  });
+}
+function guestDown(m){
+  hostSeen=Date.now();
+  if(m.t==="full"){deadRooms.add(roomId);netTimers.forEach(clearInterval);netTimers=[];roomId=null;const a=openAds()[0];if(a)joinRoom(a.id);else hostRoom();return}
+  joinState="in";
+  if(m.t==="lobby"){$("lobbyT").textContent="配到了！";lobbyUI(m.n,m.left,`房間裡有 ${m.n} 隻小熊，等開局…`);return}
+  if(m.t==="view"){if(!$("lobby").hidden){hideAll();keepAwake()}show(m.v)}
+}
+function guestSend(m){if(roomId)pubUp(m)}
+
+/* ---- 螢幕保持亮著 ---- */
 let wakeLock=null;
 async function keepAwake(){
   try{if(navigator.wakeLock&&document.visibilityState==="visible"&&!wakeLock){wakeLock=await navigator.wakeLock.request("screen");wakeLock.addEventListener("release",()=>wakeLock=null)}}catch(e){}
@@ -516,18 +561,19 @@ async function keepAwake(){
 document.addEventListener("visibilitychange",()=>{
   if(document.visibilityState!=="visible")return;
   if(G||V)keepAwake();
-  if(!isHost&&hostConn&&!hostConn.open&&V&&!(V&&V.phase==="end"))reconnect();
+  if(!isHost&&roomId){hostSeen=Math.max(hostSeen,Date.now()-HOST_LOST_MS+8000);pubUp({t:"hello"})}
 });
-function fallback(text){toast(text);try{lobbyPeer&&lobbyPeer.destroy()}catch(_){}try{guestPeer&&guestPeer.destroy()}catch(_){}lobbyPeer=guestPeer=null;startGame([{type:"local"}])}
-let note="";function toast(m){note=m;$("msg").textContent=m}
+window.addEventListener("pagehide",()=>{if(net&&roomId){if(isHost&&lobby&&!lobby.started)clearAd();else if(!isHost)pubUp({t:"bye"})}});
 
-$("btnMatch").onclick=()=>{if(typeof Peer==="undefined")return fallback("連不上配對伺服器，先和電腦玩吧！");findMatch()};
-$("btnBots").onclick=()=>startGame([{type:"local"}]);
+function botGame(text){note=text;stopNet();isHost=false;startGame(...startArgs([{type:"local"}]))}
+$("btnMatch").onclick=()=>findMatch();
 $("btnCancel").onclick=()=>{
-  if(lobby&&!lobby.started){beginFromLobby();return}
-  cleanup();$("lobby").hidden=true;startGame([{type:"local"}]);
+  if(isHost&&lobby&&!lobby.started){beginFromLobby();return}
+  cleanup();$("lobby").hidden=true;startGame(...startArgs([{type:"local"}]));
 };
 $("again").onclick=()=>{cleanup();hideAll();$("start").hidden=false};
+
+$("btnBots").onclick=()=>startGame([{type:"local"}]);
 $("legend").innerHTML=[
   [{k:"jar",v:2},"蜂蜜罐：放到一疊上，數字是分數"],
   [{k:"jar",v:-2},"蜜蜂罐：扣分！塞給別人"],
