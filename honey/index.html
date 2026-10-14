@@ -215,11 +215,11 @@ let G=null,isHost=false,waiters={plan:{},target:null,card:null},lobbyPeer=null,g
 
 /* 蜂蜜罐分數（分數×張數）：1×5、2×5、3×5、5×5、6×4、8×5、10×5，共 34 張，洗勻後平均發給 4 位玩家 */
 const JAR_VALUES=[[1,5],[2,5],[3,5],[5,5],[6,4],[8,5],[10,5]].flatMap(([v,n])=>Array(n).fill(v));
-/* 小熊、蓋子、熊爸爸各 2 張；手牌不是 3 的倍數時多補小熊，讓每回合剛好出 3 張 */
-function makeSpecials(per){const h=[];let bears=2;while((per+bears+4)%3)bears++;
+/* 每人：小熊 2 張、蓋子 1 張、熊爸爸 1 張；手牌不是 3 的倍數時多補小熊，讓每回合剛好出 3 張 */
+function makeSpecials(per){const h=[];let bears=2;while((per+bears+2)%3)bears++;
   for(let i=0;i<bears;i++)h.push({id:uid++,k:"bear",v:0});
-  for(let i=0;i<2;i++)h.push({id:uid++,k:"lid",v:0});
-  for(let i=0;i<2;i++)h.push({id:uid++,k:"big",v:0});return h}
+  h.push({id:uid++,k:"lid",v:0});
+  h.push({id:uid++,k:"big",v:0});return h}
 
 function startGame(seats){
   while(seats.length<4)seats.push({type:"bot"});
