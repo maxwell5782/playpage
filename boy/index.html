@@ -302,6 +302,41 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .wb-row .cnt .b{color:var(--bad);background:#FFE6EC}
 .wb-row .spk{min-height:34px;padding:2px 12px}
 .wb-star{font-size:72px;line-height:1;color:#FFC93C;text-shadow:0 4px 0 #E5A52E;animation:pop .4s ease-out}
+
+/* ---------- legendary bosses ---------- */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes floaty{50%{transform:translateY(-6%)}}
+svg .rays{transform-origin:60px 62px;animation:spin 24s linear infinite}
+#board.world .lair{position:absolute;width:31%;aspect-ratio:1;transform:translate(-50%,-50%);border:0;background:none;padding:0;cursor:pointer;z-index:1}
+#board.world .lair .boss-ico{width:100%;height:100%;display:block;animation:floaty 2.6s ease-in-out infinite;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35))}
+#board.world .lair-tag{position:absolute;left:50%;bottom:2%;transform:translateX(-50%);background:linear-gradient(90deg,#FF5A1F,#F5B700);color:#fff;font-weight:900;font-size:calc(var(--u)*.55);padding:1px 10px;border-radius:999px;white-space:nowrap;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#board.world .lair.beat .lair-tag{background:#2FAE55}
+#board.world .cell{z-index:2}
+#board.world .sc{z-index:2}
+.boss-head{width:100%;display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,var(--bc2),#141428);border-radius:20px;padding:8px 14px 8px 8px;color:#fff;text-align:left}
+.boss-head .boss-art{width:110px;height:110px;flex:none}
+.boss-head .boss-big{width:100%;height:100%;display:block}
+.boss-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.boss-info b{font-size:22px;letter-spacing:.06em;text-shadow:0 2px 0 rgba(0,0,0,.4)}
+.hpbar{height:16px;border-radius:999px;background:rgba(255,255,255,.18);overflow:hidden;box-shadow:0 0 0 2px rgba(255,255,255,.35) inset}
+.hpbar i{display:block;height:100%;background:linear-gradient(90deg,#FF4D6D,#FFC93C);border-radius:999px;transition:width .4s ease}
+.boss-info small{font-variant-numeric:tabular-nums;opacity:.9;font-size:14px}
+.boss-art.hit{animation:bhit .45s ease}
+.boss-art.atk{animation:batk .5s ease}
+@keyframes bhit{20%{transform:translateX(-8px) scale(.94);filter:brightness(2.2)}50%{transform:translateX(7px)}80%{transform:translateX(-3px)}}
+@keyframes batk{40%{transform:scale(1.18)}}
+.boss-show{width:220px;max-width:70vw;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#2A2350 0,#141428 70%);padding:6px;box-shadow:0 0 0 4px #FFC93C,0 8px 24px rgba(0,0,0,.35)}
+.boss-show .boss-big{width:100%;height:100%;display:block;animation:floaty 2.6s ease-in-out infinite}
+.boss-show.win{box-shadow:0 0 0 4px #FFC93C,0 0 40px #FFC93C}
+.boss-rule{background:var(--lav2);border-radius:16px;padding:10px 14px;font-size:15px}
+.boss-row{display:flex;justify-content:center;gap:4px;flex-wrap:wrap}
+.boss-row .boss-mini{width:clamp(56px,16vw,96px);height:auto}
+.mon.boss{overflow:visible}
+.runner .mon.boss{width:84px;height:84px;margin-left:-12px}
+.it.bossit{background:linear-gradient(135deg,#2A2350,#141428);color:#fff;border-color:#FFC93C}
+.it.bossit.lock{background:#2A2350;color:#B9B4F0}
+.it.bossit.lock svg{filter:brightness(0) opacity(.5)}
+.tm .boss,.it .boss{animation:none}
 </style>
 </head>
 <body>
@@ -950,6 +985,7 @@ function eyes(e,x1,x2,y,d){
 }
 const monCache={};
 function mon(key){
+ if(key[0]==='K'){const z=+key[1];return {key,z,j:-1,b:-1,v:-1,rare:true,boss:true,name:BOSSES[z].name}}
  if(monCache[key])return monCache[key];
  const[z,j]=key.split('-').map(Number);
  /* 0~59：原本六個家族；60~89：恐龍三家族 */
@@ -966,6 +1002,7 @@ const lvTag=l=>`<span class="lvt" style="background:${LVCOL[l]}">${LV_SHORT[l]}<
 const LV_TOTAL=[0,0,0,0];Object.values(LV_OF).forEach(l=>LV_TOTAL[l]++);
 
 function monSVG(key,opt={}){
+ if(key[0]==='K')return bossSVG(+key[1],(opt.cls||'mon')+' boss');
  const m=mon(key),Z=ZONES[m.z],c=Z.tones[(m.v*7+m.b)%3],d=shade(c,.32),l=tint(c,.6);
  const horn=m.v%3,mark=Math.floor(m.v/2)%3,eye=(m.v+m.b)%4,top=BODY_TOP[m.b];
  let body='',ex1=40,ex2=60,ey=56,mouthY=70;
@@ -999,6 +1036,148 @@ const eggSVG=(z,cls='ico')=>{const c=ZONES[z].color;return `<svg class="${cls}" 
 const zoneSVG=(z,cls='ico')=>`<svg class="${cls}" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="${ZONES[z].color}"/>${emblem(z,12,12,6).replace(/stroke="#fff"/,'stroke="#fff"')}</svg>`;
 const starSVG=`<svg class="ico" viewBox="0 0 24 24"><polygon points="12,2.5 14.8,8.9 21.7,9.4 16.4,13.8 18.1,20.6 12,16.9 5.9,20.6 7.6,13.8 2.3,9.4 9.2,8.9" fill="#FFC93C" stroke="#E5A52E" stroke-width="1" stroke-linejoin="round"/></svg>`;
 const gateSVG=`<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="#1E2F55"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#7ED957" stroke-width="2" stroke-dasharray="3 2"/><circle cx="12" cy="12" r="3" fill="#7ED957"/></svg>`;
+
+/* ================= 傳說之王（全部單字過關後出現） ================= */
+const BOSS_REWARD=500;
+const BOSSES=[
+ {name:'炎帝龍',c:'#FF5A1F',c2:'#B3201A',aura:'#FFB35C',iris:'#FFD23F',lair:[50,27],txt:'住在火山口的火焰之王，翅膀一揮就是一陣熱風。'},
+ {name:'深海龍王',c:'#2F7BEA',c2:'#18348A',aura:'#8FE0FF',iris:'#7CFFDA',lair:[45,57],txt:'統治整片海洋的龍王，拿著黃金三叉戟。'},
+ {name:'森林巨神',c:'#36B060',c2:'#17613A',aura:'#D2F7A0',iris:'#FFE14D',lair:[66,49],txt:'活了一千年的森林守護神，角上開滿了花。'},
+ {name:'雷霆獅王',c:'#F5B700',c2:'#B86A00',aura:'#FFF07A',iris:'#5BE1FF',lair:[50,40],txt:'一吼就打雷的獅子王，鬃毛閃著電光。'},
+ {name:'冰晶鳳凰',c:'#62CDF2',c2:'#2E6FC4',aura:'#E8FAFF',iris:'#B07CFF',lair:[63,52],txt:'用冰晶做成翅膀的鳳凰，飛過的地方都會下雪。'}
+];
+let BUID=0;
+function bossSVG(z,cls='mon boss'){
+ const B=BOSSES[z],u='b'+(++BUID),c=B.c,c2=B.c2;
+ const gold=`url(#g${u})`,body=`url(#d${u})`;
+ const crown=(x,y,s=1)=>`<path d="M${x-10*s} ${y} L${x-12*s} ${y-12*s} L${x-5*s} ${y-6*s} L${x} ${y-15*s} L${x+5*s} ${y-6*s} L${x+12*s} ${y-12*s} L${x+10*s} ${y}Z" fill="${gold}" stroke="#A86B00" stroke-width="1" stroke-linejoin="round"/><circle cx="${x}" cy="${y-4*s}" r="${2.2*s}" fill="#F2557A" stroke="#fff" stroke-width=".6"/><circle cx="${x-7*s}" cy="${y-3*s}" r="${1.4*s}" fill="#5BE1FF"/><circle cx="${x+7*s}" cy="${y-3*s}" r="${1.4*s}" fill="#7ED957"/>`;
+ const eye=(x,y,flip)=>{const f=flip?-1:1;return `<path d="M${x-6*f} ${y+1} Q${x} ${y-5} ${x+6*f} ${y-1} Q${x} ${y+4} ${x-6*f} ${y+1}Z" fill="#fff"/><circle cx="${x+.5*f}" cy="${y}" r="2.9" fill="${B.iris}"/><circle cx="${x+.5*f}" cy="${y}" r="1.4" fill="#141428"/><circle cx="${x+1.5*f}" cy="${y-1}" r=".8" fill="#fff"/><path d="M${x-7*f} ${y-5} L${x+6*f} ${y-2.6}" stroke="#141428" stroke-width="2" stroke-linecap="round"/>`};
+ const flame=(x,y,s,a='#FF8A1F',b='#FFE14D')=>`<path d="M${x} ${y-8*s} Q${x+6*s} ${y-1*s} ${x+4*s} ${y+4*s} Q${x} ${y+7*s} ${x-4*s} ${y+4*s} Q${x-6*s} ${y-1*s} ${x} ${y-8*s}Z" fill="${a}"/><path d="M${x} ${y-2*s} Q${x+2.6*s} ${y+1.6*s} ${x} ${y+5*s} Q${x-2.6*s} ${y+1.6*s} ${x} ${y-2*s}Z" fill="${b}"/>`;
+ const bolt=(x,y,s=1)=>`<path d="M${x+2*s} ${y-9*s} L${x-5*s} ${y+1*s} L${x} ${y+1*s} L${x-2*s} ${y+9*s} L${x+5*s} ${y-2*s} L${x+.5*s} ${y-2*s}Z" fill="#FFE14D" stroke="#C78A00" stroke-width=".8" stroke-linejoin="round"/>`;
+ const rays=[...Array(12)].map((_,k)=>{const a=k*Math.PI/6;const p=d=>`${(60+58*Math.cos(a+d)).toFixed(1)},${(62+58*Math.sin(a+d)).toFixed(1)}`;return `<polygon points="60,62 ${p(-.07)} ${p(.07)}"/>`}).join('');
+ let art='';
+ switch(z){
+  case 0:art=`<path d="M44 62 L6 20 Q14 40 4 48 Q18 50 12 62 Q26 60 26 74Z" fill="${c2}" stroke="${gold}" stroke-width="1.4" stroke-linejoin="round"/><path d="M76 62 L114 20 Q106 40 116 48 Q102 50 108 62 Q94 60 94 74Z" fill="${c2}" stroke="${gold}" stroke-width="1.4" stroke-linejoin="round"/>
+   <path d="M44 62 L14 44 M44 62 L18 60 M76 62 L106 44 M76 62 L102 60" stroke="${gold}" stroke-width="1" opacity=".8"/>
+   <path d="M80 96 Q106 104 104 82" stroke="${c}" stroke-width="8" fill="none" stroke-linecap="round"/>${flame(104,76,1)}
+   ${flame(38,34,1.1)}${flame(45,22,1.2)}${flame(60,16,1.3)}${flame(75,22,1.2)}${flame(82,34,1.1)}
+   <ellipse cx="60" cy="84" rx="26" ry="24" fill="${body}"/><ellipse cx="60" cy="88" rx="15" ry="17" fill="#FFD9A0"/><path d="M48 80 Q60 84 72 80 M47 89 Q60 93 73 89 M49 98 Q60 102 71 98" stroke="#F0A860" stroke-width="1.2" fill="none"/>
+   <ellipse cx="44" cy="106" rx="9" ry="6" fill="${c2}"/><ellipse cx="76" cy="106" rx="9" ry="6" fill="${c2}"/><path d="M38 109 l1 3 M43 110 l0 3 M48 109 l-1 3 M72 109 l1 3 M77 110 l0 3 M82 109 l-1 3" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+   <ellipse cx="38" cy="84" rx="6" ry="8" fill="${c2}" transform="rotate(25 38 84)"/><ellipse cx="82" cy="84" rx="6" ry="8" fill="${c2}" transform="rotate(-25 82 84)"/>
+   <path d="M45 34 Q36 20 28 16 Q38 22 42 38Z" fill="${gold}"/><path d="M75 34 Q84 20 92 16 Q82 22 78 38Z" fill="${gold}"/>
+   <ellipse cx="60" cy="46" rx="22" ry="18" fill="${body}"/><ellipse cx="60" cy="56" rx="13" ry="8" fill="#FF9A5C"/><circle cx="55" cy="54" r="1.3" fill="#7A1A10"/><circle cx="65" cy="54" r="1.3" fill="#7A1A10"/>
+   <path d="M52 60 Q60 64 68 60" stroke="#7A1A10" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M54 60.5 l1.2 3 l1.2 -2.6 M66 60.5 l-1.2 3 l-1.2 -2.6" fill="#fff"/>
+   ${eye(50,44)}${eye(70,44,true)}${crown(60,30)}<circle cx="60" cy="72" r="4.2" fill="${gold}"/><circle cx="60" cy="72" r="2.4" fill="#F2557A"/>`;break;
+  case 1:art=`<path d="M30 100 Q8 82 28 66 Q48 52 70 66 Q94 82 82 100 Q70 114 50 106" stroke="${c}" stroke-width="17" fill="none" stroke-linecap="round"/>
+   <path d="M30 100 Q8 82 28 66 Q48 52 70 66 Q94 82 82 100 Q70 114 50 106" stroke="#9FE3FF" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray="3 3"/>
+   <path d="M71 66 Q80 50 64 40" stroke="${c}" stroke-width="15" fill="none" stroke-linecap="round"/>
+   <path d="M96 112 L106 42" stroke="${gold}" stroke-width="3" stroke-linecap="round"/><path d="M98 46 Q106 30 114 46 M106 30 L106 46 M98 46 L98 38 M114 46 L114 38" stroke="${gold}" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+   <path d="M36 30 Q22 20 20 36 Q26 34 28 42 Q34 36 40 40Z" fill="#7CFFDA" stroke="#fff" stroke-width="1"/><path d="M84 30 Q98 20 100 36 Q94 34 92 42 Q86 36 80 40Z" fill="#7CFFDA" stroke="#fff" stroke-width="1"/>
+   <path d="M48 26 L52 14 L56 24 L60 10 L64 24 L68 14 L72 26Z" fill="#7CFFDA"/>
+   <ellipse cx="60" cy="38" rx="21" ry="16" fill="${body}"/><ellipse cx="60" cy="47" rx="12" ry="7" fill="#BDEBFF"/>
+   <path d="M50 48 Q38 52 34 62 M70 48 Q82 52 86 62" stroke="${gold}" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+   <path d="M53 51 Q60 55 67 51" stroke="#0E2A66" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+   ${eye(51,37)}${eye(69,37,true)}${crown(60,24,.9)}<circle cx="60" cy="31" r="2.4" fill="#fff" stroke="${gold}" stroke-width="1"/>
+   <g fill="none" stroke="#fff" stroke-width="1"><circle cx="16" cy="56" r="3"/><circle cx="12" cy="46" r="2"/><circle cx="104" cy="22" r="2.4"/><circle cx="22" cy="20" r="2"/></g>`;break;
+  case 2:art=`<g stroke="#8C5A2E" stroke-width="3.4" fill="none" stroke-linecap="round"><path d="M46 34 Q38 18 28 8 M38 22 Q28 22 20 16 M33 14 Q36 6 34 2"/><path d="M74 34 Q82 18 92 8 M82 22 Q92 22 100 16 M87 14 Q84 6 86 2"/></g>
+   ${[[28,8],[20,16],[34,2],[92,8],[100,16],[86,2],[40,24],[80,24]].map(([x,y],k)=>k%2?`<ellipse cx="${x}" cy="${y}" rx="3.4" ry="2" fill="#5ED16A" transform="rotate(${k*30} ${x} ${y})"/>`:`<g>${[0,1,2,3,4].map(i=>{const a=i*1.256;return `<circle cx="${(x+2.2*Math.cos(a)).toFixed(1)}" cy="${(y+2.2*Math.sin(a)).toFixed(1)}" r="1.6" fill="#FF8FBF"/>`}).join('')}<circle cx="${x}" cy="${y}" r="1.2" fill="#FFE14D"/></g>`).join('')}
+   <ellipse cx="60" cy="86" rx="31" ry="26" fill="${body}"/><ellipse cx="60" cy="92" rx="17" ry="16" fill="#E8F7C8"/>
+   <circle cx="40" cy="78" r="4" fill="#7ED957" opacity=".6"/><circle cx="80" cy="96" r="5" fill="#7ED957" opacity=".6"/><circle cx="76" cy="74" r="3" fill="#7ED957" opacity=".6"/>
+   <path d="M32 72 Q44 84 36 96 Q30 104 40 110" stroke="#1F7A3A" stroke-width="2" fill="none"/><ellipse cx="35" cy="84" rx="2.6" ry="1.4" fill="#5ED16A"/><ellipse cx="37" cy="100" rx="2.6" ry="1.4" fill="#5ED16A"/>
+   <rect x="38" y="104" width="12" height="10" rx="3" fill="#8C5A2E"/><rect x="70" y="104" width="12" height="10" rx="3" fill="#8C5A2E"/><path d="M38 114 l-3 3 M44 114 v3 M50 114 l3 3 M70 114 l-3 3 M76 114 v3 M82 114 l3 3" stroke="#8C5A2E" stroke-width="1.6" stroke-linecap="round"/>
+   <path d="M84 70 q0 -6 6 -6 q6 0 6 6z" fill="#E84A6A"/><rect x="88.5" y="70" width="3" height="4" fill="#FFF3E0"/><circle cx="88" cy="67" r=".9" fill="#fff"/>
+   <ellipse cx="60" cy="48" rx="21" ry="18" fill="${body}"/><ellipse cx="60" cy="57" rx="11" ry="7.5" fill="#E8F7C8"/><ellipse cx="60" cy="53" rx="3.4" ry="2.4" fill="#1F3D2A"/>
+   <path d="M54 60 Q60 63 66 60" stroke="#1F3D2A" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+   <ellipse cx="41" cy="40" rx="4" ry="6" fill="${c2}" transform="rotate(-30 41 40)"/><ellipse cx="79" cy="40" rx="4" ry="6" fill="${c2}" transform="rotate(30 79 40)"/>
+   ${eye(51,46)}${eye(69,46,true)}${crown(60,32,.9)}`;break;
+  case 3:{let mp=[],mp2=[];for(let k=0;k<32;k++){const a=k*Math.PI/16,r=k%2?26:36,r2=k%2?20:28;mp.push((60+r*Math.cos(a)).toFixed(1)+','+(52+r*Math.sin(a)).toFixed(1));mp2.push((60+r2*Math.cos(a+.1)).toFixed(1)+','+(52+r2*Math.sin(a+.1)).toFixed(1))}
+   art=`${bolt(14,40,1.2)}${bolt(106,44,1.1)}${bolt(18,98,.9)}${bolt(104,100,.9)}
+   <path d="M82 104 Q104 104 102 86" stroke="${c2}" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M102 86 l-4 -4 l6 -2 l-3 -5 l7 1" stroke="#5BE1FF" stroke-width="2" fill="none" stroke-linejoin="round"/>
+   <ellipse cx="60" cy="96" rx="24" ry="18" fill="${body}"/><ellipse cx="60" cy="98" rx="13" ry="12" fill="#FFF3C4"/>
+   <rect x="44" y="100" width="11" height="14" rx="5" fill="${c}"/><rect x="65" y="100" width="11" height="14" rx="5" fill="${c}"/><path d="M47 112 v-3 M50 112 v-3 M68 112 v-3 M71 112 v-3" stroke="${c2}" stroke-width="1" stroke-linecap="round"/>
+   <polygon points="${mp.join(' ')}" fill="url(#m${u})" stroke="#C77800" stroke-width="1" stroke-linejoin="round"/><polygon points="${mp2.join(' ')}" fill="#FFE98A"/>
+   <circle cx="44" cy="38" r="5" fill="#FFD86B"/><circle cx="76" cy="38" r="5" fill="#FFD86B"/><circle cx="44" cy="38" r="2.4" fill="#F0A860"/><circle cx="76" cy="38" r="2.4" fill="#F0A860"/>
+   <circle cx="60" cy="52" r="18" fill="#FFD86B"/><ellipse cx="60" cy="60" rx="9" ry="6.5" fill="#FFF3C4"/><path d="M56 56 L64 56 L60 60Z" fill="#6B3A1A"/>
+   <path d="M60 60 v2.6 M60 62.6 Q56 66 53 63 M60 62.6 Q64 66 67 63" stroke="#6B3A1A" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+   ${eye(52,49)}${eye(68,49,true)}${crown(60,26)}${bolt(60,86,.7)}`;break}
+  case 4:art=`<polygon points="52,60 4,26 14,50 2,60 18,68 6,84 40,78" fill="url(#w${u})" stroke="#fff" stroke-width="1" stroke-linejoin="round"/><polygon points="68,60 116,26 106,50 118,60 102,68 114,84 80,78" fill="url(#w${u})" stroke="#fff" stroke-width="1" stroke-linejoin="round"/>
+   <path d="M52 60 L14 50 M52 60 L18 68 M46 70 L6 84 M68 60 L106 50 M68 60 L102 68 M74 70 L114 84" stroke="#fff" stroke-width=".8" opacity=".8"/>
+   <path d="M60 86 Q48 100 40 112 M60 88 Q60 102 60 116 M60 86 Q72 100 80 112" stroke="${c2}" stroke-width="3" fill="none" stroke-linecap="round"/>
+   <path d="M40 112 l-4 -4 l6 -2z M60 116 l-3 -5 l6 0z M80 112 l4 -4 l-6 -2z" fill="#E8FAFF" stroke="${c2}" stroke-width=".8"/>
+   <path d="M60 32 Q52 16 46 12 M60 32 Q60 14 60 8 M60 32 Q68 16 74 12" stroke="${c2}" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M46 12 l-3 -3 l5 -1z M60 8 l-2 -4 l4 0z M74 12 l3 -3 l-5 -1z" fill="#E8FAFF" stroke="${c2}" stroke-width=".8"/>
+   <ellipse cx="60" cy="72" rx="16" ry="20" fill="${body}"/><ellipse cx="60" cy="76" rx="9" ry="13" fill="#E8FAFF"/>
+   <circle cx="60" cy="46" r="14" fill="${body}"/><path d="M56 51 L64 51 L60 58Z" fill="${gold}" stroke="#A86B00" stroke-width=".6"/>
+   ${eye(54,45)}${eye(66,45,true)}${crown(60,34,.75)}
+   <g fill="#fff">${[[20,20],[100,16],[28,96],[96,98],[12,72],[110,74]].map(([x,y])=>`<path d="M${x} ${y-3} L${x+.8} ${y-.8} L${x+3} ${y} L${x+.8} ${y+.8} L${x} ${y+3} L${x-.8} ${y+.8} L${x-3} ${y} L${x-.8} ${y-.8}Z"/>`).join('')}</g>`;break;
+ }
+ return `<svg class="${cls}" viewBox="0 0 120 120" aria-label="${B.name}"><defs>
+  <radialGradient id="a${u}"><stop offset="0" stop-color="${B.aura}" stop-opacity=".95"/><stop offset=".6" stop-color="${B.aura}" stop-opacity=".45"/><stop offset="1" stop-color="${B.aura}" stop-opacity="0"/></radialGradient>
+  <linearGradient id="d${u}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tint(c,.25)}"/><stop offset="1" stop-color="${c2}"/></linearGradient>
+  <linearGradient id="g${u}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF6B0"/><stop offset=".5" stop-color="#FFC93C"/><stop offset="1" stop-color="#D08A00"/></linearGradient>
+  <linearGradient id="m${u}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE14D"/><stop offset="1" stop-color="#F08A1A"/></linearGradient>
+  <linearGradient id="w${u}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".5" stop-color="#BDEBFF"/><stop offset="1" stop-color="${c}"/></linearGradient>
+ </defs><circle cx="60" cy="62" r="58" fill="url(#a${u})"/><g class="rays" fill="#fff" opacity=".35">${rays}</g>${art}</svg>`;
+}
+
+/* ---- 出現條件、地圖上的王、戰鬥 ---- */
+const bossOpen=()=>!!(G&&G.wordStar);
+const bossKey=z=>'K'+z;
+const ALLW=()=>{const seen=new Set();return WORDS[3].filter(w=>!seen.has(w.en)&&seen.add(w.en))};
+function bossWordsFor(p,z){
+ if(!p.bossWords)p.bossWords={};
+ if(!p.bossWords[z]){
+  const used=new Set(Object.values(p.bossWords).flat());
+  p.bossWords[z]=shuffle(ALLW().filter(w=>!used.has(w.en))).slice(0,100).map(w=>w.en);
+ }
+ const map=new Map(ALLW().map(w=>[w.en,w]));
+ return p.bossWords[z].map(en=>map.get(en)).filter(Boolean);
+}
+function lairHTML(){
+ if(!bossOpen())return '';
+ const p=cur(),z=MAP().z,B=BOSSES[z],beat=p.bosses&&p.bosses[z];
+ return `<button class="lair${beat?' beat':''}" data-act="boss" style="left:${B.lair[0]}%;top:${B.lair[1]}%" title="${beat?'已打倒':'挑戰'}${B.name}">${bossSVG(z,'boss-ico')}<span class="lair-tag">${beat?'夥伴':'挑戰！'}</span></button>`;
+}
+function bossHead(z,left,total){
+ const B=BOSSES[z];
+ return `<div class="boss-head" style="--bc:${B.c};--bc2:${B.c2}"><div class="boss-art" id="bossArt">${bossSVG(z,'boss-big')}</div>
+ <div class="boss-info"><b>${B.name}</b><div class="hpbar"><i id="hpFill" style="width:${(left/total*100).toFixed(1)}%"></i></div><small id="hpTxt">HP ${left} / ${total}</small></div></div>`;
+}
+async function bossBattle(){
+ const p=cur(),z=MAP().z,B=BOSSES[z];
+ if(!p.bosses)p.bosses=[false,false,false,false,false];
+ if(p.bosses[z]){
+  const v=await openModal(`<div class="boss-show">${bossSVG(z,'boss-big')}</div><h3>${B.name}</h3><p>${B.txt}<br>已經是你的夥伴了！</p><div class="m-btns"><button class="btn alt" data-v="team">編輯隊伍</button><button class="btn pri" data-v="ok">好</button></div>`,true);
+  if(v==='team')openTeam();return;
+ }
+ const words=bossWordsFor(p,z),total=words.length;save(true);
+ const go=await openModal(`<div class="boss-show">${bossSVG(z,'boss-big')}</div><h3>傳說之王・${B.name}</h3><p>${B.txt}</p>
+  <div class="boss-rule"><b>連續答對 ${total} 個單字</b>才能打倒牠！<br>答錯的字會再出現一次。中途離開的話，王會恢復體力。<br><small>每隻王的題目都不一樣，不會跟其他王重複。</small></div>
+  <div class="m-btns"><button class="btn" data-v="no">下次再來</button><button class="btn pri" data-v="go">開始挑戰！</button></div>`,true);
+ if(go!=='go')return;
+ const queue=shuffle(words.slice());let left=total;
+ while(queue.length){
+  const w=queue[0];
+  const r=await quiz(w,{raw:true,fast:true,flee:true,head:bossHead(z,left,total),onResult:ok=>{
+   const art=$('#bossArt');if(art){art.classList.remove('hit','atk');void art.offsetWidth;art.classList.add(ok?'hit':'atk')}
+   if(ok){const f=$('#hpFill'),t=$('#hpTxt');if(f)f.style.width=((left-1)/total*100).toFixed(1)+'%';if(t)t.textContent=`HP ${left-1} / ${total}`}
+  }});
+  if(r==='flee'||r==null){setMsg(`離開了戰鬥，${B.name}恢復體力了。下次再來挑戰吧！`);return}
+  if(r==='ok'){queue.shift();left--;}else queue.push(queue.shift());
+  try{await recordWord(w,r==='ok')}catch(e){}
+ }
+ p.bosses[z]=true;add(p,BOSS_REWARD);
+ const k=bossKey(z);if(p.team.length<TEAM_MAX&&!p.team.includes(k))p.team.push(k);
+ save(true);buildBoard();fitBoard();render();
+ const v=await openModal(`<div class="boss-show win">${bossSVG(z,'boss-big')}</div><h3>打倒${B.name}了！</h3><p>連續答對 ${total} 個單字，太厲害了！<br>${B.name}成為你的夥伴，還送你 <b>${BOSS_REWARD}</b> 星星幣！</p>
+  ${p.bosses.every(Boolean)?'<p><b>五隻傳說之王全部打倒了！你是真正的怪獸大師！</b></p>':''}
+  <div class="m-btns"><button class="btn alt" data-v="team">編輯隊伍</button><button class="btn pri" data-v="ok">耶！</button></div>`,true);
+ setMsg(`打倒了${B.name}！`);
+ if(v==='team')openTeam();
+}
+async function onAllWords(){
+ buildBoard();fitBoard();render();
+ await openModal(`<div class="boss-row">${BOSSES.map((_,z)=>bossSVG(z,'boss-mini')).join('')}</div><h3>傳說之王出現了！</h3><p>五張地圖上都出現了一隻隱藏的王，<br>連續答對 100 個單字就能打倒牠，讓牠成為你的夥伴！</p><div class="m-btns"><button class="btn pri" data-v="ok">去挑戰！</button></div>`,true);
+}
 
 /* ================= 地圖 ================= */
 const START=100, PASS_PRICE=150, EGG_PRICE=100, EGG_N=2, BONUS_START=50, TEAM_MAX=5, HOME_MAP=2;
@@ -1193,7 +1372,7 @@ const pct=v=>v+'%';
 function buildBoard(){
  const m=MAP(),b=$('#board');
  b.className='world z'+m.z;b.style.setProperty('--tile',m.tile);b.style.setProperty('--edge',m.edge);
- let h=`<svg class="scene" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${sceneSVG(m,'B')}</svg>`;
+ let h=`<svg class="scene" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${sceneSVG(m,'B')}</svg>`+lairHTML();
  m.sc.forEach((p,k)=>{const[x,y]=ctr(p);h+=`<div class="sc" id="s${k}" style="left:${pct(x)};top:${pct(y)}"><div class="toks"></div></div>`});
  m.path.forEach((p,i)=>{const[r,c]=p;h+=`<div class="cell" id="c${i}" data-i="${i}" style="left:${pct(c*10+.9)};top:${pct(r*10+.9)}"></div>`});
  b.innerHTML=h;
@@ -1410,7 +1589,7 @@ function drawTeam(){
  }
  const team=`<div class="teamrow">${[...Array(TEAM_MAX)].map((_,k)=>{const key=p.team[k];return key?`<button class="tm" data-tk="${key}" title="移出隊伍">${monSVG(key)}<span>${esc(mon(key).name)}</span></button>`:`<div class="tm empty"><div class="slotq">?</div><span>空位</span></div>`}).join('')}</div>`;
  const zt=`<div class="tabs">${ZONES.map((z,k)=>`<button data-tz="${k}" class="${k===s.z?'on':''}">${z.el}系 ${countOf(p,k)}</button>`).join('')}</div>`;
- const mine=zoneKeys(s.z).filter(k=>have.has(k));
+ const mine=(p.bosses&&p.bosses[s.z]?[bossKey(s.z)]:[]).concat(zoneKeys(s.z).filter(k=>have.has(k)));
  const grid=mine.length?`<div class="grid">${mine.map(k=>{const on=p.team.includes(k);return `<button class="it${on?' on':''}" data-tk="${k}">${monSVG(k)}<span>${esc(mon(k).name)}</span>${on?'<span class="wearing">隊伍中</span>':s.fresh.has(k)?'<span class="wearing">NEW</span>':''}</button>`}).join('')}</div>`:`<p>還沒有${ZONES[s.z].el}系怪獸</p>`;
  $('#modalCard').innerHTML=`<h3>我的隊伍</h3><small style="color:var(--soft)">隊伍最多 ${TEAM_MAX} 隻，會出現在地圖中間和畫面下方。點一下加入，再點一次移出。</small>${team}${zt}${grid}<div class="m-btns"><button class="btn pri" data-v="ok">完成</button></div>`;
 }
@@ -1431,6 +1610,7 @@ function drawBook(){
  const pct=n=>(n*100).toFixed(1)+'%';
  const zt=`<div class="tabs">${ZONES.map((q,k)=>`<button data-bz="${k}" class="${k===z?'on':''}">${q.zone} <span class="cnt">${countOf(p,k)}/${PER_ZONE}</span></button>`).join('')}</div>`;
  const filt=`<div class="tabs">${[['all','全部'],['have','已收集'],['need','還沒收集']].map(f=>`<button data-bf="${f[0]}" class="${f[0]===s.filter?'on':''}">${f[1]}</button>`).join('')}</div>`;
+ const bossSec=bossOpen()?`<div class="bk-sec"><h4>傳說之王 <small>${p.bosses&&p.bosses[z]?'已打倒':'還沒打倒'}</small></h4><div class="grid" style="max-height:none;overflow:visible">${p.bosses&&p.bosses[z]?`<div class="it bossit">${bossSVG(z,'mon boss')}<span>${BOSSES[z].name}</span></div>`:`<div class="it lock bossit">${bossSVG(z,'mon boss')}<span>？？？</span></div>`}</div></div>`:'';
  const secs=BODIES.map((bn,b)=>{
   const keys=zoneKeys(z).filter(k=>mon(k).b===b);
   const got=keys.filter(k=>have.has(k)).length;
@@ -1448,7 +1628,7 @@ function drawBook(){
  ${zt}
  ${p.pass[z]?'':`<div class="bk-note">還沒解鎖${MAPS[z].name}，按「世界地圖」花 ${PASS_PRICE} 星星幣解鎖，才找得到${Z.el}系怪獸喔！</div>`}
  ${filt}
- <div class="bk-list">${secs}</div>
+ <div class="bk-list">${bossSec}${secs}</div>
  <div class="m-btns"><button class="btn alt" data-bteam="1">編輯隊伍</button><button class="btn pri" data-v="ok">關閉</button></div>`;
 }
 function bookClick(e){
@@ -1470,8 +1650,9 @@ async function openLevel(){
 }
 
 /* ---------- 單字題（畫面上的字母鍵盤，不會跳出系統鍵盤） ---------- */
-let quizKeyHandler=null;
-function quiz(w){
+let quizKeyHandler=null,QID=0;
+function quiz(w,opt={}){
+ const qid=++QID;
  const lv=G.level,chars=[...w.en];
  const letters=chars.map((c,i)=>/[a-z]/i.test(c)?i:-1).filter(i=>i>=0);
  let hide;
@@ -1491,11 +1672,12 @@ function quiz(w){
  const kb=`<div class="kb" id="kb">${rows.map((r,ri)=>`<div class="r">${[...r].map(ch=>`<button type="button" data-key="${ch}">${ch}</button>`).join('')}${ri===2?'<button type="button" class="del" data-key="del" aria-label="刪除">⌫</button>':''}</div>`).join('')}</div>`;
  let tries=lv===0?2:1,done=false;
  const p=cur();
- const promise=openModal(`<span class="tag">${LEVELS[lv]}・答對 +${REWARD[lv]}</span>
-  <h3>${esc(p.name)} 的單字挑戰</h3>${prompt}
+ const flee=opt.flee?'<button class="btn" data-v="flee">離開</button>':'';
+ const promise=openModal(`${opt.head||`<span class="tag">${LEVELS[lv]}・答對 +${REWARD[lv]}</span>
+  <h3>${esc(p.name)} 的單字挑戰</h3>`}${prompt}
   <div class="qmsg" id="qmsg">${lv===3?'把句子裡缺的單字拼出來':'把空格的字母填好'}${tries>1?'（有 2 次機會）':''}</div>
   ${kb}
-  <div class="m-btns" id="qbtns"><button class="spk" data-speak="${esc(lv===3?sentence:w.en)}">${lv===3?'聽句子':'聽發音'}</button><button class="btn pri" id="qcheck">送出答案</button></div>`);
+  <div class="m-btns" id="qbtns"><button class="spk" data-speak="${esc(lv===3?sentence:w.en)}">${lv===3?'聽句子':'聽發音'}</button>${flee}<button class="btn pri" id="qcheck">送出答案</button></div>`,!!opt.head);
  const card=$('#modalCard'),msg=$('#qmsg'),vals={};
  const boxEl=i=>card.querySelector(`.lt[data-i="${i}"]`);
  let act=0;
@@ -1525,7 +1707,8 @@ function quiz(w){
  paint();
  function finish(ok){
   done=true;paint();$('#kb').hidden=true;
-  $('#qbtns').innerHTML=`<button class="spk" data-speak="${esc(sentence)}">聽發音</button><button class="btn pri" data-v="${ok?'ok':'no'}">${ok?'太棒了':'知道了'}</button>`;
+  $('#qbtns').innerHTML=`<button class="spk" data-speak="${esc(sentence)}">聽發音</button>${flee}<button class="btn pri" data-v="${ok?'ok':'no'}">${ok?(opt.head?'下一題':'太棒了'):(opt.head?'繼續':'知道了')}</button>`;
+  if(opt.fast&&ok)setTimeout(()=>{if(modalResolve&&QID===qid)closeModal('ok')},1000);
  }
  function check(){
   if(done)return;
@@ -1534,7 +1717,7 @@ function quiz(w){
   slots.forEach(i=>{if(chars[i].toLowerCase()!==vals[i]){ok=false;boxEl(i).classList.add('bad')}});
   if(ok){
    slots.forEach(i=>boxEl(i).classList.add('ok'));
-   msg.className='qmsg good';msg.innerHTML=`答對了！+${REWARD[lv]} 星星幣`;
+   msg.className='qmsg good';msg.innerHTML=opt.head?'命中！':`答對了！+${REWARD[lv]} 星星幣`;opt.onResult&&opt.onResult(true);
    const bu=document.createElement('div');bu.className='burst';
    bu.innerHTML=[...Array(10)].map((_,k)=>`<span style="left:${10+k*8}%;--dx:${rnd(80)-40}px;animation-delay:${k*40}ms;color:${['#FF6FA8','#9B7BFF','#FFC93C','#2EC4A0'][k%4]}">${k%2?'★':'♥'}</span>`).join('');
    card.appendChild(bu);speak(w.en);finish(true);
@@ -1542,12 +1725,12 @@ function quiz(w){
    tries--;
    if(tries>0){msg.className='qmsg bad';msg.textContent='差一點點！紅色的格子再試一次';act=slots.findIndex(i=>boxEl(i).classList.contains('bad'));paint();return}
    slots.forEach(i=>{vals[i]=chars[i];const b=boxEl(i);b.classList.remove('bad');b.classList.add('rev')});
-   msg.className='qmsg bad';msg.innerHTML=`正確答案是 <b>${esc(w.en)}</b>，已放進錯字本`;
+   msg.className='qmsg bad';msg.innerHTML=`正確答案是 <b>${esc(w.en)}</b>${opt.head?'，這個字等一下會再出現':''}`;opt.onResult&&opt.onResult(false);
    finish(false);
   }
  }
  $('#qcheck').onclick=check;
- return promise.then(v=>{if(quizKeyHandler){document.removeEventListener('keydown',quizKeyHandler);quizKeyHandler=null}return v==='ok'});
+ return promise.then(v=>{if(quizKeyHandler){document.removeEventListener('keydown',quizKeyHandler);quizKeyHandler=null}return opt.raw?v:v==='ok'});
 }
 
 
@@ -1588,6 +1771,7 @@ async function recordWord(w,ok){
   G.wordStar=true;cur().coins+=WB_BONUS;save(true);render();
   const n=wordList().length;
   await openModal(`<div class="wb-star">★</div><h3>全部單字都過關了！</h3><p>${partName(G.part)} 的 ${n} 個單字都答對過，太厲害了！<br>獎勵 <b>${WB_BONUS}</b> 星星幣</p><div class="m-btns"><button class="btn pri" data-v="ok">耶！</button></div>`);
+  if(typeof onAllWords==='function')await onAllWords();
  }
 }
 function openWords(){const pr=openModal('',true);wbSt={f:'all'};drawWords();return pr}
@@ -1622,6 +1806,7 @@ function rulesHtml(){return `<h3>遊戲規則</h3><div class="rules">
  <div><b>幸運星和四個角落：</b>會有驚喜！</div>
  <div><b>目標：</b>收齊圖鑑就是怪獸大師！</div>
  <div><b>單字本：</b>記錄每個單字答對、答錯幾次。答對一次就算過關，全部單字都過關會出現 ★，還有 ${WB_BONUS} 星星幣獎勵！</div>
+ <div><b>傳說之王：</b>單字本全部過關以後，五張地圖都會出現一隻隱藏的王。連續答對 100 個單字就能打倒牠，讓牠成為夥伴！五隻王的題目都不重複。</div>
  <div><b>存檔：</b>每走完一回合會自動存檔，在主選單可以繼續玩。</div></div>
  <div class="m-btns"><button class="btn pri" data-v="ok">知道了</button></div>`}
 function missedHtml(){
@@ -1638,6 +1823,7 @@ document.addEventListener('click',e=>{
  if(act==='book'){if(busy||modalResolve){toast('等這一步走完再看圖鑑喔');return}openBook()}
  if(act==='level'){if(busy||modalResolve){toast('等這一步走完再換關卡喔');return}openLevel()}
  if(act==='words'&&!modalResolve)openWords();
+ if(act==='boss'){if(busy||modalResolve){toast('等這一步走完再挑戰喔');return}bossBattle()}
  if(act==='save')save(false);
  if(act==='home'){if(busy){toast('等這一步走完再回主選單喔');return}if(G)save(true);renderSlots();show('scrTitle')}
 });

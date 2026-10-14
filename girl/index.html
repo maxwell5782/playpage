@@ -1614,8 +1614,9 @@ async function openLevel(){
 }
 
 /* ---------- 單字題（畫面上的字母鍵盤，不會跳出系統鍵盤） ---------- */
-let quizKeyHandler=null;
-function quiz(w){
+let quizKeyHandler=null,QID=0;
+function quiz(w,opt={}){
+ const qid=++QID;
  const lv=G.level,chars=[...w.en];
  const letters=chars.map((c,i)=>/[a-z]/i.test(c)?i:-1).filter(i=>i>=0);
  let hide;
@@ -1635,11 +1636,12 @@ function quiz(w){
  const kb=`<div class="kb" id="kb">${rows.map((r,ri)=>`<div class="r">${[...r].map(ch=>`<button type="button" data-key="${ch}">${ch}</button>`).join('')}${ri===2?'<button type="button" class="del" data-key="del" aria-label="刪除">⌫</button>':''}</div>`).join('')}</div>`;
  let tries=lv===0?2:1,done=false;
  const p=cur();
- const promise=openModal(`<span class="tag">${LEVELS[lv]}・答對 +${REWARD[lv]}</span>
-  <h3>${esc(p.name)} 的單字挑戰</h3>${prompt}
+ const flee=opt.flee?'<button class="btn" data-v="flee">離開</button>':'';
+ const promise=openModal(`${opt.head||`<span class="tag">${LEVELS[lv]}・答對 +${REWARD[lv]}</span>
+  <h3>${esc(p.name)} 的單字挑戰</h3>`}${prompt}
   <div class="qmsg" id="qmsg">${lv===3?'把句子裡缺的單字拼出來':'把空格的字母填好'}${tries>1?'（有 2 次機會）':''}</div>
   ${kb}
-  <div class="m-btns" id="qbtns"><button class="spk" data-speak="${esc(lv===3?sentence:w.en)}">${lv===3?'聽句子':'聽發音'}</button><button class="btn pri" id="qcheck">送出答案</button></div>`);
+  <div class="m-btns" id="qbtns"><button class="spk" data-speak="${esc(lv===3?sentence:w.en)}">${lv===3?'聽句子':'聽發音'}</button>${flee}<button class="btn pri" id="qcheck">送出答案</button></div>`,!!opt.head);
  const card=$('#modalCard'),msg=$('#qmsg'),vals={};
  const boxEl=i=>card.querySelector(`.lt[data-i="${i}"]`);
  let act=0;
@@ -1669,7 +1671,8 @@ function quiz(w){
  paint();
  function finish(ok){
   done=true;paint();$('#kb').hidden=true;
-  $('#qbtns').innerHTML=`<button class="spk" data-speak="${esc(sentence)}">聽發音</button><button class="btn pri" data-v="${ok?'ok':'no'}">${ok?'太棒了':'知道了'}</button>`;
+  $('#qbtns').innerHTML=`<button class="spk" data-speak="${esc(sentence)}">聽發音</button>${flee}<button class="btn pri" data-v="${ok?'ok':'no'}">${ok?(opt.head?'下一題':'太棒了'):(opt.head?'繼續':'知道了')}</button>`;
+  if(opt.fast&&ok)setTimeout(()=>{if(modalResolve&&QID===qid)closeModal('ok')},1000);
  }
  function check(){
   if(done)return;
@@ -1678,7 +1681,7 @@ function quiz(w){
   slots.forEach(i=>{if(chars[i].toLowerCase()!==vals[i]){ok=false;boxEl(i).classList.add('bad')}});
   if(ok){
    slots.forEach(i=>boxEl(i).classList.add('ok'));
-   msg.className='qmsg good';msg.innerHTML=`答對了！+${REWARD[lv]} 星星幣`;
+   msg.className='qmsg good';msg.innerHTML=opt.head?'命中！':`答對了！+${REWARD[lv]} 星星幣`;opt.onResult&&opt.onResult(true);
    const bu=document.createElement('div');bu.className='burst';
    bu.innerHTML=[...Array(10)].map((_,k)=>`<span style="left:${10+k*8}%;--dx:${rnd(80)-40}px;animation-delay:${k*40}ms;color:${['#FF6FA8','#9B7BFF','#FFC93C','#2EC4A0'][k%4]}">${k%2?'★':'♥'}</span>`).join('');
    card.appendChild(bu);speak(w.en);finish(true);
@@ -1686,12 +1689,12 @@ function quiz(w){
    tries--;
    if(tries>0){msg.className='qmsg bad';msg.textContent='差一點點！紅色的格子再試一次';act=slots.findIndex(i=>boxEl(i).classList.contains('bad'));paint();return}
    slots.forEach(i=>{vals[i]=chars[i];const b=boxEl(i);b.classList.remove('bad');b.classList.add('rev')});
-   msg.className='qmsg bad';msg.innerHTML=`正確答案是 <b>${esc(w.en)}</b>，已放進錯字本`;
+   msg.className='qmsg bad';msg.innerHTML=`正確答案是 <b>${esc(w.en)}</b>${opt.head?'，這個字等一下會再出現':''}`;opt.onResult&&opt.onResult(false);
    finish(false);
   }
  }
  $('#qcheck').onclick=check;
- return promise.then(v=>{if(quizKeyHandler){document.removeEventListener('keydown',quizKeyHandler);quizKeyHandler=null}return v==='ok'});
+ return promise.then(v=>{if(quizKeyHandler){document.removeEventListener('keydown',quizKeyHandler);quizKeyHandler=null}return opt.raw?v:v==='ok'});
 }
 
 /* ---------- 跑來跑去的星星女孩 ---------- */
@@ -1729,6 +1732,7 @@ async function recordWord(w,ok){
   G.wordStar=true;cur().coins+=WB_BONUS;save(true);render();
   const n=wordList().length;
   await openModal(`<div class="wb-star">★</div><h3>全部單字都過關了！</h3><p>${partName(G.part)} 的 ${n} 個單字都答對過，太厲害了！<br>獎勵 <b>${WB_BONUS}</b> 星星幣</p><div class="m-btns"><button class="btn pri" data-v="ok">耶！</button></div>`);
+  if(typeof onAllWords==='function')await onAllWords();
  }
 }
 function openWords(){const pr=openModal('',true);wbSt={f:'all'};drawWords();return pr}
