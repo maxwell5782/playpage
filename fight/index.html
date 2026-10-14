@@ -977,15 +977,17 @@ function drawHair(x,C,D,hx,hy,hc,cid){
 const OUTFIT={0:"coat",1:"dress",2:"wrestler",3:"ninja",4:"tank",5:"monk",6:"coat",7:"dress",8:"vest",9:"gi",10:"dress",11:"armor",12:"robe",13:"vest",14:"dress",15:"armor",16:"vest",17:"robe",18:"tank",19:"armor",20:"ninja",21:"dress",22:"gi",23:"vest",24:"tank",25:"coat",26:"armor",27:"coat",28:"dress",29:"armor"};
 function drawBody(x,C,D,cid,tTop,hipY,tL,tR,fem,skin){
   const c1=C.c1,c2=C.c2,c3=C.c3,ot=OUTFIT[cid]||(fem?"dress":"gi"),dk=shade(c1,-.25),lt=shade(c1,.25);
-  const body=(col)=>{for(let v=0;v<D.th;v++){const w=D.tw+ri(v*.5);rect(x,SPX-(w>>1),tTop+v,w,1,col)}};
-  const bw=D.tw+ri((D.th-1)*.5),bx=SPX-(bw>>1);
+  // 身體寬度：肩膀寬 → 腰收窄（腰帶那兩列）→ 下擺張開
+  const waist=D.tw-4,wid=v=>{const b0=D.th-3;if(v<b0){const t=v/b0;return ri(D.tw+2-(D.tw+2-waist)*t*t)}if(v<D.th-1)return waist;return waist+4};
+  const body=(col)=>{for(let v=0;v<D.th;v++){const w=wid(v);rect(x,SPX-(w>>1),tTop+v,w,1,col)}};
+  const bw=waist,bx=SPX-(bw>>1);
   const belt=()=>{rect(x,bx,hipY-3,bw,2,c3);rect(x,SPX-1,hipY-3,3,2,shade(c3,.4))};
   const neckV=(col,d)=>{for(let k=0;k<d;k++)rect(x,SPX-d+1+k,tTop+k,(d-k)*2-1,1,col)};
   switch(ot){
     case "gi":body(c1);rect(x,SPX+1,tTop,1,D.th-3,dk);for(let k=0;k<5;k++){rect(x,SPX-3+k,tTop+k,1,1,dk);rect(x,SPX+1,tTop+k+2,1,1,dk)}neckV(skin,3);belt();break;
     case "coat":body(c1);rect(x,SPX-2,tTop,5,D.th,c2===c1?dk:c2);rect(x,SPX-3,tTop,1,D.th,dk);rect(x,SPX+3,tTop,1,D.th,dk);rect(x,SPX-1,tTop,3,2,skin);rect(x,tL+1,tTop+2,2,D.th-2,lt);rect(x,tR-2,tTop+2,2,D.th-2,lt);belt();break;
-    case "dress":body(c1);{const w=D.tw+ri(D.th*.5)+4;for(let v=0;v<4;v++)rect(x,SPX-(w>>1)-(v>>1),hipY-2+v,w+(v>>1)*2,1,v===3?dk:c1)}rect(x,tL+2,tTop,D.tw-4,2,"#FFFFFF");rect(x,SPX-1,tTop,3,1,skin);rect(x,SPX,tTop+3,1,2,c3);rect(x,bx,hipY-4,bw,2,c3);break;
-    case "wrestler":body(c1);rect(x,tL-1,tTop,4,D.th-2,c2);rect(x,tR-3,tTop,4,D.th-2,c2);rect(x,SPX-3,tTop+3,7,3,c3);belt();break;
+    case "dress":body(c1);{for(let v=0;v<5;v++){const w=waist+4+v*2;rect(x,SPX-(w>>1),hipY-2+v,w,1,v===4?dk:c1)}}rect(x,tL+2,tTop,D.tw-4,2,"#FFFFFF");rect(x,SPX-1,tTop,3,1,skin);rect(x,SPX,tTop+3,1,2,c3);rect(x,bx,hipY-4,bw,2,c3);break;
+    case "wrestler":body(c1);rect(x,tL,tTop,3,D.th-3,c2);rect(x,tR-2,tTop,3,D.th-3,c2);rect(x,SPX-3,tTop+3,7,3,c3);belt();break;
     case "ninja":body(c1);rect(x,tL,tTop,D.tw,1,dk);for(let k=0;k<D.th-2;k++)rect(x,tL+2+ri(k*.8),tTop+k,2,1,dk);rect(x,bx,hipY-3,bw,2,c3);break;
     case "tank":body(c1);rect(x,tL+1,tTop,3,2,skin);rect(x,tR-4,tTop,3,2,skin);rect(x,SPX-2,tTop,5,1,skin);rect(x,SPX-4,tTop+4,9,2,c3);belt();break;
     case "monk":body(c1);rect(x,tL,tTop,D.tw,D.th,c1);for(let k=0;k<D.th;k++)rect(x,tR-5+ri(k*.3),tTop+k,2,1,dk);rect(x,tL,tTop,ri(D.tw*.55),1,skin);rect(x,SPX-2,tTop,5,1,skin);rect(x,bx,hipY-4,bw,3,c3);break;
