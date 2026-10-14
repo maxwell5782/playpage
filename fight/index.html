@@ -913,7 +913,7 @@ const BANG={0:"side",1:"straight",2:"none",3:"none",4:"m",5:"none",6:"none",7:"s
 function drawHair(x,C,D,hx,hy,hc,cid){
   const st=C.h,hw=D.hw,hh=D.hh,cx=hx+hw/2,top=hy,L=hx+1,R=hx+hw-1,dk=shade(hc,-.28),lt=shade(hc,.35);
   const bang=BANG[cid]||"straight";
-  const dAdj=bang==="none"?-hh*.22:bang==="up"?0:-hh*.1;
+  const dAdj=bang==="up"?0:-hh*.1;
   const dome=(ex,ey,col)=>ell(x,cx,top+hh*.3+dAdj*.5,hw/2+(ex||0),hh*.32+(ey||0)+dAdj,col||hc);
   // 側髮：框住臉的兩束
   const sides=(len,w,col)=>{for(let k=0;k<w;k++){rect(x,L+k,top+hh*.3,1,len-((k%2)?2:0),col||hc);rect(x,R-k,top+hh*.3,1,len-((k%2)?2:0),col||hc)}
@@ -949,7 +949,7 @@ function drawHair(x,C,D,hx,hy,hc,cid){
       strandSet([[0,2,6,-1],[2,3,9,0],[5,3,7,1],[8,3,12,2],[11,4,10,3],[15,3,13,3],[18,3,11,3],[21,3,13,2],[24,3,9,2],[27,2,7,1]],y0);
       x.clearRect(L+1,top+hh*.44,1,y0+5-(top+hh*.44));}
     else if(bang==="up"){for(let u=L+2,k=0;u<R-1;u+=4,k++)tooth(u,4,k%2?2:1)}
-    else if(bang==="none"){const y0=top+hh*.34;for(let u=L+3,k=0;u<R-2;u+=3,k++){rect(x,u,y0-1,2,k%2?2:3,hc);if(k%3===1)rect(x,u+2,y0-2,1,3,sep)}}
+    else if(bang==="none"){const y0=top+hh*.36;x.clearRect(L+3,y0,hw-6,hh*.3);for(let u=L+3,k=0;u<R-2;u+=3,k++){rect(x,u,y0,2,k%2?1:2,hc);if(k%3===1)rect(x,u+2,y0-3,1,3,sep)}}
     // 瀏海底下深一階
     if(bang==="up")for(let u=L+2;u<R-1;u++){let v=base+12;while(v>base-4&&x.getImageData(u,v,1,1).data[3]===0)v--;if(v>base-4)rect(x,u,v,1,1,dk)}
   };
