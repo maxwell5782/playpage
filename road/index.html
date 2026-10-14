@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<title>小熊鋪路趣</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Baloo+2:wght@600;800&display=swap">
+<style>
+/* Layout: sunny meadow — scrollable tile board in the middle, player strip on top, "your tile" tray at the bottom. Single bright look by choice. */
+:root{
+  --meadow:#cfe8a9; --meadow-deep:#9fcf6d; --grass:#8cc45a; --road:#f1d9a4; --road-edge:#c99a5b;
+  --gold:#ffd34d; --ink:#3b3a2f; --paper:#fffaf0; --sky:#bfe3f5; --pond:#5fb3e0;
+  --display:"Baloo 2","Huninn","PingFang TC","Noto Sans TC",system-ui,sans-serif;
+  --body:"Huninn","PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+  --ts:84px;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{background:var(--meadow);color:var(--ink);font-family:var(--body);font-size:16px;overflow:hidden}
+.app{height:100%;display:flex;flex-direction:column}
+button{font-family:var(--body);cursor:pointer;color:var(--ink)}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+
+/* players */
+.players{display:flex;gap:8px;padding-block:10px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));background:var(--sky);border-bottom:3px solid #fff;overflow-x:auto}
+.pl{flex:1 1 0;min-width:76px;display:flex;align-items:center;gap:6px;background:var(--paper);border-radius:16px;padding:6px 8px;border:3px solid transparent;transition:transform .2s}
+.pl.on{border-color:var(--ink);transform:translateY(-2px);box-shadow:0 4px 0 rgba(0,0,0,.15)}
+.pl svg{flex:none}
+.pl .nm{font-size:13px;line-height:1.1}
+.pl .ct{font-family:var(--display);font-weight:800;font-size:22px;line-height:1;font-variant-numeric:tabular-nums}
+.pl .ct small{font-size:11px;font-family:var(--body);font-weight:400;margin-left:2px}
+
+/* board */
+.boardwrap{flex:1;overflow:auto;position:relative;background:
+  radial-gradient(circle at 20% 30%,rgba(255,255,255,.35) 0 2px,transparent 3px) 0 0/38px 38px,var(--meadow)}
+.board{display:grid;gap:0;padding:40vh 50vw;width:max-content}
+.cell{width:var(--ts);height:var(--ts);position:relative}
+.cell svg{display:block;width:100%;height:100%}
+.cell.spot{border:3px dashed rgba(59,58,47,.45);border-radius:12px;background:rgba(255,255,255,.35);cursor:pointer;animation:pulse 1.4s ease-in-out infinite}
+.cell.spot:hover{background:rgba(255,255,255,.7)}
+.cell.new svg{animation:drop .35s ease-out}
+@keyframes pulse{50%{background:rgba(255,255,255,.65)}}
+@keyframes drop{from{transform:scale(1.3);opacity:.3}}
+
+/* tray */
+.tray{display:flex;align-items:center;gap:14px;background:var(--paper);border-top:3px solid var(--meadow-deep);padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+.cur{width:104px;height:104px;flex:none;border-radius:14px;box-shadow:0 4px 0 rgba(0,0,0,.18);cursor:pointer;background:none;border:0;padding:0;transition:transform .25s}
+.cur svg{width:100%;height:100%;display:block;border-radius:14px}
+.info{flex:1;min-width:0}
+.who{font-size:18px;font-weight:700;display:flex;align-items:center;gap:6px}
+.hint{font-size:14px;opacity:.8;margin-top:2px;text-wrap:balance}
+.btns{display:flex;flex-direction:column;gap:8px;flex:none}
+.btn{border:0;border-radius:999px;padding:8px 14px;font-size:15px;background:var(--gold);box-shadow:0 3px 0 #c9a12a;font-weight:700}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #c9a12a}
+.btn.ghost{background:#e9f4d8;box-shadow:0 3px 0 var(--meadow-deep)}
+.deck{font-size:12px;text-align:center;opacity:.75;font-variant-numeric:tabular-nums}
+
+/* toast & overlays */
+.toast{position:fixed;left:50%;top:calc(90px + env(safe-area-inset-top,0px));transform:translate(-50%,-20px);opacity:0;background:var(--paper);border:3px solid var(--ink);border-radius:18px;padding:10px 18px;font-size:17px;pointer-events:none;transition:.3s;max-width:calc(100% - 32px);text-align:center;z-index:5}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.overlay{position:fixed;inset:0;background:rgba(80,140,60,.55);display:flex;align-items:center;justify-content:center;z-index:10;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.card{background:var(--paper);border-radius:26px;padding:24px 22px;max-width:380px;width:100%;text-align:center;box-shadow:0 8px 0 rgba(0,0,0,.18)}
+.card h1{font-family:var(--display);font-weight:800;font-size:34px;margin:0;line-height:1.1;text-wrap:balance}
+.card p{margin:10px 0 0;line-height:1.6;font-size:15px}
+.rules{text-align:left;background:#f3f9e8;border-radius:14px;padding:10px 14px;margin-top:14px;font-size:14px;line-height:1.6}
+.rules li{margin-left:-6px}
+.pick{display:flex;gap:10px;justify-content:center;margin-top:16px}
+.pick button{width:72px;height:72px;border-radius:20px;border:0;background:var(--gold);box-shadow:0 4px 0 #c9a12a;font-family:var(--display);font-weight:800;font-size:28px;line-height:1}
+.pick button span{display:block;font-family:var(--body);font-size:12px;font-weight:400}
+.rank{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.rank div{display:flex;align-items:center;gap:10px;background:#f3f9e8;border-radius:14px;padding:6px 12px;font-size:16px}
+.rank b{margin-left:auto;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.menu{margin-top:14px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.big{border:0;border-radius:20px;background:var(--gold);box-shadow:0 4px 0 #c9a12a;font-size:20px;font-weight:700;padding:14px 28px}
+.big:active{transform:translateY(2px);box-shadow:0 2px 0 #c9a12a}
+.sub{font-size:14px;opacity:.75}
+.menu .pick{margin-top:4px}
+.pick button{background:#e9f4d8;box-shadow:0 4px 0 var(--meadow-deep)}
+.seats{display:flex;gap:8px;justify-content:center;margin-top:14px}
+.seat{width:56px;height:56px;border-radius:50%;background:#eef3e4;border:2px dashed rgba(59,58,47,.3);display:flex;align-items:center;justify-content:center;transition:transform .3s}
+.seat.on{background:#fff3d6;border:2px solid var(--ink);transform:scale(1.06)}
+.timer{font-family:var(--display);font-weight:800;font-size:40px;line-height:1;margin-top:8px;font-variant-numeric:tabular-nums}
+.btn:disabled{opacity:.45;cursor:default}
+html,body{margin:0}[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="players" id="players"></div>
+  <div class="boardwrap" id="wrap"><div class="board" id="board"></div></div>
+  <div class="tray">
+    <button class="cur" id="cur" aria-label="轉動這片路"></button>
+    <div class="info">
+      <div class="who" id="who"></div>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="btns">
+      <button class="btn" id="rot">↻ 轉一轉</button>
+      <div class="deck" id="deck"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="start">
+  <div class="card">
+    <h1>小熊鋪路趣</h1>
+    <p>大家輪流把小路拼起來，幫小熊們找到回家的路！</p>
+    <ul class="rules">
+      <li>每回合拿一片路，路要接路、草要接草。</li>
+      <li>按「轉一轉」換方向，再點地圖上的虛線格子放下去。</li>
+      <li>一條路的兩頭都封住（接到小屋或池塘），路上有幾隻你的小熊，你就送出幾根小旗子。</li>
+      <li>最先把小旗子送完的人贏！</li>
+    </ul>
+    <div class="menu">
+      <button id="btnMatch" class="big">隨機配對</button>
+      <p class="sub">和電腦玩，一共幾隻小熊？</p>
+      <div class="pick">
+        <button data-n="2">2<span>隻</span></button>
+        <button data-n="3">3<span>隻</span></button>
+        <button data-n="4">4<span>隻</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="lobby" hidden>
+  <div class="card">
+    <h1 id="lobbyT">找朋友中…</h1>
+    <div class="seats" id="seats"></div>
+    <p id="lobbyMsg">正在找其他小熊</p>
+    <div class="timer" id="timer"></div>
+    <p><button class="btn ghost" id="btnCancel">不等了，和電腦玩</button></p>
+  </div>
+</div>
+
+<div class="overlay" id="end" hidden>
+  <div class="card">
+    <h1 id="endT"></h1>
+    <div class="rank" id="rank"></div>
+    <p><button class="btn" id="again">回到開始</button></p>
+  </div>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+/* ===== settings ===== */
+const SEARCH_MS=30000, EXTRA_MS=20000, TURN_MS=60000;
+const LOBBY="bearroad-v1-lobby-", SLOTS=6;
+const COLORS=[{c:"#e8914f",n:"橘橘"},{c:"#6fa3dc",n:"藍藍"},{c:"#8dc964",n:"綠綠"},{c:"#e08cc8",n:"粉粉"}];
+const DIRS=[[0,-1],[1,0],[0,1],[-1,0]];
+const MID=[[50,0],[100,50],[50,100],[0,50]];
+const TYPES={straight:[[0,2]],curve:[[0,1]],tee:[[0],[1],[3]],cross:[[0],[1],[2],[3]],dead:[[2]]};
+const MIX={straight:12,curve:13,tee:6,cross:3,dead:6};
+const FLAGS={2:9,3:7,4:6};
+const $=id=>document.getElementById(id);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const key=(x,y)=>x+","+y;
+let uid=0;
+
+/* ===== tile rules (shared by host and guests) ===== */
+function makeTile(type,colors){
+  return {id:uid++,type,seed:Math.random()*1000|0,segs:TYPES[type].map(e=>({edges:e.slice(),animal:colors&&Math.random()<0.55?pick(colors):null,done:false}))};
+}
+const clone=t=>JSON.parse(JSON.stringify(t));
+function rotate(t){t.segs.forEach(s=>s.edges=s.edges.map(e=>(e+1)%4))}
+function rotated(t,r){const c=clone(t);for(let i=0;i<r;i++)rotate(c);return c}
+const hasRoad=(t,d)=>t.segs.some(s=>s.edges.includes(d));
+function boardMap(list){const m=new Map();list.forEach(t=>m.set(key(t.x,t.y),t));return m}
+function canPlace(B,t,x,y){
+  if(B.has(key(x,y)))return false;
+  let touch=false;
+  for(let d=0;d<4;d++){
+    const nb=B.get(key(x+DIRS[d][0],y+DIRS[d][1]));
+    if(!nb)continue;touch=true;
+    if(hasRoad(t,d)!==hasRoad(nb,(d+2)%4))return false;
+  }
+  return touch;
+}
+function spots(B,t){
+  const out=[],seen=new Set();
+  for(const tile of B.values())for(const [dx,dy] of DIRS){
+    const x=tile.x+dx,y=tile.y+dy,k=key(x,y);
+    if(seen.has(k))continue;seen.add(k);
+    if(canPlace(B,t,x,y))out.push([x,y]);
+  }
+  return out;
+}
+function walk(B,x,y,si){
+  const stack=[[x,y,si]],seen=new Set([key(x,y)+":"+si]),nodes=[];let open=false;
+  while(stack.length){
+    const [cx,cy,cs]=stack.pop();const t=B.get(key(cx,cy));nodes.push([t,cs]);
+    for(const e of t.segs[cs].edges){
+      const nx=cx+DIRS[e][0],ny=cy+DIRS[e][1],nb=B.get(key(nx,ny));
+      if(!nb){open=true;continue}
+      const j=nb.segs.findIndex(s=>s.edges.includes((e+2)%4));
+      const k=key(nx,ny)+":"+j;
+      if(!seen.has(k)){seen.add(k);stack.push([nx,ny,j])}
+    }
+  }
+  return {open,nodes,seen};
+}
+/* roads closed by placing tile t at (x,y): returns [{nodes, cnt:{color:n}}] */
+function closedRoads(B,t,x,y){
+  const placed={...t,x,y};B.set(key(x,y),placed);
+  const done=new Set(),out=[];
+  placed.segs.forEach((s,si)=>{
+    const k=key(x,y)+":"+si;if(done.has(k))return;
+    const r=walk(B,x,y,si);r.seen.forEach(v=>done.add(v));
+    if(r.open)return;
+    const cnt={};r.nodes.forEach(([tt,cs])=>{const a=tt.segs[cs].animal;if(a!=null)cnt[a]=(cnt[a]||0)+1});
+    out.push({nodes:r.nodes,cnt});
+  });
+  B.delete(key(x,y));
+  return out;
+}
+
+/* ===== art ===== */
+function bearG(ci,x,y,s){
+  const c=COLORS[ci].c;
+  const ear=sx=>`<g transform="translate(${sx*11} -10)"><circle r="6.5" fill="${c}" stroke="#2b2a22" stroke-width="1.8"/><circle r="3.4" fill="#f6d7a7"/></g>`;
+  return `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cy="13" rx="13" ry="3" fill="#000" opacity=".15"/>${ear(-1)}${ear(1)}
+  <ellipse rx="15.5" ry="14" fill="${c}" stroke="#2b2a22" stroke-width="1.8"/>
+  <ellipse cy="5.5" rx="8" ry="6" fill="#f6d7a7" stroke="#2b2a22" stroke-width="1.2"/>
+  <ellipse cx="-10.5" cy="3.5" rx="3.4" ry="2.3" fill="#ff8fab" opacity=".75"/><ellipse cx="10.5" cy="3.5" rx="3.4" ry="2.3" fill="#ff8fab" opacity=".75"/>
+  <circle cx="-5.8" cy="-2" r="3.1" fill="#2b2a22"/><circle cx="5.8" cy="-2" r="3.1" fill="#2b2a22"/>
+  <circle cx="-4.6" cy="-3.2" r="1" fill="#fff"/><circle cx="7" cy="-3.2" r="1" fill="#fff"/>
+  <ellipse cy="3" rx="2.9" ry="2" fill="#4a3426"/>
+  <path d="M0 4.8 V6.6 M-2.6 6.4 Q-1.3 8.2 0 6.6 Q1.3 8.2 2.6 6.4" stroke="#4a3426" stroke-width="1.2" fill="none" stroke-linecap="round"/></g>`;
+}
+const bear=(ci,size)=>`<svg width="${size}" height="${size}" viewBox="-19 -19 38 36" aria-hidden="true">${bearG(ci,0,0,1)}</svg>`;
+function segPath(s){
+  const a=MID[s.edges[0]];
+  if(s.edges.length===1)return `M${a[0]} ${a[1]} L50 50`;
+  const b=MID[s.edges[1]];
+  return (s.edges[0]+2)%4===s.edges[1]?`M${a[0]} ${a[1]} L${b[0]} ${b[1]}`:`M${a[0]} ${a[1]} Q50 50 ${b[0]} ${b[1]}`;
+}
+function segSpot(s){
+  const a=MID[s.edges[0]];
+  if(s.edges.length===1)return [(a[0]+50)/2,(a[1]+50)/2+3];
+  const b=MID[s.edges[1]];
+  if((s.edges[0]+2)%4===s.edges[1])return [50,52];
+  return [.25*a[0]+.25*50+.25*b[0]+.25*50,.25*a[1]+.25*50+.25*b[1]+.25*50+3];
+}
+function tileSVG(t){
+  let g=`<rect width="100" height="100" fill="var(--grass)"/>`;
+  const corners=[[13,13],[87,13],[87,87],[13,87]];const fl=["#fff","#ffd34d","#ff9fb3"];
+  corners.forEach(([cx,cy],i)=>{
+    if((t.seed>>i)&1)g+=`<g transform="translate(${cx} ${cy})">${[0,72,144,216,288].map(r=>`<circle cx="0" cy="-3.4" r="2.6" fill="${fl[(t.seed+i)%3]}" transform="rotate(${r})"/>`).join("")}<circle r="2" fill="#f29a2e"/></g>`;
+    else g+=`<path d="M${cx-4} ${cy+3} q2 -7 3 0 q2 -8 3 0 q2 -6 3 0" stroke="#6fa944" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+  });
+  g+=t.segs.map(s=>`<path d="${segPath(s)}" stroke="var(--road-edge)" stroke-width="27" fill="none"/>`).join("");
+  g+=t.segs.map(s=>`<path d="${segPath(s)}" stroke="${s.done?'var(--gold)':'var(--road)'}" stroke-width="21" fill="none"/>`).join("");
+  g+=t.segs.map(s=>`<path d="${segPath(s)}" stroke="${s.done?'#e6b52c':'#dcbf86'}" stroke-width="2.5" stroke-dasharray="3 7" fill="none" stroke-linecap="round"/>`).join("");
+  if(t.type==="dead"){
+    g+=`<g transform="translate(50 52)"><rect x="-15" y="-8" width="30" height="20" rx="3" fill="#fff4dc" stroke="#8a5a2b" stroke-width="2"/>
+      <path d="M-19 -7 L0 -22 L19 -7 Z" fill="#e2593f" stroke="#8a5a2b" stroke-width="2" stroke-linejoin="round"/>
+      <rect x="-4" y="1" width="8" height="11" rx="3" fill="#8a5a2b"/></g>`;
+  }else if(t.segs.length>1){
+    g+=`<ellipse cx="50" cy="50" rx="17" ry="14" fill="var(--pond)" stroke="#3a86b3" stroke-width="2.5"/><path d="M42 47 q4 -3 8 0 M50 53 q4 -3 8 0" stroke="#d8f0ff" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+  }
+  t.segs.forEach(s=>{if(s.animal!=null){const [x,y]=segSpot(s);g+=bearG(s.animal,x,y,t.segs.length>2?.85:1.1)}});
+  return `<svg viewBox="0 0 100 100" aria-hidden="true">${g}</svg>`;
+}
+
+/* ===== host engine ===== */
+let G=null,isHost=false,turnWaiter=null,lobbyPeer=null,guestPeer=null,hostConn=null,V=null,lobby=null,note="";
+
+function startGame(seats,total){
+  total=Math.max(total||0,seats.length);
+  while(seats.length<total)seats.push({type:"bot"});
+  const n=seats.length,colors=[...Array(n).keys()];
+  const deck=[];
+  for(const [t,c] of Object.entries(MIX))for(let i=0;i<c;i++)deck.push(makeTile(t,colors));
+  for(let i=deck.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[deck[i],deck[j]]=[deck[j],deck[i]]}
+  const first=makeTile("straight",null);rotate(first);first.x=0;first.y=0;
+  G={n,deck,board:new Map([[key(0,0),first]]),turn:0,cur:null,last:first.id,over:false,msg:"",
+     players:seats.map((s,i)=>({name:COLORS[i].n,type:s.type,conn:s.conn||null,flags:FLAGS[n]}))};
+  G.players.forEach((p,i)=>{if(p.conn)wireConn(p.conn,i)});
+  isHost=true;hideAll();firstRender=true;run();
+}
+function view(i){
+  return {me:i,n:G.n,turn:G.turn,over:G.over,msg:G.msg,last:G.last,deck:G.deck.length,
+    board:[...G.board.values()],cur:G.cur,
+    players:G.players.map((p,j)=>({n:j===i?"你":p.name+(p.type==="bot"?"（電腦）":""),flags:p.flags}))};
+}
+function broadcast(){
+  G.players.forEach((p,i)=>{
+    if(p.type==="local")show(view(i));
+    else if(p.type==="remote"&&p.conn&&p.conn.open){try{p.conn.send({t:"view",v:view(i)})}catch(e){}}
+  });
+}
+function drawTile(){
+  while(G.deck.length){
+    const t=G.deck.pop();
+    for(let r=0;r<4;r++){if(spots(G.board,t).length){G.cur=t;return true}rotate(t)}
+    G.msg="有一片路放不下，換一片！";
+  }
+  G.cur=null;return false;
+}
+function botMove(i){
+  const t=G.cur;let best=null;
+  for(let r=0;r<4;r++){
+    const tr=rotated(t,r);
+    for(const [x,y] of spots(G.board,tr)){
+      let s=Math.random();
+      for(const road of closedRoads(G.board,tr,x,y))
+        for(const [c,v] of Object.entries(road.cnt))s+=(+c===i?10:-4)*v;
+      if(!best||s>best.s)best={s,x,y,r};
+    }
+  }
+  return best;
+}
+function place(i,x,y,r){
+  const t=rotated(G.cur,r);
+  if(!canPlace(G.board,t,x,y))return false;
+  const roads=closedRoads(G.board,t,x,y);
+  t.x=x;t.y=y;G.board.set(key(x,y),t);G.last=t.id;G.cur=null;
+  const msgs=[];
+  roads.forEach(road=>{
+    road.nodes.forEach(([tt,cs])=>{const real=G.board.get(key(tt.x,tt.y));real.segs[cs].done=true});
+    for(const [c,v] of Object.entries(road.cnt)){
+      const p=G.players[c];const give=Math.min(v,p.flags);p.flags-=give;
+      if(give)msgs.push(`${p.name}送出 ${give} 根旗子`);
+    }
+    if(!Object.keys(road.cnt).length)msgs.push("小路完成了！");
+  });
+  G.msg=msgs.length?"路通了！"+msgs.join("、"):`${G.players[i].name}放好了。`;
+  return true;
+}
+function humanTurn(i){
+  return new Promise(res=>{
+    const tm=setTimeout(()=>turnWaiter&&turnWaiter.fn(null),TURN_MS);
+    turnWaiter={i,fn:m=>{
+      if(m&&place(i,m.x,m.y,((m.r|0)%4+4)%4)){clearTimeout(tm);turnWaiter=null;res();return}
+      if(m===null){clearTimeout(tm);turnWaiter=null;const b=botMove(i);place(i,b.x,b.y,b.r);G.msg=`時間到，幫${G.players[i].name}放好了。 `+G.msg;res()}
+    }};
+  });
+}
+async function run(){
+  G.msg=note?note:"";note="";
+  while(!G.over){
+    if(!drawTile())break;
+    const p=G.players[G.turn];
+    if(!G.msg)G.msg=`輪到${p.name}了`;
+    broadcast();G.msg="";
+    if(p.type==="bot"){await sleep(1100);const b=botMove(G.turn);place(G.turn,b.x,b.y,b.r)}
+    else await humanTurn(G.turn);
+    broadcast();G.msg="";await sleep(700);
+    if(G.players.some(q=>q.flags===0))break;
+    G.turn=(G.turn+1)%G.n;
+  }
+  G.over=true;G.cur=null;G.msg="遊戲結束！";broadcast();
+}
+function hostMsg(i,m){
+  if(m&&m.t==="place"&&turnWaiter&&turnWaiter.i===i)turnWaiter.fn(m);
+}
+function wireConn(conn,i){
+  conn.on("data",m=>hostMsg(i,m));
+  conn.on("close",()=>dropToBot(i));
+  conn.on("error",()=>dropToBot(i));
+}
+function dropToBot(i){
+  if(!G||G.over)return;const p=G.players[i];if(p.type==="bot")return;
+  p.type="bot";p.conn=null;G.msg=`${p.name}斷線了，換電腦小熊接手。`;
+  if(turnWaiter&&turnWaiter.i===i)turnWaiter.fn(null);
+  broadcast();
+}
+
+/* ===== client (host's own screen + guests) ===== */
+let rot=0,curId=null,firstRender=true;
+function act(m){if(isHost)hostMsg(0,m);else if(hostConn&&hostConn.open)hostConn.send(m)}
+function myTurn(){return V&&!V.over&&V.cur&&V.turn===V.me}
+function show(v){
+  V=v;
+  if(!V.cur||V.cur.id!==curId){curId=V.cur?V.cur.id:null;rot=0}
+  if(V.msg)toast(V.msg);
+  render();
+}
+function render(){
+  if(!V)return;
+  $("players").innerHTML=V.players.map((p,i)=>`<div class="pl${i===V.turn&&!V.over?' on':''}">${bear(i,30)}<div><div class="nm">${p.n}</div><div class="ct">${p.flags}<small>旗</small></div></div></div>`).join("");
+  const B=boardMap(V.board);
+  let minX=0,maxX=0,minY=0,maxY=0;
+  for(const t of B.values()){minX=Math.min(minX,t.x);maxX=Math.max(maxX,t.x);minY=Math.min(minY,t.y);maxY=Math.max(maxY,t.y)}
+  minX--;minY--;maxX++;maxY++;
+  const cur=V.cur?rotated(V.cur,rot):null;
+  const ok=new Set(myTurn()?spots(B,cur).map(([x,y])=>key(x,y)):[]);
+  const b=$("board");b.style.gridTemplateColumns=`repeat(${maxX-minX+1},var(--ts))`;
+  let h="";
+  for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){
+    const k=key(x,y),t=B.get(k);
+    if(t)h+=`<div class="cell${t.id===V.last?' new':''}">${tileSVG(t)}</div>`;
+    else if(ok.has(k))h+=`<div class="cell spot" role="button" tabindex="0" aria-label="放在這裡" data-x="${x}" data-y="${y}"></div>`;
+    else h+=`<div class="cell"></div>`;
+  }
+  b.innerHTML=h;
+  if(firstRender){firstRender=false;const w=$("wrap");w.scrollLeft=(b.scrollWidth-w.clientWidth)/2;w.scrollTop=(b.scrollHeight-w.clientHeight)/2}
+  const p=V.players[V.turn];
+  $("who").innerHTML=V.over?"遊戲結束":myTurn()?`${bear(V.me,26)} 輪到你了！`:`${bear(V.turn,26)} 輪到${p.n.replace("（電腦）","")}`;
+  $("cur").innerHTML=cur?tileSVG(cur):"";
+  $("hint").textContent=!cur||V.over?"":!myTurn()?"等他放好這片路…":ok.size?"點虛線格子放下這片路":"這個方向放不下，轉一轉試試！";
+  $("rot").disabled=!myTurn();
+  $("deck").textContent=`還有 ${V.deck} 片`;
+  if(V.over)showEnd();
+}
+function showEnd(){
+  const pl=V.players.map((p,i)=>({...p,i})).sort((a,b)=>a.flags-b.flags);
+  const min=pl[0].flags,win=pl.filter(p=>p.flags===min).map(p=>p.n.replace("（電腦）",""));
+  $("endT").textContent=win.length>1?win.join("和")+"一起贏了！":win[0]==="你"?"你贏了！":win[0]+"贏了！";
+  $("rank").innerHTML=pl.map(p=>`<div>${bear(p.i,30)}${p.n}<b>剩 ${p.flags} 根</b></div>`).join("");
+  $("end").hidden=false;
+}
+let tt;function toast(m){const el=$("toast");el.textContent=m;el.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>el.classList.remove("show"),2400)}
+function doRotate(){if(!myTurn())return;rot=(rot+1)%4;render()}
+$("rot").onclick=doRotate;$("cur").onclick=doRotate;
+function tapSpot(c){if(!myTurn())return;act({t:"place",x:+c.dataset.x,y:+c.dataset.y,r:rot});V.cur=null;render()}
+$("board").addEventListener("click",e=>{const c=e.target.closest(".spot");if(c)tapSpot(c)});
+$("board").addEventListener("keydown",e=>{const c=e.target.closest(".spot");if(c&&(e.key==="Enter"||e.key===" ")){e.preventDefault();tapSpot(c)}});
+
+/* ===== matchmaking ===== */
+function hideAll(){["start","lobby","end"].forEach(id=>$(id).hidden=true)}
+function cleanup(){
+  try{lobbyPeer&&lobbyPeer.destroy()}catch(e){}try{guestPeer&&guestPeer.destroy()}catch(e){}
+  lobbyPeer=guestPeer=hostConn=null;G=null;V=null;isHost=false;turnWaiter=null;
+  if(lobby){clearInterval(lobby.tick);lobby=null}
+}
+function lobbyUI(count,leftMs,text){
+  $("seats").innerHTML=COLORS.map((p,i)=>`<div class="seat${i<count?' on':''}">${i<count?bear(i,40):""}</div>`).join("");
+  $("timer").textContent=leftMs!=null?`${Math.max(0,Math.ceil(leftMs/1000))} 秒`:"";
+  $("lobbyMsg").textContent=text;
+}
+function claim(s){
+  return new Promise(res=>{
+    let done=false;const fin=r=>{if(!done){done=true;res(r)}};
+    const p=new Peer(LOBBY+s,{debug:0});
+    p.on("open",()=>fin({peer:p}));
+    p.on("error",e=>{if(done)return;try{p.destroy()}catch(_){}fin(e.type==="unavailable-id"?{taken:true}:{err:e.type})});
+    setTimeout(()=>{if(!done){try{p.destroy()}catch(_){}fin({err:"timeout"})}},9000);
+  });
+}
+function ensureGuestPeer(){
+  if(guestPeer&&guestPeer.open)return Promise.resolve(guestPeer);
+  return new Promise((res,rej)=>{
+    guestPeer=new Peer({debug:0});
+    guestPeer.on("open",()=>res(guestPeer));
+    guestPeer.on("error",e=>{if(guestPeer&&guestPeer._pending)guestPeer._pending(null);else rej(e)});
+    setTimeout(()=>rej(new Error("timeout")),9000);
+  });
+}
+function tryJoin(s){
+  return new Promise(res=>{
+    let done=false;const fin=c=>{if(!done){done=true;guestPeer._pending=null;res(c)}};
+    guestPeer._pending=fin;
+    const conn=guestPeer.connect(LOBBY+s,{reliable:true});
+    conn.on("data",m=>{if(done)return;if(m.t==="lobby")fin(conn);else{try{conn.close()}catch(_){}fin(null)}});
+    conn.on("error",()=>fin(null));
+    setTimeout(()=>{try{conn.close()}catch(_){}fin(null)},6000);
+  });
+}
+async function findMatch(){
+  $("start").hidden=true;$("lobby").hidden=false;$("lobbyT").textContent="找朋友中…";
+  lobbyUI(1,SEARCH_MS,"正在連線…");
+  const t0=Date.now();
+  for(let s=0;s<SLOTS;s++){
+    if($("lobby").hidden)return;
+    const r=await claim(s);
+    if(r.peer){lobbyPeer=r.peer;return hostLobby(t0)}
+    if(r.err)return fallback("連不上配對伺服器，先和電腦玩吧！");
+    try{await ensureGuestPeer()}catch(e){return fallback("連不上配對伺服器，先和電腦玩吧！")}
+    const c=await tryJoin(s);
+    if(c)return guestLobby(c);
+  }
+  fallback("目前房間都滿了，先和電腦玩吧！");
+}
+function hostLobby(t0){
+  lobby={seats:[{type:"local"}],deadline:t0+SEARCH_MS,started:false};
+  lobbyPeer.on("connection",conn=>{
+    conn.on("open",()=>{
+      if(!lobby||lobby.started||lobby.seats.length>=4){try{conn.send({t:"full"})}catch(_){}setTimeout(()=>conn.close(),300);return}
+      lobby.seats.push({type:"remote",conn});
+      if(lobby.seats.length===2)lobby.deadline=Date.now()+EXTRA_MS;
+      conn.on("close",()=>{if(lobby&&!lobby.started){lobby.seats=lobby.seats.filter(x=>x.conn!==conn);lobbyTick()}});
+      lobbyTick();
+      if(lobby.seats.length===4)beginFromLobby();
+    });
+  });
+  lobbyPeer.on("error",()=>{});
+  lobby.tick=setInterval(lobbyTick,500);lobbyTick();
+}
+function lobbyTick(){
+  if(!lobby||lobby.started)return;
+  const left=lobby.deadline-Date.now(),n=lobby.seats.length;
+  lobbyUI(n,left,n>1?`找到 ${n-1} 隻小熊了！再等一下就開始`:"正在找其他小熊…");
+  lobby.seats.forEach(s=>{if(s.conn&&s.conn.open)try{s.conn.send({t:"lobby",n,left})}catch(_){}});
+  if(left<=0)beginFromLobby();
+}
+function beginFromLobby(){
+  if(!lobby||lobby.started)return;lobby.started=true;clearInterval(lobby.tick);
+  const seats=lobby.seats;
+  if(seats.length===1){try{lobbyPeer.destroy()}catch(_){}lobbyPeer=null;note="沒有配到人，和電腦小熊玩！"}
+  startGame(seats,3);
+}
+function guestLobby(conn){
+  hostConn=conn;$("lobbyT").textContent="配到了！";firstRender=true;
+  conn.on("data",m=>{
+    if(m.t==="lobby")lobbyUI(m.n,m.left,`房間裡有 ${m.n} 隻小熊，等開局…`);
+    if(m.t==="view"){if(!$("lobby").hidden)hideAll();show(m.v)}
+  });
+  conn.on("close",()=>{if(V&&V.over)return;toast("和房主斷線了");cleanup();hideAll();$("start").hidden=false});
+}
+function fallback(text){note=text;try{lobbyPeer&&lobbyPeer.destroy()}catch(_){}try{guestPeer&&guestPeer.destroy()}catch(_){}lobbyPeer=guestPeer=null;startGame([{type:"local"}],3)}
+
+$("btnMatch").onclick=()=>{if(typeof Peer==="undefined")return fallback("連不上配對伺服器，先和電腦玩吧！");findMatch()};
+document.querySelectorAll(".pick button").forEach(b=>b.onclick=()=>startGame([{type:"local"}],+b.dataset.n));
+$("btnCancel").onclick=()=>{if(lobby&&!lobby.started){beginFromLobby();return}cleanup();$("lobby").hidden=true;startGame([{type:"local"}],3)};
+$("again").onclick=()=>{cleanup();hideAll();$("start").hidden=false};
+</script>
+
+</body>
+</html>

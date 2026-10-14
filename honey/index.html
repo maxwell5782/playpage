@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<title>小熊搶蜂蜜</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Baloo+2:wght@700;800&display=swap">
+<style>
+/* Layout: picnic blanket table — opponents on top, three honey stacks in the middle, your hand at the bottom. Single bright look by choice. */
+:root{
+  --cloth:#f7d7d0; --check:rgba(214,72,60,.22); --paper:#fffaf0; --ink:#2b2a22;
+  --honey:#f5b52a; --honey-deep:#d98a12; --leaf:#5aa469; --sky:#cfe9f7; --red:#d6483c;
+  --display:"Baloo 2","Huninn","PingFang TC","Noto Sans TC",system-ui,sans-serif;
+  --body:"Huninn","PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+  color-scheme:light;
+}
+body{color:var(--ink);font-family:var(--body);font-size:16px;
+  background:
+    linear-gradient(90deg,var(--check) 50%,transparent 50%) 0 0/48px 48px,
+    linear-gradient(var(--check) 50%,transparent 50%) 0 0/48px 48px,var(--cloth)}
+button{font-family:var(--body);color:var(--ink);cursor:pointer}
+button:focus-visible,.card:focus-visible,.slot:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.wrap{max-width:720px;margin:0 auto;padding-block:10px 24px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.top h1{font-family:var(--display);font-weight:800;font-size:24px;margin:0;line-height:1}
+.round{background:var(--paper);border:2px solid var(--ink);border-radius:999px;padding:4px 12px;font-size:14px;font-variant-numeric:tabular-nums}
+
+.opps{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}
+.chip{background:var(--paper);border:2px solid var(--ink);border-radius:16px;padding:6px 8px;display:flex;align-items:center;gap:6px;min-width:0;transition:transform .2s}
+.chip.act{transform:translateY(-3px);box-shadow:0 4px 0 var(--ink)}
+.chip .nm{font-size:13px;line-height:1.2}
+.chip .sc{font-family:var(--display);font-weight:800;font-size:20px;line-height:1;font-variant-numeric:tabular-nums}
+.chip .sc small{font-family:var(--body);font-size:11px;font-weight:400;margin-left:2px}
+.chip .played{margin-left:auto;width:30px;height:42px;flex:none}
+.chip .played svg{width:100%;height:100%}
+
+.table{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.slot{background:rgba(255,250,240,.75);border:2px dashed rgba(43,42,34,.35);border-radius:18px;min-height:178px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;min-width:0}
+.slot.has{border-style:solid;border-color:var(--ink);background:var(--paper)}
+.slot.sealed{background:#fde9b8}
+.slot.target{border:3px solid var(--leaf);box-shadow:0 0 0 4px rgba(90,164,105,.3);cursor:pointer;animation:glow 1s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 0 8px rgba(90,164,105,.15)}}
+.slot .sum{font-family:var(--display);font-weight:800;font-size:18px;line-height:1;font-variant-numeric:tabular-nums}
+.slot .tag{font-size:11px;background:var(--honey);border:1.5px solid var(--ink);border-radius:999px;padding:1px 7px}
+.slot .empty{margin:auto;font-size:13px;opacity:.55;text-align:center}
+.pile{display:flex;flex-direction:column;align-items:center}
+.pile svg{width:44px;height:62px;display:block}
+.pile svg+svg{margin-top:-44px}
+.pile svg.pop{animation:pop .35s ease-out}
+@keyframes pop{from{transform:translateY(-16px) scale(1.15);opacity:.4}}
+
+.msg{background:var(--ink);color:var(--paper);border-radius:14px;padding:10px 14px;font-size:15px;line-height:1.45;min-height:44px;text-wrap:balance}
+
+.me{background:var(--paper);border:2px solid var(--ink);border-radius:20px;padding:10px;display:flex;flex-direction:column;gap:10px}
+.mehead{display:flex;align-items:center;gap:8px}
+.mehead .sc{font-family:var(--display);font-weight:800;font-size:22px;font-variant-numeric:tabular-nums}
+.go{margin-left:auto;border:2px solid var(--ink);border-radius:999px;padding:8px 16px;font-size:15px;font-weight:700;background:var(--honey);box-shadow:0 3px 0 var(--ink)}
+.go:disabled{opacity:.45;cursor:default}
+.go:not(:disabled):active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.hand{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px}
+.card{position:relative;border:0;background:none;padding:0;aspect-ratio:60/84;max-width:100%;transition:transform .15s}
+.card svg{width:100%;height:100%;display:block}
+.card.sel{transform:translateY(-8px)}
+.card .no{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:var(--leaf);color:#fff;border:2px solid var(--ink);font-family:var(--display);font-weight:800;font-size:13px;line-height:18px;text-align:center}
+.card:disabled{cursor:default}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;font-size:13px;line-height:1.4}
+.legend div{display:flex;gap:6px;align-items:center}
+.legend svg{width:28px;height:39px;flex:none}
+
+.overlay{position:fixed;inset:0;background:rgba(43,42,34,.5);display:flex;align-items:center;justify-content:center;z-index:9;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:auto}
+.box{background:var(--paper);border:3px solid var(--ink);border-radius:24px;padding:22px 20px;max-width:400px;width:100%;text-align:center;box-shadow:0 8px 0 var(--ink);margin-block:16px}
+.box h2{font-family:var(--display);font-weight:800;font-size:32px;margin:0;line-height:1.1}
+.box p{margin:10px 0 0;line-height:1.6;font-size:15px}
+.box ul{text-align:left;font-size:14px;line-height:1.6;background:#fff3d6;border-radius:14px;padding:10px 14px 10px 30px;margin:12px 0 0}
+.pick{display:flex;gap:10px;justify-content:center;margin-top:14px}
+.pick button{border:2px solid var(--ink);border-radius:18px;background:var(--honey);box-shadow:0 4px 0 var(--ink);padding:10px 16px;font-size:16px;font-weight:700}
+.rank{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.rank div{display:flex;align-items:center;gap:8px;background:#fff3d6;border-radius:12px;padding:4px 10px}
+.rank b{margin-left:auto;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.pick button.alt{background:#e7f3df}
+.seats{display:flex;gap:8px;justify-content:center;margin-top:14px}
+.seat{width:56px;height:56px;border-radius:50%;background:#f1ece0;border:2px dashed rgba(43,42,34,.3);display:flex;align-items:center;justify-content:center;transition:transform .3s}
+.seat.on{background:#fff3d6;border:2px solid var(--ink);transform:scale(1.06)}
+.timer{font-family:var(--display);font-weight:800;font-size:40px;line-height:1;margin-top:8px;font-variant-numeric:tabular-nums}
+.rdy{font-size:11px;margin-top:2px;opacity:.6}
+.rdy.ok{opacity:1;color:var(--leaf);font-weight:700}
+html,body{margin:0}[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1>小熊搶蜂蜜</h1><span class="round" id="round"></span></div>
+  <div class="opps" id="opps"></div>
+  <div class="table" id="table"></div>
+  <div class="msg" id="msg" aria-live="polite"></div>
+  <div class="me">
+    <div class="mehead" id="mehead"></div>
+    <div class="hand" id="hand"></div>
+  </div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<div class="overlay" id="start">
+  <div class="box">
+    <h2>小熊搶蜂蜜</h2>
+    <p>桌上的蜂蜜罐越疊越多，誰會先把整疊抱回家？</p>
+    <ul>
+      <li>每回合先偷偷選 3 張牌，排好順序，大家再輪流一張一張出。</li>
+      <li><b>蜂蜜罐</b>放到桌上一疊（最多 3 疊）。有蜜蜂的罐子是扣分的！</li>
+      <li><b>小熊</b>可以把一疊沒蓋蓋子的罐子全部抱走。</li>
+      <li><b>蓋子</b>把一疊蓋起來，之後只有<b>熊爸爸</b>能拿走它。</li>
+      <li>沒地方放的牌就丟掉。玩 7 回合，蜂蜜分數最多的贏！</li>
+    </ul>
+    <div class="pick">
+      <button id="btnMatch">隨機配對</button>
+      <button id="btnBots" class="alt">和電腦玩</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="lobby" hidden>
+  <div class="box">
+    <h2 id="lobbyT">找朋友中…</h2>
+    <div class="seats" id="seats"></div>
+    <p id="lobbyMsg">正在找其他小熊</p>
+    <div class="timer" id="timer"></div>
+    <div class="pick"><button id="btnCancel" class="alt">不等了，和電腦玩</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="end" hidden>
+  <div class="box">
+    <h2 id="endT"></h2>
+    <div class="rank" id="rank"></div>
+    <div class="pick"><button id="again">回到開始</button></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+/* ===== settings ===== */
+const SEARCH_MS=30000;     // 最多找 30 秒
+const EXTRA_MS=20000;      // 配到第一個人後，再等最多 20 秒
+const PLAN_MS=90000;       // 選牌時間上限，超過由電腦代選
+const TARGET_MS=25000;     // 選位置時間上限
+const LOBBY="honeybear-v1-lobby-";
+const SLOTS=6;
+
+const P=[{n:"橘橘",c:"#e8914f"},{n:"藍藍",c:"#6fa3dc"},{n:"綠綠",c:"#8dc964"},{n:"粉粉",c:"#e08cc8"}];
+const LBL={jar:"蜂蜜罐",bear:"小熊",lid:"蓋子",big:"熊爸爸"};
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const pick=a=>a[Math.random()*a.length|0];
+const val=st=>st?st.cards.reduce((s,c)=>s+c.v,0):0;
+let uid=0;
+
+/* ===== art ===== */
+function bearG(c,x,y,s){
+  const ear=sx=>`<g transform="translate(${sx*11} -10)"><circle r="6.5" fill="${c}" stroke="#2b2a22" stroke-width="1.8"/><circle r="3.4" fill="#f6d7a7"/></g>`;
+  return `<g transform="translate(${x} ${y}) scale(${s})">${ear(-1)}${ear(1)}
+  <ellipse rx="15.5" ry="14" fill="${c}" stroke="#2b2a22" stroke-width="1.8"/>
+  <ellipse cy="5.5" rx="8" ry="6" fill="#f6d7a7" stroke="#2b2a22" stroke-width="1.2"/>
+  <ellipse cx="-10.5" cy="3.5" rx="3.4" ry="2.3" fill="#ff8fab" opacity=".75"/><ellipse cx="10.5" cy="3.5" rx="3.4" ry="2.3" fill="#ff8fab" opacity=".75"/>
+  <circle cx="-5.8" cy="-2" r="3.1" fill="#2b2a22"/><circle cx="5.8" cy="-2" r="3.1" fill="#2b2a22"/>
+  <circle cx="-4.6" cy="-3.2" r="1" fill="#fff"/><circle cx="7" cy="-3.2" r="1" fill="#fff"/>
+  <ellipse cy="3" rx="2.9" ry="2" fill="#4a3426"/>
+  <path d="M0 4.8 V6.6 M-2.6 6.4 Q-1.3 8.2 0 6.6 Q1.3 8.2 2.6 6.4" stroke="#4a3426" stroke-width="1.2" fill="none" stroke-linecap="round"/></g>`;
+}
+const bear=(c,sz)=>`<svg width="${sz}" height="${sz}" viewBox="-19 -19 38 36" aria-hidden="true">${bearG(c,0,0,1)}</svg>`;
+function jarArt(v){
+  const bee=v<0;
+  let g=`<rect x="17" y="17" width="26" height="8" rx="3" fill="#efe6cf" stroke="#2b2a22" stroke-width="1.5"/>
+  <path d="M13 14 Q30 6 47 14 L44 21 Q30 17 16 21Z" fill="#d6483c" stroke="#2b2a22" stroke-width="1.5"/>
+  <path d="M19 12 v6 M25 10 v8 M31 9 v9 M37 10 v8 M42 12 v6" stroke="#fff" stroke-width="1.6" opacity=".7"/>
+  <rect x="12" y="24" width="36" height="40" rx="11" fill="${bee?'#e9c56b':'#f5b52a'}" stroke="#2b2a22" stroke-width="1.6"/>
+  <path d="M15 34 q4 6 8 0 q4 7 8 0 q4 6 8 0 q4 6 6 0" fill="none" stroke="#d98a12" stroke-width="2" stroke-linecap="round"/>
+  <ellipse cx="19" cy="44" rx="2.5" ry="7" fill="#fff" opacity=".45"/>
+  <text x="31" y="56" text-anchor="middle" font-family="Baloo 2,system-ui,sans-serif" font-weight="800" font-size="19" fill="${bee?'#d6483c':'#fff'}" stroke="#2b2a22" stroke-width="${bee?0:2.4}" paint-order="stroke">${v}</text>`;
+  if(bee)g+=`<g transform="translate(46 26)"><path d="M-3 -4 q-6 -6 -1 -8 q4 0 3 6 M3 -4 q6 -6 1 -8 q-4 0 -3 6" fill="#e9f6ff" stroke="#2b2a22" stroke-width="1"/>
+    <ellipse rx="7" ry="5" fill="#ffd43b" stroke="#2b2a22" stroke-width="1.4"/><path d="M-1.5 -4.5 v9 M2.5 -4.2 v8.4" stroke="#2b2a22" stroke-width="1.8"/>
+    <circle cx="-4.2" cy="-1" r="1" fill="#2b2a22"/></g>`;
+  return g;
+}
+function cardSVG(c,mini){
+  let inner="",label=LBL[c.k];
+  if(c.k==="jar")inner=jarArt(c.v);
+  else if(c.k==="bear")inner=bearG("#c58447",30,38,1.25);
+  else if(c.k==="big")inner=`${bearG("#8a5530",30,40,1.32)}<path d="M19 18 l3 -9 l5 6 l3 -8 l3 8 l5 -6 l3 9 z" fill="#ffd43b" stroke="#2b2a22" stroke-width="1.5" stroke-linejoin="round"/>`;
+  else inner=`<ellipse cx="30" cy="44" rx="20" ry="7" fill="#b8402f" stroke="#2b2a22" stroke-width="1.5"/>
+    <path d="M10 42 Q30 18 50 42 Q30 50 10 42Z" fill="#d6483c" stroke="#2b2a22" stroke-width="1.5"/>
+    <path d="M16 36 h28 M13 41 h34 M22 28 v14 M30 25 v19 M38 28 v14" stroke="#fff" stroke-width="2" opacity=".6"/>
+    <path d="M12 45 Q30 52 48 45" stroke="#f5b52a" stroke-width="3" fill="none"/>`;
+  const bg=c.k==="jar"?(c.v<0?"#fff1ec":"#fffaf0"):c.k==="lid"?"#fff3e0":c.k==="big"?"#fff4cf":"#eef8ea";
+  return `<svg viewBox="0 0 60 84" aria-label="${label}${c.k==='jar'?' '+c.v+' 分':''}"><rect x="1" y="1" width="58" height="82" rx="8" fill="${bg}" stroke="#2b2a22" stroke-width="2"/>${inner}
+    ${mini?"":`<text x="30" y="77" text-anchor="middle" font-family="Huninn,PingFang TC,Noto Sans TC,sans-serif" font-size="10" fill="#2b2a22">${label}</text>`}</svg>`;
+}
+
+/* ===== game engine (runs only on the host) ===== */
+let G=null,isHost=false,waiters={plan:{},target:null},lobbyPeer=null,guestPeer=null,hostConn=null,V=null,sel=[];
+
+function makeSpecials(){const h=[];
+  for(let i=0;i<3;i++)h.push({id:uid++,k:"bear",v:0});
+  for(let i=0;i<2;i++)h.push({id:uid++,k:"lid",v:0});
+  for(let i=0;i<2;i++)h.push({id:uid++,k:"big",v:0});return h}
+function makeJars(){return [1,1,1,1,1,2,2,2,2,3,3,-2,-2,-1].map(v=>({id:uid++,k:"jar",v}))}
+
+function startGame(seats){
+  while(seats.length<4)seats.push({type:"bot"});
+  const pool=shuffle(seats.flatMap(makeJars));
+  G={round:1,start:0,phase:"plan",stacks:[null,null,null],active:-1,asking:-1,targets:null,msg:"",
+     players:seats.map((s,i)=>({name:P[i].n,c:P[i].c,type:s.type,conn:s.conn||null,
+       hand:[...pool.splice(0,14),...makeSpecials()],score:0,plan:[],ready:false,last:null}))};
+  G.players.forEach((p,i)=>{if(p.conn)wireConn(p.conn,i)});
+  isHost=true;hideAll();run();
+}
+function view(i){
+  const order={jar:0,bear:1,lid:2,big:3};
+  const p=G.players[i];
+  return {me:i,round:G.round,phase:G.phase,active:G.active,stacks:G.stacks,
+    msg:G.asking===i&&G.targets?G.askMsg:G.msg,
+    targets:G.asking===i?G.targets:null,
+    planning:G.phase==="plan"&&!p.ready,
+    hand:[...p.hand].sort((a,b)=>order[a.k]-order[b.k]||b.v-a.v),
+    players:G.players.map((q,j)=>({n:j===i?"你":q.name+(q.type==="bot"?"（電腦）":""),c:q.c,score:q.score,ready:q.ready,last:q.last,cnt:q.hand.length}))};
+}
+function broadcast(){
+  G.players.forEach((p,i)=>{
+    if(p.type==="local")show(view(i));
+    else if(p.type==="remote"&&p.conn&&p.conn.open){try{p.conn.send({t:"view",v:view(i)})}catch(e){}}
+  });
+}
+function targets(c){
+  const s=G.stacks,out=[];
+  for(let i=0;i<3;i++){const st=s[i];
+    if(c.k==="jar"&&(!st||!st.sealed))out.push(i);
+    if((c.k==="bear"||c.k==="lid")&&st&&!st.sealed)out.push(i);
+    if(c.k==="big"&&st&&st.sealed)out.push(i);}
+  if(c.k==="jar"){const fe=out.find(i=>!s[i]);return out.filter(i=>s[i]||i===fe)}
+  return out;
+}
+function aiTarget(c,t){
+  const by=f=>t.reduce((b,i)=>f(i)>f(b)?i:b,t[0]);
+  if(c.k==="jar"){
+    if(c.v<0)return by(i=>G.stacks[i]?val(G.stacks[i])+5:0);
+    return Math.random()<.3?pick(t):by(i=>-(G.stacks[i]?val(G.stacks[i]):0)+Math.random());
+  }
+  return by(i=>val(G.stacks[i])+Math.random()*.5);
+}
+function aiPlan(p){
+  const h=shuffle([...p.hand]),plan=[];
+  const best=Math.max(0,...G.stacks.map(val));
+  const take=k=>{const i=h.findIndex(c=>c.k===k);if(i>=0)plan.push(h.splice(i,1)[0])};
+  if(best>=4&&Math.random()<.7)take(G.stacks.some(s=>s&&s.sealed)&&Math.random()<.5?"big":"bear");
+  while(plan.length<3)plan.push(h.shift());
+  return Math.random()<.5?plan.reverse():plan;
+}
+function getPlan(i){
+  const p=G.players[i];
+  if(p.type==="bot"){p.plan=aiPlan(p);p.ready=true;return Promise.resolve()}
+  return new Promise(res=>{
+    const tm=setTimeout(()=>waiters.plan[i]&&waiters.plan[i](null),PLAN_MS);
+    waiters.plan[i]=ids=>{
+      clearTimeout(tm);delete waiters.plan[i];
+      const cards=Array.isArray(ids)?ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean):[];
+      p.plan=cards.length===3&&new Set(ids).size===3?cards:aiPlan(p);
+      p.ready=true;broadcast();res();
+    };
+  });
+}
+function askTarget(i,c,t){
+  const p=G.players[i];
+  if(p.type==="bot")return Promise.resolve(aiTarget(c,t));
+  return new Promise(res=>{
+    G.asking=i;G.targets=t;
+    G.askMsg={jar:"要把蜂蜜罐放到哪一疊？點綠框的位置。",bear:"小熊要抱走哪一疊？",lid:"要把哪一疊蓋起來？",big:"熊爸爸要拿走哪一疊？"}[c.k];
+    const tm=setTimeout(()=>waiters.target&&waiters.target.fn(null),TARGET_MS);
+    waiters.target={i,fn:k=>{clearTimeout(tm);waiters.target=null;G.asking=-1;G.targets=null;res(t.includes(k)?k:aiTarget(c,t))}};
+    broadcast();
+  });
+}
+async function run(){
+  for(G.round=1;G.round<=7;G.round++){
+    G.phase="plan";G.active=-1;G.players.forEach(p=>{p.ready=false;p.last=null});
+    G.msg=(note?note+" ":"")+`第 ${G.round} 回合：選 3 張牌，照順序點（1 → 2 → 3），再按「出牌」。`;
+    note="";broadcast();
+    await Promise.all(G.players.map((p,i)=>getPlan(i)));
+    G.phase="resolve";
+    for(let step=0;step<3;step++)for(let j=0;j<4;j++){
+      const i=(G.start+j)%4,p=G.players[i],c=p.plan[step];
+      p.hand=p.hand.filter(x=>x.id!==c.id);G.active=i;p.last=c;
+      G.msg=`${p.name}出了「${LBL[c.k]}${c.k==='jar'?' '+c.v+' 分':''}」`;broadcast();
+      await sleep(800);
+      const t=targets(c);
+      if(!t.length){G.msg=`${p.name}的「${LBL[c.k]}」沒地方放，丟掉了。`;broadcast();await sleep(900);continue}
+      const k=t.length===1?t[0]:await askTarget(i,c,t);
+      apply(i,c,k);G.pop=k;broadcast();G.pop=null;await sleep(900);
+    }
+    G.start=(G.start+1)%4;
+  }
+  G.round=7;G.phase="end";G.active=-1;G.msg="遊戲結束！";broadcast();
+}
+function apply(i,c,k){
+  const p=G.players[i],s=G.stacks;
+  if(c.k==="jar"){if(!s[k])s[k]={cards:[],sealed:false};s[k].cards.push(c);G.msg=`${p.name}把蜂蜜罐放到第 ${k+1} 疊。`}
+  else if(c.k==="lid"){s[k].sealed=true;G.msg=`${p.name}把第 ${k+1} 疊蓋起來了！現在只有熊爸爸能拿。`}
+  else{const v=val(s[k]);p.score+=v;s[k]=null;G.msg=`${p.name}${c.k==='big'?'的熊爸爸':''}抱走第 ${k+1} 疊，${v>=0?'得到':'扣了'} ${Math.abs(v)} 分！`}
+}
+function hostMsg(i,m){
+  if(!G||!m)return;
+  if(m.t==="plan"&&waiters.plan[i])waiters.plan[i](m.ids);
+  if(m.t==="target"&&waiters.target&&waiters.target.i===i)waiters.target.fn(m.k);
+}
+function wireConn(conn,i){
+  conn.on("data",m=>hostMsg(i,m));
+  conn.on("close",()=>dropToBot(i));
+  conn.on("error",()=>dropToBot(i));
+}
+function dropToBot(i){
+  if(!G)return;const p=G.players[i];if(p.type==="bot")return;
+  p.type="bot";p.conn=null;G.msg=`${p.name}斷線了，換電腦小熊接手。`;
+  if(waiters.plan[i])waiters.plan[i](null);
+  if(waiters.target&&waiters.target.i===i)waiters.target.fn(null);
+  broadcast();
+}
+
+/* ===== client side (host's own screen + guests) ===== */
+function act(m){
+  if(isHost)hostMsg(0,m);
+  else if(hostConn&&hostConn.open)hostConn.send(m);
+}
+function show(v){
+  V=v;if(!V.planning)sel=[];
+  $("round").textContent=`第 ${V.round} / 7 回合`;
+  const n=V.players.length,others=[];for(let k=1;k<n;k++)others.push((V.me+k)%n);
+  $("opps").innerHTML=others.map(j=>{const q=V.players[j];
+    return `<div class="chip${V.active===j?' act':''}">${bear(q.c,30)}<div style="min-width:0"><div class="nm">${q.n}</div><div class="sc">${q.score}<small>分</small></div>${V.phase==="plan"?`<div class="rdy${q.ready?' ok':''}">${q.ready?'選好了':'選牌中'}</div>`:''}</div><div class="played">${q.last?cardSVG(q.last,true):""}</div></div>`}).join("");
+  const tg=V.targets||[];
+  $("table").innerHTML=V.stacks.map((st,i)=>{
+    const t=tg.includes(i),a=t?' role="button" tabindex="0"':'';
+    if(!st)return `<div class="slot${t?' target':''}" data-i="${i}"${a}><div class="empty">空位<br>第 ${i+1} 疊</div></div>`;
+    const cards=st.cards.map(c=>cardSVG(c,true)).join("");
+    return `<div class="slot has${st.sealed?' sealed':''}${t?' target':''}" data-i="${i}"${a}><div class="sum">${val(st)} 分</div>${st.sealed?'<span class="tag">蓋上了</span>':''}<div class="pile">${cards}</div></div>`}).join("");
+  $("msg").textContent=V.msg;
+  const me=V.players[V.me];
+  const lbl=V.phase==="end"?"遊戲結束":V.planning?`出牌（${sel.length}/3）`:V.phase==="plan"?"等其他小熊…":V.targets?"選一疊":V.active===V.me?"輪到你":"大家出牌中…";
+  $("mehead").innerHTML=`${bear(me.c,34)}<div><div style="font-size:13px">你的蜂蜜</div><div class="sc">${me.score} 分</div></div>
+    <button class="go" id="go" ${V.planning&&sel.length===3?"":"disabled"}>${lbl}</button>`;
+  $("go").onclick=()=>{if(V.planning&&sel.length===3){act({t:"plan",ids:[...sel]});sel=[]}};
+  $("hand").innerHTML=V.hand.map(c=>{const k=sel.indexOf(c.id);
+    return `<button class="card${k>=0?' sel':''}" data-id="${c.id}" ${V.planning?"":"disabled"}>${cardSVG(c)}${k>=0?`<span class="no">${k+1}</span>`:""}</button>`}).join("");
+  if(V.phase==="end")showEnd();
+}
+function showEnd(){
+  const pl=V.players.map(p=>p).sort((a,b)=>b.score-a.score);
+  const top=pl[0].score,win=pl.filter(p=>p.score===top);
+  const names=win.map(p=>p.n.replace("（電腦）",""));
+  $("endT").textContent=names.length>1?names.join("和")+"一起贏了！":names[0]==="你"?"你贏了！":names[0]+"贏了！";
+  $("rank").innerHTML=pl.map(p=>`<div>${bear(p.c,28)}${p.n}<b>${p.score} 分</b></div>`).join("");
+  $("end").hidden=false;
+}
+$("hand").addEventListener("click",e=>{
+  const b=e.target.closest(".card");if(!b||!V||!V.planning)return;
+  const id=+b.dataset.id,k=sel.indexOf(id);
+  if(k>=0)sel.splice(k,1);else if(sel.length<3)sel.push(id);
+  show(V);
+});
+const pickSlot=e=>{const s=e.target.closest(".slot.target");if(s&&V&&V.targets){act({t:"target",k:+s.dataset.i});V.targets=null;show(V)}};
+$("table").addEventListener("click",pickSlot);
+$("table").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();pickSlot(e)}});
+
+/* ===== matchmaking ===== */
+let lobby=null; // host lobby state
+function hideAll(){["start","lobby","end"].forEach(id=>$(id).hidden=true)}
+function cleanup(){
+  try{lobbyPeer&&lobbyPeer.destroy()}catch(e){}try{guestPeer&&guestPeer.destroy()}catch(e){}
+  lobbyPeer=guestPeer=hostConn=null;G=null;V=null;isHost=false;waiters={plan:{},target:null};
+  if(lobby){clearInterval(lobby.tick);lobby=null}
+}
+function lobbyUI(count,leftMs,text){
+  $("seats").innerHTML=P.map((p,i)=>`<div class="seat${i<count?' on':''}">${bear(i<count?p.c:"#d9d2c3",40)}</div>`).join("");
+  $("timer").textContent=leftMs!=null?`${Math.max(0,Math.ceil(leftMs/1000))} 秒`:"";
+  $("lobbyMsg").textContent=text;
+}
+function claim(s){
+  return new Promise(res=>{
+    let done=false;const fin=r=>{if(!done){done=true;res(r)}};
+    const p=new Peer(LOBBY+s,{debug:0});
+    p.on("open",()=>fin({peer:p}));
+    p.on("error",e=>{if(done)return;try{p.destroy()}catch(_){}fin(e.type==="unavailable-id"?{taken:true}:{err:e.type})});
+    setTimeout(()=>{if(!done){try{p.destroy()}catch(_){}fin({err:"timeout"})}},9000);
+  });
+}
+function ensureGuestPeer(){
+  if(guestPeer&&guestPeer.open)return Promise.resolve(guestPeer);
+  return new Promise((res,rej)=>{
+    guestPeer=new Peer({debug:0});
+    guestPeer.on("open",()=>res(guestPeer));
+    guestPeer.on("error",e=>{if(guestPeer._pending)guestPeer._pending(null);else rej(e)});
+    setTimeout(()=>rej(new Error("timeout")),9000);
+  });
+}
+function tryJoin(s){
+  return new Promise(res=>{
+    let done=false;const fin=c=>{if(!done){done=true;guestPeer._pending=null;res(c)}};
+    guestPeer._pending=fin;
+    const conn=guestPeer.connect(LOBBY+s,{reliable:true});
+    conn.on("data",m=>{if(done)return;if(m.t==="lobby")fin(conn);else{try{conn.close()}catch(_){}fin(null)}});
+    conn.on("error",()=>fin(null));
+    setTimeout(()=>{try{conn.close()}catch(_){}fin(null)},6000);
+  });
+}
+async function findMatch(){
+  $("start").hidden=true;$("lobby").hidden=false;$("lobbyT").textContent="找朋友中…";
+  lobbyUI(1,SEARCH_MS,"正在連線…");
+  const t0=Date.now();
+  for(let s=0;s<SLOTS;s++){
+    if($("lobby").hidden)return; // cancelled
+    const r=await claim(s);
+    if(r.peer){lobbyPeer=r.peer;return hostLobby(t0)}
+    if(r.err){return fallback("連不上配對伺服器，先和電腦玩吧！")}
+    try{await ensureGuestPeer()}catch(e){return fallback("連不上配對伺服器，先和電腦玩吧！")}
+    const c=await tryJoin(s);
+    if(c)return guestLobby(c);
+  }
+  fallback("目前房間都滿了，先和電腦玩吧！");
+}
+function hostLobby(t0){
+  lobby={seats:[{type:"local"}],deadline:t0+SEARCH_MS,started:false};
+  lobbyPeer.on("connection",conn=>{
+    conn.on("open",()=>{
+      if(!lobby||lobby.started||lobby.seats.length>=4){try{conn.send({t:"full"})}catch(_){}setTimeout(()=>conn.close(),300);return}
+      lobby.seats.push({type:"remote",conn});
+      if(lobby.seats.length===2)lobby.deadline=Date.now()+EXTRA_MS;
+      conn.on("close",()=>{if(lobby&&!lobby.started){lobby.seats=lobby.seats.filter(x=>x.conn!==conn);lobbyTick()}});
+      lobbyTick();
+      if(lobby.seats.length===4)beginFromLobby();
+    });
+  });
+  lobbyPeer.on("error",()=>{});
+  lobby.tick=setInterval(lobbyTick,500);lobbyTick();
+}
+function lobbyTick(){
+  if(!lobby||lobby.started)return;
+  const left=lobby.deadline-Date.now(),n=lobby.seats.length;
+  const text=n>1?`找到 ${n-1} 隻小熊了！再等一下，空位會由電腦補上`:"正在找其他小熊…";
+  lobbyUI(n,left,text);
+  lobby.seats.forEach(s=>{if(s.conn&&s.conn.open)try{s.conn.send({t:"lobby",n,left})}catch(_){}});
+  if(left<=0)beginFromLobby();
+}
+function beginFromLobby(){
+  if(!lobby||lobby.started)return;lobby.started=true;clearInterval(lobby.tick);
+  const seats=lobby.seats;
+  if(seats.length===1){try{lobbyPeer.destroy()}catch(_){}lobbyPeer=null;toast("沒有配到人，和電腦小熊玩！")}
+  startGame(seats);
+}
+function guestLobby(conn){
+  hostConn=conn;$("lobbyT").textContent="配到了！";
+  conn.on("data",m=>{
+    if(m.t==="lobby")lobbyUI(m.n,m.left,`房間裡有 ${m.n} 隻小熊，等開局…`);
+    if(m.t==="view"){if(!$("lobby").hidden)hideAll();show(m.v)}
+  });
+  conn.on("close",()=>{if(V&&V.phase==="end")return;toast("和房主斷線了");cleanup();hideAll();$("start").hidden=false});
+}
+function fallback(text){toast(text);try{lobbyPeer&&lobbyPeer.destroy()}catch(_){}try{guestPeer&&guestPeer.destroy()}catch(_){}lobbyPeer=guestPeer=null;startGame([{type:"local"}])}
+let note="";function toast(m){note=m;$("msg").textContent=m}
+
+$("btnMatch").onclick=()=>{if(typeof Peer==="undefined")return fallback("連不上配對伺服器，先和電腦玩吧！");findMatch()};
+$("btnBots").onclick=()=>startGame([{type:"local"}]);
+$("btnCancel").onclick=()=>{
+  if(lobby&&!lobby.started){beginFromLobby();return}
+  cleanup();$("lobby").hidden=true;startGame([{type:"local"}]);
+};
+$("again").onclick=()=>{cleanup();hideAll();$("start").hidden=false};
+$("legend").innerHTML=[
+  [{k:"jar",v:2},"蜂蜜罐：放到一疊上，數字是分數"],
+  [{k:"jar",v:-2},"蜜蜂罐：扣分！塞給別人"],
+  [{k:"bear",v:0},"小熊：抱走一疊沒蓋的"],
+  [{k:"lid",v:0},"蓋子：把一疊蓋起來"],
+  [{k:"big",v:0},"熊爸爸：只能拿蓋好的那疊"]
+].map(([c,t])=>`<div>${cardSVG(c,true)}<span>${t}</span></div>`).join("");
+</script>
+
+</body>
+</html>
