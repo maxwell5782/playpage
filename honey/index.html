@@ -50,6 +50,12 @@ button:focus-visible,.card:focus-visible,.slot:focus-visible{outline:3px solid v
 .pile svg.pop{animation:pop .35s ease-out}
 @keyframes pop{from{transform:translateY(-16px) scale(1.15);opacity:.4}}
 
+.myplan{background:var(--paper);border:3px solid var(--ink);border-radius:18px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.myplan.pick{border-color:var(--leaf);box-shadow:0 0 0 4px rgba(90,164,105,.3)}
+.mp-t{font-size:14px;font-weight:700}
+.mp-cards{display:flex;gap:10px;justify-content:center}
+.mp-cards .card{width:78px}
+.myplan.pick .mp-cards .card:not(:disabled){animation:glow 1s ease-in-out infinite;border-radius:10px}
 .msg{background:var(--ink);color:var(--paper);border-radius:14px;padding:10px 14px;font-size:15px;line-height:1.45;min-height:44px;text-wrap:balance}
 
 .me{background:var(--paper);border:2px solid var(--ink);border-radius:20px;padding:10px;display:flex;flex-direction:column;gap:10px}
@@ -95,6 +101,10 @@ html,body{margin:0}[hidden]{display:none!important}
   <div class="top"><h1>小熊搶蜂蜜</h1><span class="round" id="round"></span></div>
   <div class="opps" id="opps"></div>
   <div class="table" id="table"></div>
+  <div class="myplan" id="myplan" hidden>
+    <div class="mp-t" id="mpT">我選的牌</div>
+    <div class="mp-cards" id="mpCards"></div>
+  </div>
   <div class="msg" id="msg" aria-live="polite"></div>
   <div class="me">
     <div class="mehead" id="mehead"></div>
@@ -108,11 +118,12 @@ html,body{margin:0}[hidden]{display:none!important}
     <h2>小熊搶蜂蜜</h2>
     <p>桌上的蜂蜜罐越疊越多，誰會先把整疊抱回家？</p>
     <ul>
-      <li>每回合先偷偷選 3 張牌，排好順序，大家再輪流一張一張出。</li>
-      <li><b>蜂蜜罐</b>放到桌上一疊（最多 3 疊）。有蜜蜂的罐子是扣分的！</li>
+      <li>每回合先偷偷選 3 張牌，選好的牌會放在桌子下面。</li>
+      <li>大家輪流出牌，輪到你時，從那 3 張裡挑一張出。</li>
+      <li><b>蜂蜜罐</b>放到桌上一疊（最多 3 疊），數字是分數：1、3、5、8、10 分。</li>
       <li><b>小熊</b>可以把一疊沒蓋蓋子的罐子全部抱走。</li>
       <li><b>蓋子</b>把一疊蓋起來，之後只有<b>熊爸爸</b>能拿走它。</li>
-      <li>沒地方放的牌就丟掉。玩 7 回合，蜂蜜分數最多的贏！</li>
+      <li>沒地方放的牌就丟掉。手牌出完遊戲結束，蜂蜜分數最多的贏！</li>
     </ul>
     <div class="pick">
       <button id="btnMatch">隨機配對</button>
@@ -200,31 +211,36 @@ function cardSVG(c,mini){
 }
 
 /* ===== game engine (runs only on the host) ===== */
-let G=null,isHost=false,waiters={plan:{},target:null},lobbyPeer=null,guestPeer=null,hostConn=null,V=null,sel=[];
+let G=null,isHost=false,waiters={plan:{},target:null,card:null},lobbyPeer=null,guestPeer=null,hostConn=null,V=null,sel=[];
 
+/* 蜂蜜罐分數：1、3、5、8、10 分各 5 張，全部洗勻後平均發給 4 位玩家 */
+const JAR_VALUES=[1,3,5,8,10].flatMap(v=>Array(5).fill(v));
 function makeSpecials(){const h=[];
-  for(let i=0;i<3;i++)h.push({id:uid++,k:"bear",v:0});
+  for(let i=0;i<2;i++)h.push({id:uid++,k:"bear",v:0});
   for(let i=0;i<2;i++)h.push({id:uid++,k:"lid",v:0});
   for(let i=0;i<2;i++)h.push({id:uid++,k:"big",v:0});return h}
-function makeJars(){return [1,1,1,1,1,2,2,2,2,3,3,-2,-2,-1].map(v=>({id:uid++,k:"jar",v}))}
 
 function startGame(seats){
   while(seats.length<4)seats.push({type:"bot"});
-  const pool=shuffle(seats.flatMap(makeJars));
-  G={round:1,start:0,phase:"plan",stacks:[null,null,null],active:-1,asking:-1,targets:null,msg:"",
+  const pool=shuffle(JAR_VALUES.map(v=>({id:uid++,k:"jar",v})));
+  const per=Math.floor(pool.length/seats.length); // 4 人時每人 6 張，剩下的不用
+  const handSize=per+6,rounds=Math.floor(handSize/3);
+  G={round:1,rounds,picking:-1,start:0,phase:"plan",stacks:[null,null,null],active:-1,asking:-1,targets:null,msg:"",
      players:seats.map((s,i)=>({name:P[i].n,c:P[i].c,type:s.type,conn:s.conn||null,token:s.token||null,away:false,
-       hand:[...pool.splice(0,14),...makeSpecials()],score:0,plan:[],ready:false,last:null}))};
+       hand:[...pool.splice(0,per),...makeSpecials()],score:0,plan:[],ready:false,last:null}))};
   G.players.forEach(p=>p.lastSeen=Date.now());
   isHost=true;hideAll();keepAwake();run();
 }
 function view(i){
   const order={jar:0,bear:1,lid:2,big:3};
   const p=G.players[i];
-  return {me:i,round:G.round,phase:G.phase,active:G.active,stacks:G.stacks,
-    msg:G.asking===i&&G.targets?G.askMsg:G.msg,
+  const inPlan=new Set(p.plan.map(c=>c.id));
+  return {me:i,round:G.round,rounds:G.rounds,phase:G.phase,
+    plan:p.ready&&G.phase!=="end"?p.plan:[],pickCard:G.picking===i,active:G.active,stacks:G.stacks,
+    msg:G.asking===i&&G.targets?G.askMsg:G.picking===i?"輪到你了！從下面選一張牌出。":G.msg,
     targets:G.asking===i?G.targets:null,
     planning:G.phase==="plan"&&!p.ready,
-    hand:[...p.hand].sort((a,b)=>order[a.k]-order[b.k]||b.v-a.v),
+    hand:p.hand.filter(c=>!inPlan.has(c.id)).sort((a,b)=>order[a.k]-order[b.k]||b.v-a.v),
     players:G.players.map((q,j)=>({n:j===i?"你":q.name+(q.type==="bot"?(q.away?"（暫離）":"（電腦）"):""),c:q.c,score:q.score,ready:q.ready,last:q.last,cnt:q.hand.length}))};
 }
 function broadcast(){
@@ -258,6 +274,27 @@ function aiPlan(p){
   while(plan.length<3)plan.push(h.shift());
   return Math.random()<.5?plan.reverse():plan;
 }
+function aiPickCard(p){
+  const s=G.stacks,open=s.filter(x=>x&&!x.sealed),sealed=s.filter(x=>x&&x.sealed);
+  const best=a=>a.length?Math.max(...a.map(val)):-1;
+  const score=c=>{
+    if(c.k==="bear")return open.length?best(open):-1;
+    if(c.k==="big")return sealed.length?best(sealed)+1:-1;
+    if(c.k==="lid")return open.length&&best(open)>=6?2:open.length?.3:-1;
+    return targets(c).length?1:-1;
+  };
+  return p.plan.reduce((b,c)=>score(c)+Math.random()*.4>score(b)+Math.random()*.4?c:b,p.plan[0]);
+}
+function chooseCard(i){
+  const p=G.players[i];
+  if(p.plan.length===1||p.type==="bot")return Promise.resolve(p.type==="bot"?aiPickCard(p):p.plan[0]);
+  return new Promise(res=>{
+    G.picking=i;
+    const tm=setTimeout(()=>waiters.card&&waiters.card.fn(null),PLAN_MS);
+    waiters.card={i,fn:id=>{clearTimeout(tm);waiters.card=null;G.picking=-1;res(p.plan.find(c=>c.id===id)||aiPickCard(p))}};
+    broadcast();
+  });
+}
 function getPlan(i){
   const p=G.players[i];
   if(p.type==="bot"){p.plan=aiPlan(p);p.ready=true;return Promise.resolve()}
@@ -283,15 +320,17 @@ function askTarget(i,c,t){
   });
 }
 async function run(){
-  for(G.round=1;G.round<=7;G.round++){
+  for(G.round=1;G.round<=G.rounds;G.round++){
     G.phase="plan";G.active=-1;G.players.forEach(p=>{p.ready=false;p.last=null});
-    G.msg=(note?note+" ":"")+`第 ${G.round} 回合：選 3 張牌，照順序點（1 → 2 → 3），再按「出牌」。`;
+    G.msg=(note?note+" ":"")+`第 ${G.round} 回合：選 3 張牌，再按「選好了」。`;
     note="";broadcast();
     await Promise.all(G.players.map((p,i)=>getPlan(i)));
     G.phase="resolve";
     for(let step=0;step<3;step++)for(let j=0;j<4;j++){
-      const i=(G.start+j)%4,p=G.players[i],c=p.plan[step];
-      p.hand=p.hand.filter(x=>x.id!==c.id);G.active=i;p.last=c;
+      const i=(G.start+j)%4,p=G.players[i];G.active=i;
+      if(p.plan.length>1){G.msg=`輪到${p.name}出牌…`;broadcast()}
+      const c=await chooseCard(i);
+      p.plan=p.plan.filter(x=>x.id!==c.id);p.hand=p.hand.filter(x=>x.id!==c.id);p.last=c;
       G.msg=`${p.name}出了「${LBL[c.k]}${c.k==='jar'?' '+c.v+' 分':''}」`;broadcast();
       await sleep(800);
       const t=targets(c);
@@ -301,7 +340,7 @@ async function run(){
     }
     G.start=(G.start+1)%4;
   }
-  G.round=7;G.phase="end";G.active=-1;G.msg="遊戲結束！";broadcast();
+  G.round=G.rounds;G.phase="end";G.active=-1;G.msg="遊戲結束！";broadcast();
 }
 function apply(i,c,k){
   const p=G.players[i],s=G.stacks;
@@ -313,12 +352,14 @@ function hostMsg(i,m){
   if(!G||!m)return;
   if(m.t==="plan"&&waiters.plan[i])waiters.plan[i](m.ids);
   if(m.t==="target"&&waiters.target&&waiters.target.i===i)waiters.target.fn(m.k);
+  if(m.t==="card"&&waiters.card&&waiters.card.i===i)waiters.card.fn(m.id);
 }
 function dropToBot(i){
   if(!G)return;const p=G.players[i];if(p.type==="bot")return;
   p.type="bot";p.conn=null;p.away=true;G.msg=`${p.name}暫時離開，電腦小熊先幫忙，回來就能接著玩。`;
   if(waiters.plan[i])waiters.plan[i](null);
   if(waiters.target&&waiters.target.i===i)waiters.target.fn(null);
+  if(waiters.card&&waiters.card.i===i)waiters.card.fn(null);
   broadcast();
 }
 
@@ -329,7 +370,7 @@ function act(m){
 }
 function show(v){
   V=v;if(!V.planning)sel=[];
-  $("round").textContent=`第 ${V.round} / 7 回合`;
+  $("round").textContent=`第 ${V.round} / ${V.rounds} 回合`;
   const n=V.players.length,others=[];for(let k=1;k<n;k++)others.push((V.me+k)%n);
   $("opps").innerHTML=others.map(j=>{const q=V.players[j];
     return `<div class="chip${V.active===j?' act':''}">${bear(q.c,30)}<div style="min-width:0"><div class="nm">${q.n}</div><div class="sc">${q.score}<small>分</small></div>${V.phase==="plan"?`<div class="rdy${q.ready?' ok':''}">${q.ready?'選好了':'選牌中'}</div>`:''}</div><div class="played">${q.last?cardSVG(q.last,true):""}</div></div>`}).join("");
@@ -341,12 +382,15 @@ function show(v){
     return `<div class="slot has${st.sealed?' sealed':''}${t?' target':''}" data-i="${i}"${a}><div class="sum">${val(st)} 分</div>${st.sealed?'<span class="tag">蓋上了</span>':''}<div class="pile">${cards}</div></div>`}).join("");
   $("msg").textContent=V.msg;
   const me=V.players[V.me];
-  const lbl=V.phase==="end"?"遊戲結束":V.planning?`出牌（${sel.length}/3）`:V.phase==="plan"?"等其他小熊…":V.targets?"選一疊":V.active===V.me?"輪到你":"大家出牌中…";
+  const lbl=V.phase==="end"?"遊戲結束":V.planning?`選好了（${sel.length}/3）`:V.phase==="plan"?"等其他小熊…":V.pickCard?"選一張出":V.targets?"選一疊":"大家出牌中…";
   $("mehead").innerHTML=`${bear(me.c,34)}<div><div style="font-size:13px">你的蜂蜜</div><div class="sc">${me.score} 分</div></div>
     <button class="go" id="go" ${V.planning&&sel.length===3?"":"disabled"}>${lbl}</button>`;
   $("go").onclick=()=>{if(V.planning&&sel.length===3){act({t:"plan",ids:[...sel]});sel=[]}};
   $("hand").innerHTML=V.hand.map(c=>{const k=sel.indexOf(c.id);
-    return `<button class="card${k>=0?' sel':''}" data-id="${c.id}" ${V.planning?"":"disabled"}>${cardSVG(c)}${k>=0?`<span class="no">${k+1}</span>`:""}</button>`}).join("");
+    return `<button class="card${k>=0?' sel':''}" data-id="${c.id}" ${V.planning?"":"disabled"}>${cardSVG(c)}${k>=0?`<span class="no">✓</span>`:""}</button>`}).join("");
+  const mp=$("myplan");mp.hidden=!V.plan.length;mp.classList.toggle("pick",!!V.pickCard);
+  $("mpT").textContent=V.pickCard?"輪到你了！點一張要出的牌":`我選的牌（還有 ${V.plan.length} 張）`;
+  $("mpCards").innerHTML=V.plan.map(c=>`<button class="card" data-id="${c.id}" ${V.pickCard?"":"disabled"}>${cardSVG(c)}</button>`).join("");
   if(V.phase==="end")showEnd();
 }
 function showEnd(){
@@ -363,13 +407,17 @@ $("hand").addEventListener("click",e=>{
   if(k>=0)sel.splice(k,1);else if(sel.length<3)sel.push(id);
   show(V);
 });
+$("mpCards").addEventListener("click",e=>{
+  const b=e.target.closest(".card");if(!b||!V||!V.pickCard)return;
+  act({t:"card",id:+b.dataset.id});V.pickCard=false;V.plan=V.plan.filter(c=>c.id!==+b.dataset.id);show(V);
+});
 const pickSlot=e=>{const s=e.target.closest(".slot.target");if(s&&V&&V.targets){act({t:"target",k:+s.dataset.i});V.targets=null;show(V)}};
 $("table").addEventListener("click",pickSlot);
 $("table").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();pickSlot(e)}});
 
 const NS="bearhouse-v2/honey";
 const startArgs=seats=>[seats];
-function resetGame(){G=null;V=null;isHost=false;waiters={plan:{},target:null};}
+function resetGame(){G=null;V=null;isHost=false;waiters={plan:{},target:null,card:null};}
 const gameOver=()=>G&&G.phase==="end";
 const guestOver=()=>V&&V.phase==="end";
 let lobby=null;
@@ -575,8 +623,7 @@ $("again").onclick=()=>{cleanup();hideAll();$("start").hidden=false};
 
 $("btnBots").onclick=()=>startGame([{type:"local"}]);
 $("legend").innerHTML=[
-  [{k:"jar",v:2},"蜂蜜罐：放到一疊上，數字是分數"],
-  [{k:"jar",v:-2},"蜜蜂罐：扣分！塞給別人"],
+  [{k:"jar",v:5},"蜂蜜罐：放到一疊上，數字是分數（1～10 分）"],
   [{k:"bear",v:0},"小熊：抱走一疊沒蓋的"],
   [{k:"lid",v:0},"蓋子：把一疊蓋起來"],
   [{k:"big",v:0},"熊爸爸：只能拿蓋好的那疊"]
