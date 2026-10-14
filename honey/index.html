@@ -256,8 +256,7 @@ function targets(c){
     if(c.k==="jar"&&(!st||!st.sealed))out.push(i);
     if((c.k==="bear"||c.k==="lid")&&st&&!st.sealed)out.push(i);
     if(c.k==="big"&&st&&st.sealed)out.push(i);}
-  if(c.k==="jar"){const fe=out.find(i=>!s[i]);return out.filter(i=>s[i]||i===fe)}
-  return out;
+  return out; // 蜂蜜罐可以放到任何一個空位，或任何一疊沒蓋起來的
 }
 function aiTarget(c,t){
   const by=f=>t.reduce((b,i)=>f(i)>f(b)?i:b,t[0]);
