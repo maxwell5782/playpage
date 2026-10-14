@@ -965,11 +965,12 @@ function drawSprite(cid,pn){
   // 髮絲線：瀏海一束一束分開，頭頂也加幾條
   if(!["bald","ninja","helmet","knight","tiger","bunny","wolf"].includes(C.h)){
     const lum=(n=>.3*(n>>16)+.59*((n>>8)&255)+.11*(n&255))(parseInt(hc.slice(1),16));
-    const sl=lum<70?shade(hc,.45):shade(hc,lum>200?-.35:-.5);
+    const sl=lum<70?shade(hc,.2):shade(hc,lum>200?-.3:-.45);
     x.fillStyle=sl;
-    for(let u=2;u<D.hw-1;u+=3){let bot=-9;for(let v=0;v<D.hh+12;v++)if(hm.has(u+","+v))bot=v;
-      if(bot<2)continue;const top=Math.max(1,bot-4-((u*5)%3));for(let v=top;v<bot;v++)if(hm.has(u+","+v))x.fillRect(hx0+u,hy0+v,1,1)}
-    for(let u=1;u<D.hw;u+=4)for(let v=-6;v<1;v++){if(hm.has(u+","+v)&&hm.has(u+","+(v+1))&&v>-3+((u*3)%2)-2)x.fillRect(hx0+u,hy0+v,1,1)}
+    // 少少幾條、間距和長短都不一樣
+    [[.24,4],[.45,2],[.66,5],[.84,3]].forEach(([fu,len],k)=>{const u=Math.round(fu*(D.hw-1));let bot=-9;
+      for(let v=0;v<D.hh+12;v++)if(hm.has(u+","+v))bot=v;if(bot<3)return;
+      const L=len+((cid+k)%2);for(let v=Math.max(3,bot-L);v<bot;v++)if(hm.has(u+","+v))x.fillRect(hx0+u,hy0+v,1,1)});
   }
   if(!["bald","ninja","mohawk"].includes(C.h)){x.fillStyle=hl;for(let u=3;u<7;u++)x.fillRect(hx0+u,hy0+1,1,1);x.fillRect(hx0+2,hy0+2,1,1)}
   if(C.h==="bald"&&!fullMask){x.fillStyle=shade(skin,.35);x.fillRect(hx0+4,hy0+2,3,1)}
