@@ -78,6 +78,12 @@ button:focus-visible,.card:focus-visible,.slot:focus-visible{outline:3px solid v
 .box{background:var(--paper);border:3px solid var(--ink);border-radius:24px;padding:22px 20px;max-width:400px;width:100%;text-align:center;box-shadow:0 8px 0 var(--ink);margin-block:16px}
 .box h2{font-family:var(--display);font-weight:800;font-size:32px;margin:0;line-height:1.1}
 .box p{margin:10px 0 0;line-height:1.6;font-size:15px}
+.box ul.rl{list-style:none;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.rl li{display:flex;align-items:center;gap:10px}
+.ri{flex:none;width:64px;display:flex;justify-content:center;align-items:center}
+.ri svg{width:30px;height:42px;display:block}
+.ri svg+svg{margin-left:-14px}
+.ri .ic{width:40px;height:40px}
 .box ul{text-align:left;font-size:14px;line-height:1.6;background:#fff3d6;border-radius:14px;padding:10px 14px 10px 30px;margin:12px 0 0}
 .pick{display:flex;gap:10px;justify-content:center;margin-top:14px}
 .pick button{border:2px solid var(--ink);border-radius:18px;background:var(--honey);box-shadow:0 4px 0 var(--ink);padding:10px 16px;font-size:16px;font-weight:700}
@@ -117,13 +123,14 @@ html,body{margin:0}[hidden]{display:none!important}
   <div class="box">
     <h2>小熊搶蜂蜜</h2>
     <p>桌上的蜂蜜罐越疊越多，誰會先把整疊抱回家？</p>
-    <ul>
-      <li>每回合先偷偷選 3 張牌，選好的牌會放在桌子下面。</li>
-      <li>大家輪流出牌，輪到你時，從那 3 張裡挑一張出。</li>
-      <li><b>蜂蜜罐</b>放到桌上一疊（最多 3 疊），數字是分數：1～10 分。</li>
-      <li><b>小熊</b>可以把一疊沒蓋蓋子的罐子全部抱走。</li>
-      <li><b>蓋子</b>把一疊蓋起來，之後只有<b>熊爸爸</b>能拿走它。</li>
-      <li>沒地方放的牌就丟掉。手牌出完遊戲結束，蜂蜜分數最多的贏！</li>
+    <ul class="rl">
+      <li><span class="ri" data-ic="three"></span><span>每回合先偷偷選 3 張牌，選好的牌會放在桌子下面。</span></li>
+      <li><span class="ri" data-ic="turn"></span><span>大家輪流出牌，輪到你時，從那 3 張裡挑一張出。</span></li>
+      <li><span class="ri" data-ic="jar"></span><span><b>蜂蜜罐</b>放到桌上一疊（最多 3 疊），數字是分數：1～10 分。</span></li>
+      <li><span class="ri" data-ic="bear"></span><span><b>小熊</b>可以把一疊沒蓋蓋子的罐子全部抱走。</span></li>
+      <li><span class="ri" data-ic="lid"></span><span><b>蓋子</b>把一疊蓋起來，之後只有<b>熊爸爸</b>能拿走它。</span></li>
+      <li><span class="ri" data-ic="trash"></span><span>沒地方放的牌就丟掉。</span></li>
+      <li><span class="ri" data-ic="cup"></span><span>手牌出完遊戲結束，蜂蜜分數最多的贏！</span></li>
     </ul>
     <div class="pick">
       <button id="btnMatch">隨機配對</button>
@@ -622,6 +629,17 @@ $("btnCancel").onclick=()=>{
 $("again").onclick=()=>{cleanup();hideAll();$("start").hidden=false};
 
 $("btnBots").onclick=()=>startGame([{type:"local"}]);
+/* 規則說明的小圖示 */
+const ICON={
+  three:()=>[{k:"jar",v:3},{k:"bear",v:0},{k:"jar",v:8}].map(c=>cardSVG(c,true)).join(""),
+  turn:()=>bear(P[0].c,30)+`<svg class="ic" viewBox="0 0 40 40" aria-hidden="true" style="width:22px;height:22px"><path d="M6 20h22M20 11l10 9-10 9" stroke="#2b2a22" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`+cardSVG({k:"jar",v:5},true),
+  jar:()=>[1,5,10].map(v=>cardSVG({k:"jar",v},true)).join(""),
+  bear:()=>cardSVG({k:"bear",v:0},true),
+  lid:()=>cardSVG({k:"lid",v:0},true)+cardSVG({k:"big",v:0},true),
+  trash:()=>`<svg class="ic" viewBox="0 0 40 40" aria-hidden="true"><rect x="9" y="12" width="22" height="24" rx="4" fill="#cfe9f7" stroke="#2b2a22" stroke-width="2"/><rect x="6" y="8" width="28" height="5" rx="2.5" fill="#6fa3dc" stroke="#2b2a22" stroke-width="2"/><path d="M16 5h8" stroke="#2b2a22" stroke-width="3" stroke-linecap="round"/><path d="M15 18v13M20 18v13M25 18v13" stroke="#2b2a22" stroke-width="2" stroke-linecap="round"/></svg>`,
+  cup:()=>`<svg class="ic" viewBox="0 0 40 40" aria-hidden="true"><path d="M11 6h18v9a9 9 0 0 1-18 0z" fill="#f5b52a" stroke="#2b2a22" stroke-width="2"/><path d="M11 9H5c0 6 3 9 7 9M29 9h6c0 6-3 9-7 9" fill="none" stroke="#2b2a22" stroke-width="2"/><rect x="17" y="24" width="6" height="6" fill="#d98a12" stroke="#2b2a22" stroke-width="2"/><rect x="11" y="30" width="18" height="6" rx="2" fill="#f5b52a" stroke="#2b2a22" stroke-width="2"/><path d="M20 9l1.5 3 3.3.4-2.4 2.3.6 3.3-3-1.6-3 1.6.6-3.3-2.4-2.3 3.3-.4z" fill="#fff"/></svg>`
+};
+document.querySelectorAll(".ri").forEach(el=>{const f=ICON[el.dataset.ic];if(f)el.innerHTML=f()});
 $("legend").innerHTML=[
   [{k:"jar",v:5},"蜂蜜罐：放到一疊上，數字是分數（1～10 分）"],
   [{k:"bear",v:0},"小熊：抱走一疊沒蓋的"],
