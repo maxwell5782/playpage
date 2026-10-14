@@ -278,14 +278,14 @@ function startGame(seats,total){
   for(let i=deck.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[deck[i],deck[j]]=[deck[j],deck[i]]}
   const first=makeTile("straight",null);rotate(first);first.x=0;first.y=0;
   G={n,deck,board:new Map([[key(0,0),first]]),turn:0,cur:null,last:first.id,over:false,msg:"",
-     players:seats.map((s,i)=>({name:COLORS[i].n,type:s.type,conn:s.conn||null,flags:FLAGS[n]}))};
+     players:seats.map((s,i)=>({name:COLORS[i].n,type:s.type,conn:s.conn||null,token:s.token||null,away:false,flags:FLAGS[n]}))};
   G.players.forEach((p,i)=>{if(p.conn)wireConn(p.conn,i)});
-  isHost=true;hideAll();firstRender=true;run();
+  isHost=true;hideAll();keepAwake();firstRender=true;run();
 }
 function view(i){
   return {me:i,n:G.n,turn:G.turn,over:G.over,msg:G.msg,last:G.last,deck:G.deck.length,
     board:[...G.board.values()],cur:G.cur,
-    players:G.players.map((p,j)=>({n:j===i?"你":p.name+(p.type==="bot"?"（電腦）":""),flags:p.flags}))};
+    players:G.players.map((p,j)=>({n:j===i?"你":p.name+(p.type==="bot"?(p.away?"（暫離）":"（電腦）"):""),flags:p.flags}))};
 }
 function broadcast(){
   G.players.forEach((p,i)=>{
@@ -360,12 +360,17 @@ function hostMsg(i,m){
 }
 function wireConn(conn,i){
   conn.on("data",m=>hostMsg(i,m));
-  conn.on("close",()=>dropToBot(i));
-  conn.on("error",()=>dropToBot(i));
+  conn.on("close",()=>{if(G&&G.players[i].conn===conn)dropToBot(i)});
+}
+function rebind(i,conn){
+  const p=G.players[i];
+  try{p.conn&&p.conn!==conn&&p.conn.close()}catch(_){}
+  p.type="remote";p.conn=conn;p.away=false;wireConn(conn,i);
+  G.msg=`${p.name}回來了！`;broadcast();
 }
 function dropToBot(i){
   if(!G||G.over)return;const p=G.players[i];if(p.type==="bot")return;
-  p.type="bot";p.conn=null;G.msg=`${p.name}斷線了，換電腦小熊接手。`;
+  p.type="bot";p.conn=null;p.away=true;G.msg=`${p.name}暫時離開，電腦小熊先幫忙，回來就能接著玩。`;
   if(turnWaiter&&turnWaiter.i===i)turnWaiter.fn(null);
   broadcast();
 }
@@ -400,7 +405,7 @@ function render(){
   b.innerHTML=h;
   if(firstRender){firstRender=false;const w=$("wrap");w.scrollLeft=(b.scrollWidth-w.clientWidth)/2;w.scrollTop=(b.scrollHeight-w.clientHeight)/2}
   const p=V.players[V.turn];
-  $("who").innerHTML=V.over?"遊戲結束":myTurn()?`${bear(V.me,26)} 輪到你了！`:`${bear(V.turn,26)} 輪到${p.n.replace("（電腦）","")}`;
+  $("who").innerHTML=V.over?"遊戲結束":myTurn()?`${bear(V.me,26)} 輪到你了！`:`${bear(V.turn,26)} 輪到${p.n.replace(/（電腦）|（暫離）/,"")}`;
   $("cur").innerHTML=cur?tileSVG(cur):"";
   $("hint").textContent=!cur||V.over?"":!myTurn()?"等他放好這片路…":ok.size?"點虛線格子放下這片路":"這個方向放不下，轉一轉試試！";
   $("rot").disabled=!myTurn();
@@ -409,7 +414,7 @@ function render(){
 }
 function showEnd(){
   const pl=V.players.map((p,i)=>({...p,i})).sort((a,b)=>a.flags-b.flags);
-  const min=pl[0].flags,win=pl.filter(p=>p.flags===min).map(p=>p.n.replace("（電腦）",""));
+  const min=pl[0].flags,win=pl.filter(p=>p.flags===min).map(p=>p.n.replace(/（電腦）|（暫離）/,""));
   $("endT").textContent=win.length>1?win.join("和")+"一起贏了！":win[0]==="你"?"你贏了！":win[0]+"贏了！";
   $("rank").innerHTML=pl.map(p=>`<div>${bear(p.i,30)}${p.n}<b>剩 ${p.flags} 根</b></div>`).join("");
   $("end").hidden=false;
@@ -422,10 +427,12 @@ $("board").addEventListener("click",e=>{const c=e.target.closest(".spot");if(c)t
 $("board").addEventListener("keydown",e=>{const c=e.target.closest(".spot");if(c&&(e.key==="Enter"||e.key===" ")){e.preventDefault();tapSpot(c)}});
 
 /* ===== matchmaking ===== */
+const MY_TOKEN=Math.random().toString(36).slice(2)+Date.now().toString(36);
+let hostId=null;
 function hideAll(){["start","lobby","end"].forEach(id=>$(id).hidden=true)}
 function cleanup(){
   try{lobbyPeer&&lobbyPeer.destroy()}catch(e){}try{guestPeer&&guestPeer.destroy()}catch(e){}
-  lobbyPeer=guestPeer=hostConn=null;G=null;V=null;isHost=false;turnWaiter=null;
+  lobbyPeer=guestPeer=hostConn=null;hostId=null;try{wakeLock&&wakeLock.release()}catch(_){}wakeLock=null;G=null;V=null;isHost=false;turnWaiter=null;
   if(lobby){clearInterval(lobby.tick);lobby=null}
 }
 function lobbyUI(count,leftMs,text){
@@ -456,9 +463,10 @@ function tryJoin(s){
     let done=false;const fin=c=>{if(!done){done=true;guestPeer._pending=null;res(c)}};
     guestPeer._pending=fin;
     const conn=guestPeer.connect(LOBBY+s,{reliable:true});
-    conn.on("data",m=>{if(done)return;if(m.t==="lobby")fin(conn);else{try{conn.close()}catch(_){}fin(null)}});
+    conn.on("open",()=>{try{conn.send({t:"hello",token:MY_TOKEN})}catch(_){}});
+    conn.on("data",m=>{if(done)return;if(m.t==="lobby"){hostId=LOBBY+s;fin(conn)}else{try{conn.close()}catch(_){}fin(null)}});
     conn.on("error",()=>fin(null));
-    setTimeout(()=>{try{conn.close()}catch(_){}fin(null)},6000);
+    setTimeout(()=>{if(!done){try{conn.close()}catch(_){}fin(null)}},8000);
   });
 }
 async function findMatch(){
@@ -479,16 +487,21 @@ async function findMatch(){
 function hostLobby(t0){
   lobby={seats:[{type:"local"}],deadline:t0+SEARCH_MS,started:false};
   lobbyPeer.on("connection",conn=>{
-    conn.on("open",()=>{
+    const first=m=>{
+      if(!m||m.t!=="hello")return;
+      conn.off("data",first);
+      if(G&&isHost){const i=G.players.findIndex(p=>p.token&&p.token===m.token);if(i>0)return rebind(i,conn)}
       if(!lobby||lobby.started||lobby.seats.length>=4){try{conn.send({t:"full"})}catch(_){}setTimeout(()=>conn.close(),300);return}
-      lobby.seats.push({type:"remote",conn});
+      lobby.seats.push({type:"remote",conn,token:m.token});
       if(lobby.seats.length===2)lobby.deadline=Date.now()+EXTRA_MS;
       conn.on("close",()=>{if(lobby&&!lobby.started){lobby.seats=lobby.seats.filter(x=>x.conn!==conn);lobbyTick()}});
       lobbyTick();
       if(lobby.seats.length===4)beginFromLobby();
-    });
+    };
+    conn.on("data",first);
   });
   lobbyPeer.on("error",()=>{});
+  lobbyPeer.on("disconnected",()=>{try{if(lobbyPeer&&!lobbyPeer.destroyed)lobbyPeer.reconnect()}catch(_){}});
   lobby.tick=setInterval(lobbyTick,500);lobbyTick();
 }
 function lobbyTick(){
@@ -510,8 +523,48 @@ function guestLobby(conn){
     if(m.t==="lobby")lobbyUI(m.n,m.left,`房間裡有 ${m.n} 隻小熊，等開局…`);
     if(m.t==="view"){if(!$("lobby").hidden)hideAll();show(m.v)}
   });
-  conn.on("close",()=>{if(V&&V.over)return;toast("和房主斷線了");cleanup();hideAll();$("start").hidden=false});
+  conn.on("close",()=>{if(hostConn!==conn||(V&&V.over))return;reconnect()});
+  keepAwake();
 }
+/* 斷線後自動重連，最多試 60 秒 */
+let reconnecting=false;
+function rejoin(){
+  return new Promise(res=>{
+    let done=false;const fin=c=>{if(!done){done=true;if(guestPeer)guestPeer._pending=null;res(c)}};
+    guestPeer._pending=fin;
+    const conn=guestPeer.connect(hostId,{reliable:true});
+    conn.on("open",()=>{try{conn.send({t:"hello",token:MY_TOKEN})}catch(_){}});
+    conn.on("data",m=>{if(done)return;if(m.t==="view"){fin(conn);hostConn=conn;show(m.v)}else if(m.t==="full"){fin(null)}});
+    conn.on("error",()=>fin(null));
+    setTimeout(()=>{if(!done){try{conn.close()}catch(_){}fin(null)}},8000);
+  });
+}
+async function reconnect(){
+  if(reconnecting||!hostId)return;reconnecting=true;
+  toast("斷線了，正在重新連線…");
+  const until=Date.now()+60000;
+  while(Date.now()<until){
+    try{
+      if(!guestPeer||guestPeer.destroyed){guestPeer=null;await ensureGuestPeer()}
+      else if(guestPeer.disconnected){guestPeer.reconnect();await sleep(1500)}
+    }catch(e){await sleep(2000);continue}
+    const c=await rejoin();
+    if(c){reconnecting=false;guestLobby(c);toast("連回來了！");return}
+    await sleep(2000);
+  }
+  reconnecting=false;toast("連不回房主了，可能房主離開了遊戲");
+  cleanup();hideAll();$("start").hidden=false;
+}
+/* 遊戲中讓螢幕保持亮著，避免手機睡著斷線 */
+let wakeLock=null;
+async function keepAwake(){
+  try{if(navigator.wakeLock&&document.visibilityState==="visible"&&!wakeLock){wakeLock=await navigator.wakeLock.request("screen");wakeLock.addEventListener("release",()=>wakeLock=null)}}catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState!=="visible")return;
+  if(G||V)keepAwake();
+  if(!isHost&&hostConn&&!hostConn.open&&V&&!(V&&V.over))reconnect();
+});
 function fallback(text){note=text;try{lobbyPeer&&lobbyPeer.destroy()}catch(_){}try{guestPeer&&guestPeer.destroy()}catch(_){}lobbyPeer=guestPeer=null;startGame([{type:"local"}],3)}
 
 $("btnMatch").onclick=()=>{if(typeof Peer==="undefined")return fallback("連不上配對伺服器，先和電腦玩吧！");findMatch()};
