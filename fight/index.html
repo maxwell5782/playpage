@@ -987,7 +987,7 @@ function drawBody(x,C,D,cid,tTop,hipY,tL,tR,fem,skin){
   switch(ot){
     case "gi":body(c1);rect(x,SPX+1,tTop,1,D.th-3,dk);for(let k=0;k<5;k++){rect(x,SPX-3+k,tTop+k,1,1,dk);rect(x,SPX+1,tTop+k+2,1,1,dk)}neckV(skin,3);belt();break;
     case "coat":body(c1);rect(x,SPX-2,tTop,5,D.th,c2===c1?dk:c2);rect(x,SPX-3,tTop,1,D.th,dk);rect(x,SPX+3,tTop,1,D.th,dk);rect(x,SPX-1,tTop,3,2,skin);rect(x,tL+1,tTop+2,2,D.th-2,lt);rect(x,tR-2,tTop+2,2,D.th-2,lt);belt();break;
-    case "dress":body(c1);{for(let v=0;v<5;v++){const w=waist+4+v*2;rect(x,SPX-(w>>1),hipY-2+v,w,1,v===4?dk:c1)}}rect(x,tL+2,tTop,D.tw-4,2,"#FFFFFF");rect(x,SPX-1,tTop,3,1,skin);rect(x,SPX,tTop+3,1,2,c3);rect(x,bx,hipY-4,bw,2,c3);break;
+    case "dress":body(c1);{for(let v=0;v<4;v++){const w=waist+2+v;rect(x,SPX-(w>>1),hipY-1+v,w,1,v===3?dk:c1)}}rect(x,tL+2,tTop,D.tw-4,2,"#FFFFFF");rect(x,SPX-1,tTop,3,1,skin);rect(x,SPX,tTop+3,1,2,c3);rect(x,bx,hipY-4,bw,2,c3);break;
     case "wrestler":body(c1);rect(x,tL,tTop,3,D.th-3,c2);rect(x,tR-2,tTop,3,D.th-3,c2);rect(x,SPX-3,tTop+3,7,3,c3);belt();break;
     case "ninja":body(c1);rect(x,tL,tTop,D.tw,1,dk);for(let k=0;k<D.th-2;k++)rect(x,tL+2+ri(k*.8),tTop+k,2,1,dk);rect(x,bx,hipY-3,bw,2,c3);break;
     case "tank":body(c1);rect(x,tL+1,tTop,3,2,skin);rect(x,tR-4,tTop,3,2,skin);rect(x,SPX-2,tTop,5,1,skin);rect(x,SPX-4,tTop+4,9,2,c3);belt();break;
@@ -1021,10 +1021,12 @@ function drawSprite(cid,pn){
   const leg=(hp,o,col)=>x=>{const ft=[hp[0]+o[0],groundY+o[1]];rect(x,ft[0]-3,ft[1]-D.L+1,6,D.L-2,col);rect(x,ft[0]-3,ft[1]-2,7,2,shoe)};
   part(m,arm(shB,ba,C.sl?shade(c1,-.15):skin));
   part(m,leg([SPX-4,hipY],P.bl,c2));
-  // ---- 身體 ----
+  // ---- 身體（洋裝的話，腳先畫、裙子蓋在上面）----
+  const isDress=(OUTFIT[cid]||(fem?"dress":"gi"))==="dress";
+  if(isDress)part(m,leg([SPX+4,hipY],P.fl,c2));
   part(m,x=>drawBody(x,C,D,cid,tTop,hipY,tL,tR,fem,skin));
   // ---- 前腳 ----
-  part(m,leg([SPX+4,hipY],P.fl,c2));
+  if(!isDress)part(m,leg([SPX+4,hipY],P.fl,c2));
   // ---- 臉 ----
   part(m,x=>{ell(x,hx+D.hw/2,hy+D.hh*.52,D.hw/2-2,D.hh*.5,fullMask?c3:skin);
     if(fullMask){for(let k=0;k<3;k++)rect(x,hx+6+k,fy-2+k,D.hw-12-k*2,1,c1)}});
