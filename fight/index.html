@@ -211,7 +211,7 @@ const CH=[
  {n:"冰狼",ti:"冰原獵人",b:"n",sk:"#E3C4A8",c1:"#ECEFF1",c2:"#546E7A",c3:"#81D4FA",h:"wolf",hc:"#CFD8DC",a:"",w:"claw",st:[3,4,4,3],sp:[["wave","冰狼牙","ice"],["dash","狼撲"],["rise","冰爪升"]],su:["rush","群狼亂舞"],fx:"#81D4FA",bio:"在雪原和狼群一起打獵的獵人。"},
  {n:"金剛",ti:"黃金金剛",b:"b",sk:"#8D6E63",c1:"#FFC107",c2:"#6D4C41",c3:"#FFC107",h:"short",hc:"#4E342E",a:"",w:"glove",st:[5,2,5,2],sp:[["grab","金剛摔"],["dash","金剛拳"],["slam","金剛落"]],su:["quake","黃金震"],fx:"#FFD54F",bio:"全身金光閃閃，力氣大到可以舉起一台車。"},
  {n:"幻",ti:"幻術師",b:"l",sk:"#F3D9C6",c1:"#5E35B1",c2:"#311B92",c3:"#FFD54F",h:"tophat",hc:"#EDE7F6",a:"cape",w:"staff",st:[2,3,3,3],sp:[["proj","幻影球","dark"],["tele","幻影移形"],["counter","鏡花水月"]],su:["meteor","幻星雨"],fx:"#B388FF",bio:"魔術表演家，你看到的不一定是真的。"},
- {n:"曉",ti:"黎明聖騎",b:"n",sk:"#F2D0B5",c1:"#FFF8E1",c2:"#FFD54F",c3:"#FFB300",h:"knight",hc:"#FFE082",a:"cape",w:"sword",st:[4,3,4,3],sp:[["wave","聖光斬","holy"],["dash","聖騎突"],["rise","昇天劍"]],su:["beam","黎明聖劍"],fx:"#FFE082",bio:"守護神殿的聖騎士，劍上會發出黎明的光。"},
+ {n:"曉",ti:"黎明聖騎",b:"n",sk:"#F2D0B5",c1:"#FFF8E1",c2:"#FFD54F",c3:"#FFB300",h:"short",hc:"#FFE082",a:"cape band",w:"sword",st:[4,3,4,3],sp:[["wave","聖光斬","holy"],["dash","聖騎突"],["rise","昇天劍"]],su:["beam","黎明聖劍"],fx:"#FFE082",bio:"守護神殿的聖騎士，劍上會發出黎明的光。"},
  {n:"影",ti:"黑曜影武者",b:"n",sk:"#B8A6C8",c1:"#1A1026",c2:"#0D0714",c3:"#9C27B0",h:"pony",hc:"#0D0714",a:"mask",w:"sword",st:[3,4,4,4],sp:[["proj","黑曜刃","dark"],["tele","影遁"],["rise","影昇斬"]],su:["beam","黑曜斬"],fx:"#CE93D8",bio:"黑帝的影子，第一次想要自己做決定。"},
  {n:"天后",ti:"黑曜天后",b:"l",sk:"#EAD3C3",c1:"#4A148C",c2:"#1A0033",c3:"#FFD54F",h:"long",hc:"#CE93D8",a:"crown",w:"staff",st:[3,3,4,4],sp:[["proj","黑曜之星","dark"],["tele","天后降臨"],["slam","星墜"]],su:["meteor","黑曜流星"],fx:"#EA80FC",bio:"黑帝的姊姊，其實一直想阻止弟弟。"},
  {n:"冥",ti:"黑帝",b:"b",sk:"#9E8AA8",c1:"#120A1C",c2:"#0A0510",c3:"#D500F9",h:"wild",hc:"#E1BEE7",a:"horns cape",w:"none",st:[5,3,5,2],sp:[["proj","冥王波","dark"],["dash","冥王衝"],["rise","冥昇拳"]],su:["dragon","黑曜冥龍"],fx:"#D500F9",bio:"黑曜會的首領，想把所有強者變成收藏品。"},
@@ -1031,7 +1031,7 @@ function drawSprite(cid,pn){
   part(m,x=>drawHair(x,C,D,hx,hy,hc,cid));
   if(C.h==="ninja")part(m,x=>rect(x,hx+5,fy,D.hw-10,6,skin),true);
   if(["tiger","bunny","wolf"].includes(C.h))part(m,x=>ell(x,hx+D.hw/2,fy+4,D.hw/2-5,5,skin),true);
-  if(has("band"))part(m,x=>{rect(x,hx-1,fy-1,D.hw+2,3,c3);rect(x,hx-5,fy,4,2,c3);rect(x,hx-8,fy+2,4,2,c3)});
+  if(has("band"))part(m,x=>{rect(x,hx-1,fy-4,D.hw+2,3,c3);rect(x,hx-5,fy-3,4,2,c3);rect(x,hx-8,fy-1,4,2,c3)});
   if(C.h==="tiger")part(m,x=>{rect(x,hx+3,hy-3,5,4,hc);rect(x,hx+D.hw-8,hy-3,5,4,hc);rect(x,hx+6,hy+2,2,3,PXOL);rect(x,hx+14,hy+1,2,3,PXOL);rect(x,hx+22,hy+2,2,3,PXOL)});
   if(C.h==="bunny")part(m,x=>{rect(x,hx+6,hy-10,5,11,hc);rect(x,hx+D.hw-11,hy-10,5,11,hc);rect(x,hx+7,hy-9,3,8,"#F8BBD0");rect(x,hx+D.hw-10,hy-9,3,8,"#F8BBD0")});
   if(C.h==="wolf")part(m,x=>{for(let k=0;k<5;k++){rect(x,hx+3+k,hy-2-k,6-k,1,hc);rect(x,hx+D.hw-9,hy-2-k,6-k,1,hc)}});
