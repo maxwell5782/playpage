@@ -912,24 +912,25 @@ const rect=(x,u,v,w,h,col)=>{x.fillStyle=col;x.fillRect(u,v,w,h)};
 const BANG={0:"side",1:"straight",2:"none",3:"none",4:"m",5:"none",6:"m",7:"straight",8:"up",9:"none",10:"straight",11:"none",12:"side",13:"none",14:"straight",15:"up",16:"m",17:"straight",18:"up",19:"none",20:"none",21:"m",22:"m",23:"side",24:"m",25:"side",26:"side",27:"side",28:"m",29:"up"};
 function drawHair(x,C,D,hx,hy,hc,cid){
   const st=C.h,hw=D.hw,hh=D.hh,cx=hx+hw/2,top=hy,L=hx+1,R=hx+hw-1,dk=shade(hc,-.28),lt=shade(hc,.35);
-  const dome=(ex,ey,col)=>ell(x,cx,top+hh*.3,hw/2+(ex||0),hh*.32+(ey||0),col||hc);
+  const bang=BANG[cid]||"straight";
+  const dAdj=bang==="straight"?-hh*.1:0;
+  const dome=(ex,ey,col)=>ell(x,cx,top+hh*.3+dAdj*.5,hw/2+(ex||0),hh*.32+(ey||0)+dAdj,col||hc);
   // 側髮：框住臉的兩束
   const sides=(len,w,col)=>{for(let k=0;k<w;k++){rect(x,L+k,top+hh*.3,1,len-((k%2)?2:0),col||hc);rect(x,R-k,top+hh*.3,1,len-((k%2)?2:0),col||hc)}
     for(let k=0;k<w;k++){rect(x,L+k,top+hh*.3+len-3-((k%2)?2:0),1,3,dk);rect(x,R-k,top+hh*.3+len-3-((k%2)?2:0),1,3,dk)}};
   // 瀏海
   const base=top+hh*.5;
-  const bang=BANG[cid]||"straight";
   const tooth=(u,w,h,col)=>{for(let v=0;v<h;v++){const ww=Math.max(1,ri(w*(1-v/h)));rect(x,u+ri((w-ww)/2),base+v,ww,1,col||hc)}};
   const fringe=()=>{
     rect(x,L+2,base-4,hw-4,4,hc);
     if(bang==="straight"){
       // 整片由長髮束組成：寬 2~4、長短不一、尾端圓的；下半段束與束之間留一格縫，描邊後變成黑線
-      const strands=[[0,3,10],[4,2,8],[7,3,11],[11,4,9],[16,2,10],[19,3,8],[23,3,11],[27,2,9]];
-      const y0=top+hh*.22;
+      const strands=[[0,3,13],[4,2,11],[7,3,14],[11,4,12],[16,2,13],[19,3,11],[23,3,14],[27,2,12]];
+      const y0=top+hh*.2,sep=shade(hc,-.45);
       strands.forEach(([o,w,h])=>{const u=L+1+o;if(u>=R)return;const ww=Math.min(w,R-u);
         for(let v=0;v<h;v++){const tipW=v>=h-1?Math.max(1,ww-2):v>=h-2?Math.max(1,ww-1):ww;rect(x,u+ri((ww-tipW)/2),y0+v,tipW,1,hc)}});
       // 縫：相鄰髮束之間下半段清掉一格
-      strands.forEach(([o,w,h],i)=>{if(i===0)return;const u=L+1+o-1;if(u>=R)return;x.clearRect(u,y0+Math.max(3,h-6),1,h)});
+      strands.forEach(([o,w,h],i)=>{if(i===0)return;const u=L+1+o-1;if(u>=R)return;const v0=y0+Math.max(3,h-7);rect(x,u,v0,1,Math.min(h,strands[i-1][2])-(v0-y0)-1,sep)});
       // 幾條淺色髮絲
       [[1,1,4],[8,1,5],[12,2,4],[20,1,5],[24,1,4]].forEach(([o,dx,len])=>{const u=L+1+o+dx;if(u<R)rect(x,u,y0+1,1,len,lt)});
     }    else if(bang==="m"){tooth(L+2,5,3);tooth(L+6,5,5);tooth(L+10,4,3);tooth(R-9,4,3);tooth(R-6,5,5);tooth(R-2,3,3)}
