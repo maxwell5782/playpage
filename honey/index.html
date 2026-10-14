@@ -41,6 +41,14 @@ button:focus-visible,.card:focus-visible,.slot:focus-visible{outline:3px solid v
 .slot.sealed{background:#fde9b8}
 .slot.target{border:3px solid var(--leaf);box-shadow:0 0 0 4px rgba(90,164,105,.3);cursor:pointer;animation:glow 1s ease-in-out infinite}
 @keyframes glow{50%{box-shadow:0 0 0 8px rgba(90,164,105,.15)}}
+.slot.chosen{border:3px solid var(--red);background:#fff1ec;box-shadow:0 0 0 6px rgba(214,72,60,.25);transform:scale(1.05);transition:transform .25s;z-index:2}
+.slot .grab{position:absolute;top:-16px;left:50%;transform:translateX(-50%);animation:grab .5s ease-out}
+@keyframes grab{from{transform:translate(-50%,-14px) scale(.4);opacity:0}}
+.flyer{position:fixed;z-index:8;pointer-events:none;margin:0;transform-origin:center}
+.plus{position:fixed;z-index:8;pointer-events:none;font-family:var(--display);font-weight:800;font-size:22px;color:var(--honey-deep);-webkit-text-stroke:1px var(--ink);transform:translate(-50%,-50%);animation:plus 1.1s ease-out forwards}
+@keyframes plus{to{transform:translate(-50%,-180%);opacity:0}}
+.got{animation:got .45s ease-out}
+@keyframes got{40%{transform:scale(1.18)}}
 .slot .sum{font-family:var(--display);font-weight:800;font-size:18px;line-height:1;font-variant-numeric:tabular-nums}
 .slot .tag{font-size:11px;background:var(--honey);border:1.5px solid var(--ink);border-radius:999px;padding:1px 7px}
 .slot .empty{margin:auto;font-size:13px;opacity:.55;text-align:center}
@@ -247,7 +255,7 @@ function view(i){
   const p=G.players[i];
   const inPlan=new Set(p.plan.map(c=>c.id));
   return {me:i,round:G.round,rounds:G.rounds,phase:G.phase,
-    plan:p.ready&&G.phase!=="end"?p.plan:[],playing:G.playing&&G.playing.i===i?G.playing.c:null,pickCard:G.picking===i,active:G.active,stacks:G.stacks,
+    plan:p.ready&&G.phase!=="end"?p.plan:[],playing:G.playing&&G.playing.i===i?G.playing.c:null,taking:G.taking||null,fly:G.fly||null,pickCard:G.picking===i,active:G.active,stacks:G.stacks,
     msg:G.asking===i&&G.targets?G.askMsg:G.picking===i?"輪到你了！從下面選一張牌出。":G.msg,
     targets:G.asking===i?G.targets:null,
     planning:G.phase==="plan"&&!p.ready,
@@ -346,7 +354,11 @@ async function run(){
       const t=targets(c);
       if(!t.length){G.msg=`${p.name}的「${LBL[c.k]}」沒地方放，丟掉了。`;broadcast();await sleep(900);G.playing=null;continue}
       const k=t.length===1?t[0]:await askTarget(i,c,t);
-      apply(i,c,k);G.pop=k;broadcast();G.pop=null;await sleep(900);G.playing=null;
+      if(c.k==="bear"||c.k==="big"){
+        G.taking={k,i};G.msg=`${p.name}${c.k==='big'?'的熊爸爸':'的小熊'}選了第 ${k+1} 疊！`;broadcast();await sleep(1000);
+        G.taking=null;G.fly={id:uid++,k,to:i,v:val(G.stacks[k])};
+      }
+      apply(i,c,k);G.pop=k;broadcast();G.pop=null;await sleep(G.fly?1300:900);G.fly=null;G.playing=null;
     }
     G.start=(G.start+1)%4;
   }
@@ -383,10 +395,14 @@ function show(v){
   $("round").textContent=`第 ${V.round} / ${V.rounds} 回合`;
   const n=V.players.length,others=[];for(let k=1;k<n;k++)others.push((V.me+k)%n);
   $("opps").innerHTML=others.map(j=>{const q=V.players[j];
-    return `<div class="chip${V.active===j?' act':''}">${bear(q.c,30)}<div style="min-width:0"><div class="nm">${q.n}</div><div class="sc">${q.score}<small>分</small></div>${V.phase==="plan"?`<div class="rdy${q.ready?' ok':''}">${q.ready?'選好了':'選牌中'}</div>`:''}</div><div class="played">${q.last?cardSVG(q.last,true):""}</div></div>`}).join("");
+    return `<div class="chip${V.active===j?' act':''}" data-p="${j}">${bear(q.c,30)}<div style="min-width:0"><div class="nm">${q.n}</div><div class="sc">${q.score}<small>分</small></div>${V.phase==="plan"?`<div class="rdy${q.ready?' ok':''}">${q.ready?'選好了':'選牌中'}</div>`:''}</div><div class="played">${q.last?cardSVG(q.last,true):""}</div></div>`}).join("");
   const tg=V.targets||[];
+  let flyFrom=null;
+  if(V.fly&&V.fly.id!==lastFly){lastFly=V.fly.id;const el=$("table").querySelector(`.slot[data-i="${V.fly.k}"]`);if(el)flyFrom={r:el.getBoundingClientRect(),html:el.innerHTML,cls:el.className}}
+  const tk=V.taking;
   $("table").innerHTML=V.stacks.map((st,i)=>{
     const t=tg.includes(i),a=t?' role="button" tabindex="0"':'';
+    if(tk&&tk.k===i&&st)return `<div class="slot has chosen${st.sealed?' sealed':''}" data-i="${i}"><span class="grab">${bear(V.players[tk.i].c,32)}</span><div class="sum">${val(st)} 分</div>${st.sealed?'<span class="tag">蓋上了</span>':''}<div class="pile">${st.cards.map(c=>cardSVG(c,true)).join("")}</div></div>`;
     if(!st)return `<div class="slot${t?' target':''}" data-i="${i}"${a}><div class="empty">空位<br>第 ${i+1} 疊</div></div>`;
     const cards=st.cards.map(c=>cardSVG(c,true)).join("");
     return `<div class="slot has${st.sealed?' sealed':''}${t?' target':''}" data-i="${i}"${a}><div class="sum">${val(st)} 分</div>${st.sealed?'<span class="tag">蓋上了</span>':''}<div class="pile">${cards}</div></div>`}).join("");
@@ -402,7 +418,26 @@ function show(v){
   $("mpT").textContent=V.pickCard?"輪到你了！點一張要出的牌":V.playing?`你出了紅框這張${V.plan.length?`（還剩 ${V.plan.length} 張）`:""}`:`我選的牌（還有 ${V.plan.length} 張）`;
   $("mpCards").innerHTML=(V.playing?`<button class="card out" disabled>${cardSVG(V.playing)}<span class="tg">出這張</span></button>`:"")+
     V.plan.map(c=>`<button class="card${V.playing?' later':''}" data-id="${c.id}" ${V.pickCard?"":"disabled"}>${cardSVG(c)}</button>`).join("");
+  if(flyFrom)flyStack(flyFrom,V.fly);
   if(V.phase==="end")showEnd();
+}
+let lastFly=-1;
+function flyStack(from,f){
+  const tgt=f.to===V.me?$("mehead"):$("opps").querySelector(`.chip[data-p="${f.to}"]`);if(!tgt)return;
+  const tr=tgt.getBoundingClientRect(),r=from.r;
+  const d=document.createElement("div");d.className=from.cls+" flyer";d.innerHTML=from.html;
+  Object.assign(d.style,{left:r.left+"px",top:r.top+"px",width:r.width+"px",height:r.height+"px"});
+  document.body.appendChild(d);
+  const dx=tr.left+tr.width/2-(r.left+r.width/2),dy=tr.top+tr.height/2-(r.top+r.height/2);
+  const done=()=>{d.remove();
+    const t2=f.to===V.me?$("mehead"):$("opps").querySelector(`.chip[data-p="${f.to}"]`);
+    if(t2){t2.classList.remove("got");void t2.offsetWidth;t2.classList.add("got");
+      const b=t2.getBoundingClientRect(),pl=document.createElement("div");pl.className="plus";
+      pl.textContent=(f.v>=0?"+":"")+f.v+" 分";pl.style.left=(b.left+b.width/2)+"px";pl.style.top=(b.top+b.height/2)+"px";
+      document.body.appendChild(pl);setTimeout(()=>pl.remove(),1200)}};
+  if(matchMedia("(prefers-reduced-motion:reduce)").matches||!d.animate){done();return}
+  d.animate([{transform:"translate(0,0) scale(1.05)",opacity:1},{transform:`translate(${dx*.15}px,${dy*.15-30}px) scale(1.1)`,opacity:1,offset:.25},{transform:`translate(${dx}px,${dy}px) scale(.2)`,opacity:.4}],
+    {duration:850,easing:"ease-in",fill:"forwards"}).onfinish=done;
 }
 function showEnd(){
   const pl=V.players.map(p=>p).sort((a,b)=>b.score-a.score);
