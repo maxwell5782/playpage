@@ -1077,7 +1077,7 @@ function drawSprite(cid,pn){
     case "sword":pline(x,h[0],h[1],ri(h[0]+ux*14-uy*2),ri(h[1]+uy*14+ux*2),2,"#E3E9F2");rect(x,h[0]-2,h[1]-1,5,2,c3);break;
     case "staff":pline(x,ri(h[0]-ux*7),ri(h[1]-uy*7),ri(h[0]+ux*13),ri(h[1]+uy*13),2,"#8B5A2B");rect(x,ri(h[0]+ux*13)-2,ri(h[1]+uy*13)-2,4,4,c3);break;
     case "hammer":pline(x,h[0],h[1],ri(h[0]+ux*8),ri(h[1]+uy*8),2,"#6B4A2B");rect(x,ri(h[0]+ux*8)-3,ri(h[1]+uy*8)-3,7,6,"#8D9AA0");break;
-    case "fan":for(let k=0;k<5;k++)rect(x,h[0]+1+k,h[1]-2-k+(k>>1),1,4+k,c3==="#FFFFFF"?c1:c3);break;
+    case "fan":{const fc=c3==="#FFFFFF"?c1:c3;if(hang){rect(x,h[0]+1,h[1]-1,2,7,fc);rect(x,h[0]+1,h[1]+5,2,2,shade(fc,-.4))}else for(let k=0;k<5;k++)rect(x,h[0]+1+k,h[1]-2-k+(k>>1),1,4+k,fc);break}
     case "claw":for(let k=-1;k<=1;k++)rect(x,h[0]+2,h[1]+k*2,4,1,"#DDE3EA");break;
   }};
   if(C.w!=="none"&&C.w!=="glove")part(m,wp);
