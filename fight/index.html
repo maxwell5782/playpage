@@ -834,8 +834,9 @@ function seg(c,x1,y1,x2,y2,w,col){c.strokeStyle=col;c.lineWidth=w;c.beginPath();
 const at=(x,y,a,l)=>[x+Math.sin(a*D2R)*l,y+Math.cos(a*D2R)*l];
 
 /* ================= 像素角色（一格一格畫，Q 版兩頭身，高解析版） ================= */
-const SPW=192,SPH=192,SPX=96,SPY=184;   // 圖格大小、腳底位置
-const PXOL="#1A1020",PS=1,KQ=3,Q=2;
+const HW=192,HH=192,HX=96,HY=184;      // 先畫的高解析度
+const SPW=128,SPH=128,SPX=64,SPY=123;  // 縮成 2/3 後的成品   // 圖格大小、腳底位置
+const PXOL="#1A1020",PS=1.5,KQ=3,Q=2;
 const SPC={};
 function sprDims(C){const b=C.b;return b==="s"?{hw:50,hh:46,tw:26,th:22,L:16}:b==="b"?{hw:58,hh:48,tw:38,th:30,L:22}:b==="l"?{hw:50,hh:48,tw:26,th:24,L:22}:{hw:54,hh:48,tw:30,th:24,L:22}}
 /* 動作：雙手（相對肩膀）、雙腳（x 相對髖部，y 相對地面） */
@@ -938,12 +939,12 @@ function drawSprite(cid,pn){
   const C=CH[cid],D=sprDims(C),P0=PZ[pn==="tumble"?"hit":pn]||PZ.idle;
   const sc=a=>[ri(a[0]*KQ),ri(a[1]*KQ)];
   const P={...P0,fa:sc(P0.fa),ba:sc(P0.ba),fl:sc(P0.fl),bl:sc(P0.bl),dy:ri((P0.dy||0)*KQ),lean:ri((P0.lean||0)*KQ)};
-  const cv=document.createElement("canvas");cv.width=SPW;cv.height=SPH;const x=cv.getContext("2d");
+  const cv=document.createElement("canvas");cv.width=HW;cv.height=HH;const x=cv.getContext("2d");
   const dy=P.dy,lean=P.lean,fem=C.g==="f";
-  const groundY=SPY-1,hipY=groundY-D.L+dy,tTop=hipY-D.th,tL=SPX-(D.tw>>1),tR=tL+D.tw-1;
-  const hx0=SPX-(D.hw>>1)+lean+2,hy0=tTop-D.hh+8;
+  const groundY=HY-1,hipY=groundY-D.L+dy,tTop=hipY-D.th,tL=HX-(D.tw>>1),tR=tL+D.tw-1;
+  const hx0=HX-(D.hw>>1)+lean+2,hy0=tTop-D.hh+8;
   const skin=C.sk,c1=C.c1,c2=C.c2,c3=C.c3,hc=C.hc,shoe=shade(C.c2,-.55),has=k=>C.a.split(" ").includes(k);
-  const shF=[tR-2,tTop+6],shB=[tL+4,tTop+6],hipF=[SPX+6,hipY],hipB=[SPX-6,hipY];
+  const shF=[tR-2,tTop+6],shB=[tL+4,tTop+6],hipF=[HX+6,hipY],hipB=[HX-6,hipY];
   const px=(u,v,col)=>{x.fillStyle=col;x.fillRect(u,v,1,1)};
   const rect=(u,v,w,h,col)=>{x.fillStyle=col;x.fillRect(u,v,w,h)};
   // ---- 身體後面的東西 ----
@@ -967,7 +968,7 @@ function drawSprite(cid,pn){
   rect(tR-2,tTop+4,2,D.th-12,shade(c1,.25));
   // 衣服皺褶
   for(let k=0;k<5;k++){px(tL+8+k,tTop+D.th-14+k,shade(c1,-.18));px(tR-6-k,tTop+D.th-14+k,shade(c1,-.12))}
-  const cx=SPX+ri(lean/2);
+  const cx=HX+ri(lean/2);
   if(C.sl&&!fem){
     const inner=c1===c3?shade(skin,-.05):skin;
     for(let k=0;k<9;k++)rect(cx-6+k,tTop+k,13-k*2,1,inner);
@@ -1055,19 +1056,26 @@ function drawSprite(cid,pn){
     case "fan":{const fc=c3==="#FFFFFF"?c1:c3;for(let k=0;k<12;k++)rect(h[0]+2+k,h[1]-6-k+(k>>1),1,10+k,k%3===2?shade(fc,-.25):fc);break}
     case "claw":for(let k=-1;k<=1;k++){rect(h[0]+4,h[1]+k*6,10,2,"#DDE3EA");rect(h[0]+14,h[1]+k*6-2,2,2,"#DDE3EA");rect(h[0]+4,h[1]+k*6+1,10,1,"#9AA4AE")}break;
   }
-  // ---- 外框 ----
-  const img=x.getImageData(0,0,SPW,SPH),d=img.data,ol=[26,16,32];
-  const op=i=>d[i*4+3]>40;const mark=[];
+  // ---- 縮成 2/3：平均縮小後，每一格的顏色對回原本用過的顏色 ----
+  const hi=x.getImageData(0,0,HW,HH),hd0=hi.data,pal=new Map();
+  for(let i=0;i<HW*HH;i++)if(hd0[i*4+3]>40){const k=(hd0[i*4]<<16)|(hd0[i*4+1]<<8)|hd0[i*4+2];pal.set(k,(pal.get(k)||0)+1)}
+  const cols=[...pal.keys()].map(k=>[k>>16,(k>>8)&255,k&255]);
+  const lo=document.createElement("canvas");lo.width=SPW;lo.height=SPH;const lx=lo.getContext("2d");lx.imageSmoothingEnabled=true;lx.imageSmoothingQuality="high";
+  lx.drawImage(cv,0,0,SPW,SPH);
+  const img=lx.getImageData(0,0,SPW,SPH),d=img.data,ol=[26,16,32];
+  for(let i=0;i<SPW*SPH;i++){
+    if(d[i*4+3]<110){d[i*4+3]=0;continue}
+    const r=d[i*4],g=d[i*4+1],b=d[i*4+2];let best=0,bd=1e9;
+    for(let c=0;c<cols.length;c++){const q=cols[c],dd=(r-q[0])**2+(g-q[1])**2+(b-q[2])**2;if(dd<bd){bd=dd;best=c}}
+    d[i*4]=cols[best][0];d[i*4+1]=cols[best][1];d[i*4+2]=cols[best][2];d[i*4+3]=255;
+  }
+  // 外框：外面一圈
+  const op=i=>d[i*4+3]>0;const mark=[];
   for(let y=0;y<SPH;y++)for(let X=0;X<SPW;X++){const i=y*SPW+X;if(op(i))continue;
     if((X>0&&op(i-1))||(X<SPW-1&&op(i+1))||(y>0&&op(i-SPW))||(y<SPH-1&&op(i+SPW)))mark.push(i)}
   for(const i of mark){d[i*4]=ol[0];d[i*4+1]=ol[1];d[i*4+2]=ol[2];d[i*4+3]=255}
-  // 外框加粗一點（2 格），看起來比較像手繪像素
-  const mark2=[];const op2=i=>d[i*4+3]>40;
-  for(let y=0;y<SPH;y++)for(let X=0;X<SPW;X++){const i=y*SPW+X;if(op2(i))continue;if((X>0&&op2(i-1))||(y<SPH-1&&op2(i+SPW)))mark2.push(i)}
-  for(const i of mark2){d[i*4]=ol[0];d[i*4+1]=ol[1];d[i*4+2]=ol[2];d[i*4+3]=255}
-  for(let i=0;i<SPW*SPH;i++)if(d[i*4+3]>0)d[i*4+3]=255;
-  x.putImageData(img,0,0);
-  return SPC[key]=cv;
+  lx.putImageData(img,0,0);
+  return SPC[key]=lo;
 }
 const RS=[{},{}];
 let SHX=0,SHY=0;
@@ -1079,8 +1087,8 @@ function drawFighter(c,f,side,flash){
   // 影子
   c.fillStyle="rgba(0,0,0,.28)";const sw=ri(10*Math.max(.4,1-(GROUND-f.y)/200));c.fillRect(X-sw*3,GROUND+2+SHY*2,sw*6,3);
   c.translate(X,Y);c.scale(PS,PS);
-  if(pn==="lie"){c.translate(0,-28);c.rotate(-Math.PI/2*f.face)}
-  else if(pn==="tumble"){c.translate(0,-36);c.rotate(-Math.PI/2*f.face*Math.min(1,f.t/10));c.translate(0,36)}
+  if(pn==="lie"){c.translate(0,-19);c.rotate(-Math.PI/2*f.face)}
+  else if(pn==="tumble"){c.translate(0,-24);c.rotate(-Math.PI/2*f.face*Math.min(1,f.t/10));c.translate(0,24)}
   c.scale(f.face,1);
   const glow=(f.st==="atk"&&f.mv&&(f.mv.super||f.mv.ty==="counter"))||f.rush;
   if(glow){c.shadowColor=CH[f.cid].fx;c.shadowBlur=24}
@@ -1097,9 +1105,9 @@ function drawPortrait(cv,cid,opt){
   const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,shade(C.fx,-.35));g.addColorStop(1,shade(C.fx,-.75));c.fillStyle=g;c.fillRect(0,0,w,h);
   const spr=drawSprite(cid,opt.pose||"idle"),D=sprDims(C);
   c.imageSmoothingEnabled=false;
-  if(opt.full){const k=Math.max(.5,h/120);c.drawImage(spr,ri(w/2-SPX*k),ri(h-SPY*k-k*2),SPW*k,SPH*k)}
-  else{const top=SPY-1-D.L-D.th-D.hh+8-16,cw=D.hw+24,ch=D.hh+32,k=Math.max(1,Math.min(w/cw,h/ch));
-    c.drawImage(spr,SPX-cw/2,top,cw,ch,ri(w/2-cw*k/2),ri(h/2-ch*k/2+k*3),cw*k,ch*k)}
+  if(opt.full){const k=Math.max(.5,h/80);c.drawImage(spr,ri(w/2-SPX*k),ri(h-SPY*k-k*2),SPW*k,SPH*k)}
+  else{const q=SPW/HW,top=(HY-1-D.L-D.th-D.hh+8-16)*q,cw=(D.hw+24)*q,ch=(D.hh+32)*q,k=Math.max(1,Math.min(w/cw,h/ch));
+    c.drawImage(spr,(HX-(D.hw+24)/2)*q,top,cw,ch,ri(w/2-cw*k/2),ri(h/2-ch*k/2+k*3),cw*k,ch*k)}
   c.imageSmoothingEnabled=true;
   if(opt.lock){c.globalCompositeOperation="source-atop";c.fillStyle="#0B0812";c.fillRect(0,0,w,h);c.globalCompositeOperation="source-over";
     c.fillStyle="rgba(255,255,255,.6)";c.font=`900 ${h*.38}px sans-serif`;c.textAlign="center";c.textBaseline="middle";c.fillText("?",w/2,h*.55)}
@@ -1613,7 +1621,7 @@ function drawIdle(){
 function titleArt(){
   const c=$("titleArt"),x=c.getContext("2d");x.clearRect(0,0,640,220);x.imageSmoothingEnabled=false;
   [[0,"punch",1],[1,"cast",1],[3,"idle",1],[6,"slash",-1],[2,"idle",-1],[7,"cast",-1]].forEach(([id,pn,f],i)=>{
-    const spr=drawSprite(id,pn);x.save();x.translate(70+i*100,214);x.scale(1.15*f,1.15);x.drawImage(spr,-SPX,-SPY);x.restore()});
+    const spr=drawSprite(id,pn);x.save();x.translate(70+i*100,214);x.scale(1.72*f,1.72);x.drawImage(spr,-SPX,-SPY);x.restore()});
 }
 /* 螢幕保持亮著 */
 let wakeLock=null;
