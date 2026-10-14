@@ -53,9 +53,12 @@ button:focus-visible,.card:focus-visible,.slot:focus-visible{outline:3px solid v
 .myplan{background:var(--paper);border:3px solid var(--ink);border-radius:18px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
 .myplan.pick{border-color:var(--leaf);box-shadow:0 0 0 4px rgba(90,164,105,.3)}
 .mp-t{font-size:14px;font-weight:700}
-.mp-cards{display:flex;gap:10px;justify-content:center}
+.mp-cards{display:flex;gap:10px;justify-content:center;padding-top:10px}
 .mp-cards .card{width:78px}
 .myplan.pick .mp-cards .card:not(:disabled){animation:glow 1s ease-in-out infinite;border-radius:10px}
+.mp-cards .card.out{transform:translateY(-6px);outline:4px solid var(--red);outline-offset:3px;border-radius:10px;box-shadow:0 0 0 9px rgba(214,72,60,.18)}
+.mp-cards .card.out .tg{position:absolute;left:50%;top:-14px;transform:translateX(-50%);white-space:nowrap;background:var(--red);color:#fff;border:2px solid var(--ink);border-radius:999px;padding:0 8px;font-size:12px;line-height:18px}
+.mp-cards .card.later{opacity:.55}
 .msg{background:var(--ink);color:var(--paper);border-radius:14px;padding:10px 14px;font-size:15px;line-height:1.45;min-height:44px;text-wrap:balance}
 
 .me{background:var(--paper);border:2px solid var(--ink);border-radius:20px;padding:10px;display:flex;flex-direction:column;gap:10px}
@@ -244,7 +247,7 @@ function view(i){
   const p=G.players[i];
   const inPlan=new Set(p.plan.map(c=>c.id));
   return {me:i,round:G.round,rounds:G.rounds,phase:G.phase,
-    plan:p.ready&&G.phase!=="end"?p.plan:[],pickCard:G.picking===i,active:G.active,stacks:G.stacks,
+    plan:p.ready&&G.phase!=="end"?p.plan:[],playing:G.playing&&G.playing.i===i?G.playing.c:null,pickCard:G.picking===i,active:G.active,stacks:G.stacks,
     msg:G.asking===i&&G.targets?G.askMsg:G.picking===i?"輪到你了！從下面選一張牌出。":G.msg,
     targets:G.asking===i?G.targets:null,
     planning:G.phase==="plan"&&!p.ready,
@@ -320,7 +323,7 @@ function askTarget(i,c,t){
   if(p.type==="bot")return Promise.resolve(aiTarget(c,t));
   return new Promise(res=>{
     G.asking=i;G.targets=t;
-    G.askMsg={jar:"要把蜂蜜罐放到哪一疊？點綠框的位置。",bear:"小熊要抱走哪一疊？",lid:"要把哪一疊蓋起來？",big:"熊爸爸要拿走哪一疊？"}[c.k];
+    G.askMsg=`你出了「${LBL[c.k]}${c.k==='jar'?' '+c.v+' 分':''}」，`+{jar:"要放到哪一疊？點綠框的位置。",bear:"要抱走哪一疊？",lid:"要把哪一疊蓋起來？",big:"要拿走哪一疊？"}[c.k];
     const tm=setTimeout(()=>waiters.target&&waiters.target.fn(null),TARGET_MS);
     waiters.target={i,fn:k=>{clearTimeout(tm);waiters.target=null;G.asking=-1;G.targets=null;res(t.includes(k)?k:aiTarget(c,t))}};
     broadcast();
@@ -337,13 +340,13 @@ async function run(){
       const i=(G.start+j)%4,p=G.players[i];G.active=i;
       if(p.plan.length>1){G.msg=`輪到${p.name}出牌…`;broadcast()}
       const c=await chooseCard(i);
-      p.plan=p.plan.filter(x=>x.id!==c.id);p.hand=p.hand.filter(x=>x.id!==c.id);p.last=c;
+      p.plan=p.plan.filter(x=>x.id!==c.id);p.hand=p.hand.filter(x=>x.id!==c.id);p.last=c;G.playing={i,c};
       G.msg=`${p.name}出了「${LBL[c.k]}${c.k==='jar'?' '+c.v+' 分':''}」`;broadcast();
       await sleep(800);
       const t=targets(c);
-      if(!t.length){G.msg=`${p.name}的「${LBL[c.k]}」沒地方放，丟掉了。`;broadcast();await sleep(900);continue}
+      if(!t.length){G.msg=`${p.name}的「${LBL[c.k]}」沒地方放，丟掉了。`;broadcast();await sleep(900);G.playing=null;continue}
       const k=t.length===1?t[0]:await askTarget(i,c,t);
-      apply(i,c,k);G.pop=k;broadcast();G.pop=null;await sleep(900);
+      apply(i,c,k);G.pop=k;broadcast();G.pop=null;await sleep(900);G.playing=null;
     }
     G.start=(G.start+1)%4;
   }
@@ -395,9 +398,10 @@ function show(v){
   $("go").onclick=()=>{if(V.planning&&sel.length===3){act({t:"plan",ids:[...sel]});sel=[]}};
   $("hand").innerHTML=V.hand.map(c=>{const k=sel.indexOf(c.id);
     return `<button class="card${k>=0?' sel':''}" data-id="${c.id}" ${V.planning?"":"disabled"}>${cardSVG(c)}${k>=0?`<span class="no">✓</span>`:""}</button>`}).join("");
-  const mp=$("myplan");mp.hidden=!V.plan.length;mp.classList.toggle("pick",!!V.pickCard);
-  $("mpT").textContent=V.pickCard?"輪到你了！點一張要出的牌":`我選的牌（還有 ${V.plan.length} 張）`;
-  $("mpCards").innerHTML=V.plan.map(c=>`<button class="card" data-id="${c.id}" ${V.pickCard?"":"disabled"}>${cardSVG(c)}</button>`).join("");
+  const mp=$("myplan");mp.hidden=!V.plan.length&&!V.playing;mp.classList.toggle("pick",!!V.pickCard);
+  $("mpT").textContent=V.pickCard?"輪到你了！點一張要出的牌":V.playing?`你出了紅框這張${V.plan.length?`（還剩 ${V.plan.length} 張）`:""}`:`我選的牌（還有 ${V.plan.length} 張）`;
+  $("mpCards").innerHTML=(V.playing?`<button class="card out" disabled>${cardSVG(V.playing)}<span class="tg">出這張</span></button>`:"")+
+    V.plan.map(c=>`<button class="card${V.playing?' later':''}" data-id="${c.id}" ${V.pickCard?"":"disabled"}>${cardSVG(c)}</button>`).join("");
   if(V.phase==="end")showEnd();
 }
 function showEnd(){
@@ -416,7 +420,7 @@ $("hand").addEventListener("click",e=>{
 });
 $("mpCards").addEventListener("click",e=>{
   const b=e.target.closest(".card");if(!b||!V||!V.pickCard)return;
-  act({t:"card",id:+b.dataset.id});V.pickCard=false;V.plan=V.plan.filter(c=>c.id!==+b.dataset.id);show(V);
+  const id=+b.dataset.id;act({t:"card",id});V.pickCard=false;V.playing=V.plan.find(c=>c.id===id);V.plan=V.plan.filter(c=>c.id!==id);show(V);
 });
 const pickSlot=e=>{const s=e.target.closest(".slot.target");if(s&&V&&V.targets){act({t:"target",k:+s.dataset.i});V.targets=null;show(V)}};
 $("table").addEventListener("click",pickSlot);
