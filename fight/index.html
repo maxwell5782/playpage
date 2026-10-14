@@ -962,6 +962,15 @@ function drawSprite(cid,pn){
   const hl=shade(hc,.35),hd=shade(hc,-.3);
   hm.forEach(k=>{const [u,v]=k.split(",").map(Number);x.fillStyle=hc;x.fillRect(hx0+u,hy0+v,1,1)});
   hm.forEach(k=>{const [u,v]=k.split(",").map(Number);if(!hm.has(u+","+(v+1))&&v>=0){x.fillStyle=hd;x.fillRect(hx0+u,hy0+v,1,1)}});
+  // 髮絲線：瀏海一束一束分開，頭頂也加幾條
+  if(!["bald","ninja","helmet","knight","tiger","bunny","wolf"].includes(C.h)){
+    const lum=(n=>.3*(n>>16)+.59*((n>>8)&255)+.11*(n&255))(parseInt(hc.slice(1),16));
+    const sl=lum<70?shade(hc,.45):shade(hc,lum>200?-.35:-.5);
+    x.fillStyle=sl;
+    for(let u=2;u<D.hw-1;u+=3){let bot=-9;for(let v=0;v<D.hh+12;v++)if(hm.has(u+","+v))bot=v;
+      if(bot<2)continue;const top=Math.max(1,bot-4-((u*5)%3));for(let v=top;v<bot;v++)if(hm.has(u+","+v))x.fillRect(hx0+u,hy0+v,1,1)}
+    for(let u=1;u<D.hw;u+=4)for(let v=-6;v<1;v++){if(hm.has(u+","+v)&&hm.has(u+","+(v+1))&&v>-3+((u*3)%2)-2)x.fillRect(hx0+u,hy0+v,1,1)}
+  }
   if(!["bald","ninja","mohawk"].includes(C.h)){x.fillStyle=hl;for(let u=3;u<7;u++)x.fillRect(hx0+u,hy0+1,1,1);x.fillRect(hx0+2,hy0+2,1,1)}
   if(C.h==="bald"&&!fullMask){x.fillStyle=shade(skin,.35);x.fillRect(hx0+4,hy0+2,3,1)}
   // 頭套的耳朵、頭盔羽毛、帽子
