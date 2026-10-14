@@ -837,7 +837,7 @@ const at=(x,y,a,l)=>[x+Math.sin(a*D2R)*l,y+Math.cos(a*D2R)*l];
 const SPW=64,SPH=64,SPX=32,SPY=61,PS=3;
 const PXOL="#1A1020";
 const SPC={};
-function sprDims(C){const b=C.b;return b==="s"?{hw:26,hh:27,tw:16,th:11,L:5,aw:5}:b==="b"?{hw:32,hh:30,tw:24,th:14,L:6,aw:6}:b==="l"?{hw:28,hh:29,tw:16,th:13,L:6,aw:4}:{hw:30,hh:29,tw:18,th:12,L:6,aw:5}}
+function sprDims(C){const b=C.b;return b==="s"?{hw:26,hh:27,tw:16,th:11,L:5,aw:3}:b==="b"?{hw:32,hh:30,tw:24,th:14,L:6,aw:4}:b==="l"?{hw:28,hh:29,tw:16,th:13,L:6,aw:3}:{hw:30,hh:29,tw:18,th:12,L:6,aw:3}}
 /* 動作：手（相對肩膀）、腳（相對髖部 / 地面）。hang = 手自然垂下 */
 const PZ={
   idle:{hang:1,fl:[0,0],bl:[0,0]}, idle2:{hang:1,dy:1,fl:[0,0],bl:[0,0]},
@@ -1017,7 +1017,7 @@ function drawSprite(cid,pn){
   // ---- 後手、後腳 ----
   const arm=(sh,o,col)=>x=>{const h=[sh[0]+o[0],sh[1]+o[1]];pline(x,sh[0],sh[1],h[0],h[1],D.aw,col);
     if(C.sl){const cf=[ri(sh[0]+o[0]*.8),ri(sh[1]+o[1]*.8)];pline(x,cf[0],cf[1],ri(sh[0]+o[0]*.9),ri(sh[1]+o[1]*.9),D.aw,shade(col,-.3))}
-    if(C.w==="glove")rect(x,h[0]-3,h[1]-3,6,6,c3);else rect(x,h[0]-2,h[1]-2,4,4,skin)};
+    if(C.w==="glove")rect(x,h[0]-2,h[1]-2,5,5,c3);else rect(x,h[0]-1,h[1]-1,3,3,skin)};
   const leg=(hp,o,col)=>x=>{const ft=[hp[0]+o[0],groundY+o[1]];rect(x,ft[0]-3,ft[1]-D.L+1,6,D.L-2,col);rect(x,ft[0]-3,ft[1]-2,7,2,shoe)};
   part(m,arm(shB,ba,C.sl?shade(c1,-.15):skin));
   part(m,leg([SPX-4,hipY],P.bl,c2));
