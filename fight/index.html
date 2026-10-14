@@ -197,7 +197,7 @@ const CH=[
  {n:"小虎",ti:"虎拳小子",b:"s",sk:"#F2C29B",c1:"#FF9F1C",c2:"#3D2B1F",c3:"#FFFFFF",h:"tiger",hc:"#FF9F1C",a:"",w:"none",st:[3,4,3,4],sp:[["spin","猛虎旋風"],["dash","虎撲"],["rise","虎爪升"]],su:["rush","百虎拳"],fx:"#FFB347",bio:"穿著老虎裝的小拳士，力氣比外表大多了。"},
  {n:"蛇姬",ti:"毒蛇使",b:"l",sk:"#E8D3B0",c1:"#1E8449",c2:"#0B3D20",c3:"#A2F05A",h:"long",hc:"#0B3D20",a:"",w:"claw",st:[2,4,3,3],sp:[["proj","毒霧彈","poison"],["dash","蛇行咬"],["tele","蛻皮"]],su:["meteor","萬毒雨"],fx:"#A2F05A",bio:"和蛇一起長大，動作又滑又快。"},
  {n:"鋼鐵Z",ti:"機甲兵",b:"n",sk:"#B0BEC5",c1:"#78909C",c2:"#455A64",c3:"#FF5252",h:"helmet",hc:"#90A4AE",a:"",w:"glove",st:[4,2,4,2],sp:[["proj","雷射砲","laser"],["dash","火箭衝"],["rise","噴射升空"]],su:["beam","超電磁砲"],fx:"#FF5252",bio:"為了格鬥大會打造的機器人，正在學習什麼是友情。"},
- {n:"嵐",ti:"風神",b:"n",sk:"#EBC7A6",c1:"#48C9B0",c2:"#1F618D",c3:"#FFFFFF",h:"wild",hc:"#E8F8F5",a:"scarf",w:"fan",st:[3,4,3,5],sp:[["proj","風刃","wind"],["spin","龍捲旋"],["rise","昇風"]],su:["dragon","暴風龍"],fx:"#A3F7E8",bio:"聽得懂風在說什麼的流浪武者。"},
+ {n:"嵐",ti:"風神",b:"n",sk:"#EBC7A6",c1:"#48C9B0",c2:"#1F618D",c3:"#FFFFFF",h:"short",hc:"#DDEFEA",a:"scarf",w:"fan",st:[3,4,3,5],sp:[["proj","風刃","wind"],["spin","龍捲旋"],["rise","昇風"]],su:["dragon","暴風龍"],fx:"#A3F7E8",bio:"聽得懂風在說什麼的流浪武者。"},
  {n:"熔岩",ti:"火山拳豪",b:"b",sk:"#C0703F",c1:"#2B1B17",c2:"#2B1B17",c3:"#FF5722",h:"mohawk",hc:"#FF5722",a:"",w:"glove",st:[5,2,5,2],sp:[["slam","火山爆"],["dash","熔岩拳"],["grab","火山摔"]],su:["quake","火山噴發"],fx:"#FF5722",bio:"脾氣跟火山一樣，一點就爆。"},
  {n:"月兔",ti:"月之拳姬",b:"s",sk:"#FBE6DA",c1:"#F5F5F5",c2:"#B39DDB",c3:"#FFD54F",h:"bunny",hc:"#FFFFFF",a:"",w:"none",st:[2,5,3,5],sp:[["proj","滿月球","moon"],["tele","月影跳"],["rise","兔子踢"]],su:["meteor","月光雨"],fx:"#FFF59D",bio:"從月亮來的女孩，跳得比誰都高。"},
  {n:"鬼丸",ti:"赤鬼武士",b:"n",sk:"#E57373",c1:"#8E1B1B",c2:"#3E0E0E",c3:"#FFD54F",h:"wild",hc:"#1B0A0A",a:"horns",w:"sword",st:[4,3,4,2],sp:[["wave","鬼火斬","fire"],["dash","鬼突"],["rise","昇鬼斬"]],su:["beam","羅剎斬"],fx:"#FF7043",bio:"長著角的武士，看起來兇但很講義氣。"},
@@ -909,7 +909,7 @@ function part(main,fn,noOutline){
 const ell=(x,cx,cy,rx,ry,col)=>{x.fillStyle=col;for(let v=-ry;v<=ry;v++)for(let u=-rx;u<=rx;u++)if((u*u)/(rx*rx)+(v*v)/(ry*ry)<=1)x.fillRect(cx+u,cy+v,1,1)};
 const rect=(x,u,v,w,h,col)=>{x.fillStyle=col;x.fillRect(u,v,w,h)};
 /* ---- 頭髮：每種髮型有自己的輪廓；瀏海分中分、旁分、齊瀏海、上翹；髮尾深一階 ---- */
-const BANG={0:"side",1:"straight",2:"none",3:"none",4:"m",5:"none",6:"m",7:"straight",8:"up",9:"none",10:"straight",11:"none",12:"up",13:"none",14:"straight",15:"up",16:"m",17:"straight",18:"up",19:"none",20:"none",21:"m",22:"m",23:"side",24:"m",25:"side",26:"side",27:"side",28:"m",29:"up"};
+const BANG={0:"side",1:"straight",2:"none",3:"none",4:"m",5:"none",6:"m",7:"straight",8:"up",9:"none",10:"straight",11:"none",12:"side",13:"none",14:"straight",15:"up",16:"m",17:"straight",18:"up",19:"none",20:"none",21:"m",22:"m",23:"side",24:"m",25:"side",26:"side",27:"side",28:"m",29:"up"};
 function drawHair(x,C,D,hx,hy,hc,cid){
   const st=C.h,hw=D.hw,hh=D.hh,cx=hx+hw/2,top=hy,L=hx+1,R=hx+hw-1,dk=shade(hc,-.28),lt=shade(hc,.35);
   const dome=(ex,ey,col)=>ell(x,cx,top+hh*.3,hw/2+(ex||0),hh*.32+(ey||0),col||hc);
