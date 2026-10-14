@@ -833,12 +833,12 @@ function shade(hex,k){const n=parseInt(hex.slice(1),16);let r=n>>16,g=n>>8&255,b
 function seg(c,x1,y1,x2,y2,w,col){c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke()}
 const at=(x,y,a,l)=>[x+Math.sin(a*D2R)*l,y+Math.cos(a*D2R)*l];
 
-/* ================= 像素角色（一格一格畫，Q 版兩頭身） ================= */
-const SPW=60,SPH=60,SPX=30,SPY=57;   // 圖格大小、腳底位置
-const PXOL="#1A1020";
+/* ================= 像素角色（一格一格畫，Q 版兩頭身，高解析版） ================= */
+const SPW=96,SPH=96,SPX=48,SPY=92;   // 圖格大小、腳底位置
+const PXOL="#1A1020",PS=2,KQ=1.5;
 const SPC={};
-function sprDims(C){const b=C.b;return b==="s"?{hw:17,hh:15,tw:9,th:7,L:5,A:5}:b==="b"?{hw:19,hh:16,tw:13,th:10,L:7,A:7}:b==="l"?{hw:17,hh:16,tw:9,th:8,L:7,A:6}:{hw:18,hh:16,tw:10,th:8,L:7,A:6}}
-/* 動作：頭偏移、身體下沉、雙手（相對肩膀）、雙腳（x 相對髖部，y 相對地面，0 = 踩地） */
+function sprDims(C){const b=C.b;return b==="s"?{hw:25,hh:23,tw:13,th:11,L:8}:b==="b"?{hw:29,hh:24,tw:19,th:15,L:11}:b==="l"?{hw:25,hh:24,tw:13,th:12,L:11}:{hw:27,hh:24,tw:15,th:12,L:11}}
+/* 動作：雙手（相對肩膀）、雙腳（x 相對髖部，y 相對地面） */
 const PZ={
   idle:{fa:[3,4],ba:[-2,5],fl:[2,0],bl:[-2,0]}, idle2:{dy:1,fa:[3,4],ba:[-2,5],fl:[2,0],bl:[-2,0]},
   walk0:{fa:[3,4],ba:[-2,5],fl:[3,0],bl:[-3,0]}, walk1:{dy:1,fa:[2,5],ba:[-1,5],fl:[1,-1],bl:[-1,0]},
@@ -893,121 +893,150 @@ function poseName(f){
   return"idle";
 }
 function pline(x,x0,y0,x1,y1,w,col){
-  x.fillStyle=col;const dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let e=dx-dy,X=x0,Y=y0;
-  for(let i=0;i<200;i++){x.fillRect(X-(w>1?1:0),Y-(w>1?1:0),w,w);if(X===x1&&Y===y1)break;const e2=2*e;if(e2>-dy){e-=dy;X+=sx}if(e2<dx){e+=dx;Y+=sy}}
+  x.fillStyle=col;const dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let e=dx-dy,X=x0,Y=y0;const o=Math.floor((w-1)/2);
+  for(let i=0;i<300;i++){x.fillRect(X-o,Y-o,w,w);if(X===x1&&Y===y1)break;const e2=2*e;if(e2>-dy){e-=dy;X+=sx}if(e2<dx){e+=dx;Y+=sy}}
 }
 const ri=Math.round;
-/* 頭髮樣式：bang = 瀏海的底（每一欄），side = 兩側長度，spk = 頭頂的尖 */
+/* 頭的形狀：圓角方形 */
+function inHead(u,v,hw,hh,grow){const a=hw/2+(grow||0),b=hh/2+(grow||0),cx=(hw-1)/2,cy=(hh-1)/2;const X=(u-cx)/a,Y=(v-cy)/b;return X*X*X*X+Y*Y*Y*Y<=1}
+/* 瀏海：一束一束的尖髮，回傳每一欄的瀏海底線 */
+function bangLine(C,hw,hh){
+  const st=C.h,line=[];
+  const P={short:[7,[5,4,6,4],5],spiky:[7,[6,4,7,3,5],4],wild:[8,[7,4,8,3,6,5],4],long:[7,[6,5,7,5],5],pony:[7,[5,6,4,6],5],twin:[7,[6,5,6],5],
+    bun:[7,[5,6,5],5],bob:[8,[3,3,3,3],6],topknot:[5,[3,4,3],5],tophat:[7,[5,4,6],5]}[st];
+  if(!P)return null;
+  const [base,amp,w]=P;let u=0,k=0;
+  while(u<hw){const L=amp[(k+C.n.length)%amp.length];for(let i=0;i<w&&u+i<hw;i++){const t=1-Math.abs(i-(w-1)/2)/((w+1)/2);line[u+i]=base+ri(L*t)}u+=w;k++}
+  return line;
+}
 function hairMask(C,hw,hh){
-  const m=new Set(),add=(u,v)=>m.add(u+","+v);
-  const st=C.h,bandRow=5;
-  const bangs=(base,jag)=>{for(let u=0;u<hw;u++){const b=base+jag[u%jag.length];for(let v=-1;v<b;v++){if(v<=0&&(u===0||u===hw-1))continue;if(v===-1&&(u<=1||u>=hw-2))continue;add(u,v)}}};
-  const sides=(len,w)=>{for(let v=0;v<len;v++)for(let k=0;k<(w||2);k++){add(k,v);add(hw-1-k,v)}};
+  const m=new Set(),add=(u,v)=>m.add(u+","+v),st=C.h,bl=bangLine(C,hw,hh);
+  const sideLen={short:13,spiky:12,wild:17,long:hh+15,pony:15,twin:13,bun:14,bob:hh-2,topknot:11,tophat:12}[st];
+  if(bl){
+    for(let u=-3;u<hw+3;u++)for(let v=-4;v<hh+16;v++){
+      const inG=inHead(u,v,hw,hh,2);
+      if(inG&&v<(bl[Math.min(hw-1,Math.max(0,u))]||0))add(u,v);
+      else if(inG&&v<(hh/2)&&!inHead(u,v,hw,hh,0))add(u,v);
+      const side=(u<=2||u>=hw-3);if(side&&v>=0&&v<sideLen&&(u>=-1&&u<=hw))add(u,v);
+    }
+  }
+  const spikes=(list)=>list.forEach(([u0,h,w])=>{for(let v=1;v<=h;v++){const half=ri((w||3)*(1-v/h)/2);for(let du=-half;du<=half;du++)add(u0+du-ri(v/3),-v+1)}});
   switch(st){
-    case "short":bangs(4,[1,2,1,3,2,1,2,3,1]);sides(9);break;
-    case "spiky":bangs(4,[2,1,3,1,2,3,1,2]);sides(8);[[2,3],[5,5],[8,6],[11,5],[14,4],[16,2]].forEach(([u,h])=>{for(let v=1;v<=h;v++){add(u,-v);if(v<h-1)add(u+1,-v)}});break;
-    case "wild":bangs(5,[2,0,3,1,3,0,2,3]);sides(12,3);[[0,3],[3,5],[6,7],[9,6],[12,7],[15,4],[17,3]].forEach(([u,h])=>{for(let v=1;v<=h;v++){add(u,-v);if(v<h-1){add(u+1,-v);add(u-1,-v+1)}}});break;
-    case "long":bangs(4,[2,2,3,2,1,2,3,2]);sides(hh+10,3);break;
-    case "pony":bangs(4,[1,2,1,2,2,1,2]);sides(10);break;
-    case "twin":bangs(4,[2,1,2,2,1,2]);sides(8);break;
-    case "bun":bangs(4,[1,2,2,1,2]);sides(9);for(let u=1;u<6;u++)for(let v=-5;v<-1;v++)if(!((u===1||u===5)&&(v===-5||v===-2)))add(u,v);break;
-    case "bob":bangs(5,[1,1,1,1,1,1]);sides(hh-1,3);break;
-    case "topknot":bangs(3,[1,1,2,1]);sides(7);for(let u=7;u<11;u++)for(let v=-4;v<0;v++)add(u,v);break;
-    case "mohawk":for(let u=6;u<12;u++)for(let v=-7;v<3;v++)if(!(v<-5&&(u===6||u===11)))add(u,v);break;
-    case "bald":break;
-    case "helmet":case "knight":for(let u=0;u<hw;u++)for(let v=-1;v<7;v++){if(v===-1&&(u<=1||u>=hw-2))continue;add(u,v)}sides(10);break;
-    case "ninja":for(let u=0;u<hw;u++)for(let v=-1;v<hh;v++){if(v>=6&&v<=9&&u>=3&&u<=hw-3)continue;if((v===-1||v===hh-1)&&(u<=1||u>=hw-2))continue;add(u,v)}break;
-    case "tiger":case "bunny":case "wolf":for(let u=0;u<hw;u++)for(let v=-1;v<5;v++){if(v===-1&&(u<=1||u>=hw-2))continue;add(u,v)}sides(hh-1,3);break;
-    case "tophat":bangs(4,[1,2,1,2]);sides(8);break;
+    case "spiky":spikes([[3,5,4],[8,8,5],[13,9,5],[18,7,5],[23,5,4]]);break;
+    case "wild":spikes([[0,5,4],[5,8,5],[10,10,6],[15,9,6],[20,10,6],[25,6,5]]);for(let v=8;v<20;v++){add(-3,v);add(-2,v);add(hw+1,v);add(hw+2,v)}break;
+    case "bun":for(let u=2;u<10;u++)for(let v=-8;v<-1;v++)if((u-5.5)**2/16+(v+4.5)**2/12<=1)add(u,v);break;
+    case "topknot":for(let u=hw/2-3;u<hw/2+3;u++)for(let v=-6;v<0;v++)if((u-hw/2+.5)**2+(v+3)**2<=10)add(ri(u),v);break;
+    case "mohawk":for(let u=ri(hw/2)-4;u<ri(hw/2)+4;u++)for(let v=-10;v<6;v++)if(!(v<-7&&(u===ri(hw/2)-4||u===ri(hw/2)+3)))add(u,v);break;
+    case "helmet":case "knight":for(let u=-1;u<=hw;u++)for(let v=-2;v<10;v++)if(inHead(u,v,hw,hh,1.5))add(u,v);for(let v=0;v<15;v++){add(-1,v);add(0,v);add(hw-1,v);add(hw,v)}break;
+    case "ninja":for(let u=-1;u<=hw;u++)for(let v=-2;v<=hh;v++){if(!inHead(u,v,hw,hh,1.5))continue;if(v>=9&&v<=14&&u>=4&&u<=hw-4)continue;add(u,v)}break;
+    case "tiger":case "bunny":case "wolf":for(let u=-1;u<=hw;u++)for(let v=-2;v<8;v++)if(inHead(u,v,hw,hh,1.5))add(u,v);for(let v=0;v<hh;v++)for(let k=0;k<4;k++){add(-1+k,v);add(hw-k,v)}break;
   }
   return m;
 }
 function drawSprite(cid,pn){
   const key=cid+"|"+pn;if(SPC[key])return SPC[key];
-  const C=CH[cid],D=sprDims(C),P=PZ[pn==="tumble"?"hit":pn]||PZ.idle;
+  const C=CH[cid],D=sprDims(C),P0=PZ[pn==="tumble"?"hit":pn]||PZ.idle;
+  const sc=a=>[ri(a[0]*KQ),ri(a[1]*KQ)];
+  const P={...P0,fa:sc(P0.fa),ba:sc(P0.ba),fl:sc(P0.fl),bl:sc(P0.bl),dy:ri((P0.dy||0)*KQ),lean:ri((P0.lean||0)*KQ)};
   const cv=document.createElement("canvas");cv.width=SPW;cv.height=SPH;const x=cv.getContext("2d");
-  const dy=P.dy||0,lean=P.lean||0,fem=C.g==="f";
+  const dy=P.dy,lean=P.lean,fem=C.g==="f";
   const groundY=SPY-1,hipY=groundY-D.L+dy,tTop=hipY-D.th,tL=SPX-(D.tw>>1),tR=tL+D.tw-1;
-  const hx0=SPX-(D.hw>>1)+lean+1,hy0=tTop-D.hh+3;
-  const skin=C.sk,c1=C.c1,c2=C.c2,c3=C.c3,hc=C.hc,shoe=shade(C.c2,-.5),has=k=>C.a.split(" ").includes(k);
-  const shF=[tR,tTop+2],shB=[tL+1,tTop+2],hipF=[SPX+2,hipY],hipB=[SPX-2,hipY];
-  // 披風、長髮（在身體後面）
-  if(has("cape")){x.fillStyle=shade(c3,-.3);for(let v=0;v<D.th+D.L-1;v++){x.fillRect(tL-2-(v>>2),tTop+1+v,D.tw-2,1)}}
-  if(C.h==="long"){x.fillStyle=shade(hc,-.15);for(let u=0;u<D.hw-2;u++){const L=D.hh+((u*7)%4)-(u>3&&u<D.hw-6?3:0);x.fillRect(hx0+1+u,hy0+6,1,L)}}
-  if(C.h==="pony"){x.fillStyle=hc;for(let v=0;v<12;v++)x.fillRect(hx0-2-(v>5?1:0),hy0+3+v,3,1)}
-  if(C.h==="twin"){x.fillStyle=hc;for(let v=0;v<10;v++){x.fillRect(hx0-3,hy0+6+v,3,1);x.fillRect(hx0+D.hw,hy0+6+v,3,1)}}
-  if(has("scarf")){x.fillStyle=c3;for(let k=0;k<7;k++)x.fillRect(tL-1-k,tTop+1+(k>>1),1,2)}
-  // 後手、後腳
-  const arm=(sh,o,col)=>{const h=[sh[0]+o[0],sh[1]+o[1]];pline(x,sh[0],sh[1],h[0],h[1],2,col);x.fillStyle=C.w==="glove"?c3:skin;x.fillRect(h[0]-1,h[1]-1,C.w==="glove"?3:2,C.w==="glove"?3:2);return h};
-  const leg=(hp,o,col)=>{const ft=[hp[0]+o[0],groundY+o[1]];pline(x,hp[0],hp[1],ft[0],ft[1]-1,2,col);x.fillStyle=shoe;x.fillRect(ft[0]-1,ft[1]-1,3,2);};
-  arm(shB,P.ba,C.sl?shade(c1,-.25):shade(skin,-.1));
-  leg(hipB,P.bl,shade(c2,-.25));
-  // 身體
-  x.fillStyle=c1;x.fillRect(tL,tTop,D.tw,D.th);
-  x.fillStyle=shade(c1,-.2);x.fillRect(tL,tTop,1,D.th);
-  x.fillStyle=c3;x.fillRect(tL,hipY-2,D.tw,1);
-  if(fem&&(C.b!=="b")){x.fillStyle=c1;x.fillRect(tL-1,hipY-1,D.tw+2,2)}
-  x.fillStyle=c2;x.fillRect(tL+1,hipY-1,D.tw-2,1);
-  // 前腳
+  const hx0=SPX-(D.hw>>1)+lean+1,hy0=tTop-D.hh+4;
+  const skin=C.sk,c1=C.c1,c2=C.c2,c3=C.c3,hc=C.hc,shoe=shade(C.c2,-.55),has=k=>C.a.split(" ").includes(k);
+  const shF=[tR-1,tTop+3],shB=[tL+2,tTop+3],hipF=[SPX+3,hipY],hipB=[SPX-3,hipY];
+  const px=(u,v,col)=>{x.fillStyle=col;x.fillRect(u,v,1,1)};
+  // ---- 身體後面的東西 ----
+  if(has("cape")){for(let v=0;v<D.th+D.L-2;v++){x.fillStyle=v%5===4?shade(c3,-.45):shade(c3,-.3);x.fillRect(tL-3-(v>>2),tTop+2+v,D.tw-3,1)}}
+  if(C.h==="long"){for(let u=0;u<D.hw-2;u++){const L=D.hh+5+((u*7)%5)-(u>4&&u<D.hw-7?5:0);x.fillStyle=u%4===1?shade(hc,-.3):shade(hc,-.15);x.fillRect(hx0+1+u,hy0+9,1,L)}}
+  if(C.h==="pony"){for(let v=0;v<19;v++){x.fillStyle=v%6===5?shade(hc,-.3):hc;x.fillRect(hx0-4-(v>8?1:0)-(v>14?1:0),hy0+4+v,5-(v>14?2:0),1)}}
+  if(C.h==="twin"){for(let v=0;v<16;v++){x.fillStyle=v%5===4?shade(hc,-.3):hc;const w=v<12?5:3;x.fillRect(hx0-5,hy0+9+v,w,1);x.fillRect(hx0+D.hw,hy0+9+v,w,1)}}
+  if(has("scarf")){for(let k=0;k<11;k++){x.fillStyle=k%3?c3:shade(c3,-.25);x.fillRect(tL-1-k,tTop+1+(k>>1),1,3)}}
+  // ---- 後手、後腳 ----
+  const arm=(sh,o,col,front)=>{const h=[sh[0]+o[0],sh[1]+o[1]];pline(x,sh[0],sh[1],h[0],h[1],3,col);
+    if(C.w==="glove"){x.fillStyle=c3;x.fillRect(h[0]-2,h[1]-2,5,5);px(h[0]-1,h[1]-1,shade(c3,.35))}else{x.fillStyle=skin;x.fillRect(h[0]-1,h[1]-1,3,3)}return h};
+  const leg=(hp,o,col)=>{const ft=[hp[0]+o[0],groundY+o[1]];pline(x,hp[0],hp[1],ft[0],ft[1]-2,4,col);x.fillStyle=shoe;x.fillRect(ft[0]-2,ft[1]-2,6,3);x.fillStyle=shade(shoe,.3);x.fillRect(ft[0]-1,ft[1]-2,3,1)};
+  arm(shB,P.ba,C.sl?shade(c1,-.28):shade(skin,-.12));
+  leg(hipB,P.bl,shade(c2,-.3));
+  // ---- 身體 ----
+  for(let v=0;v<D.th;v++){const ins=v===0?2:v===1?1:0;x.fillStyle=c1;x.fillRect(tL+ins,tTop+v,D.tw-ins*2,1)}
+  x.fillStyle=shade(c1,-.22);x.fillRect(tL,tTop+2,2,D.th-2);x.fillRect(tL+2,tTop+D.th-4,D.tw-3,1);
+  x.fillStyle=shade(c1,.25);x.fillRect(tR-1,tTop+2,1,D.th-6);
+  // 領口
+  const cx=SPX+ri(lean/2);
+  if(C.sl&&!fem){x.fillStyle=c1===c3?shade(skin,-.05):skin;for(let k=0;k<4;k++)x.fillRect(cx-3+k,tTop+k,7-k*2,1);x.fillStyle=shade(c1,-.35);for(let k=0;k<5;k++){px(cx-4+k,tTop+k,shade(c1,-.35));px(cx+4-k,tTop+k,shade(c1,-.35))}}
+  else{x.fillStyle=skin;x.fillRect(cx-2,tTop,5,2);x.fillStyle=c3;x.fillRect(cx-3,tTop+2,7,1)}
+  // 腰帶、褲子／裙子
+  x.fillStyle=c3;x.fillRect(tL,hipY-3,D.tw,2);px(cx,hipY-3,shade(c3,.4));
+  if(fem&&C.b!=="b"){for(let v=0;v<4;v++){x.fillStyle=v===3?shade(c1,-.3):c1;x.fillRect(tL-1-(v>>1),hipY-1+v-2,D.tw+2+(v>>1)*2,1)}}
+  else{x.fillStyle=c2;x.fillRect(tL+1,hipY-1,D.tw-2,2)}
+  // ---- 前腳 ----
   leg(hipF,P.fl,c2);
-  // 頭
+  // ---- 頭 ----
   const hm=hairMask(C,D.hw,D.hh);
-  // 臉（圓角）
-  x.fillStyle=skin;
-  for(let v=0;v<D.hh;v++){const inset=(v===0||v===D.hh-1)?2:(v===1||v===D.hh-2)?1:0;x.fillRect(hx0+inset,hy0+v,D.hw-inset*2,1)}
-  // 摔角面具
   const fullMask=C.h==="bald"&&has("mask");
-  if(fullMask){x.fillStyle=c3;for(let v=0;v<D.hh;v++){const inset=(v===0||v===D.hh-1)?2:(v===1||v===D.hh-2)?1:0;x.fillRect(hx0+inset,hy0+v,D.hw-inset*2,1)}x.fillStyle=c1;x.fillRect(hx0+3,hy0+2,D.hw-6,2)}
+  // 耳朵
+  x.fillStyle=shade(skin,-.08);x.fillRect(hx0-1,hy0+ri(D.hh*.5),2,4);x.fillRect(hx0+D.hw-1,hy0+ri(D.hh*.5),2,4);
+  // 臉
+  for(let v=0;v<D.hh;v++)for(let u=0;u<D.hw;u++)if(inHead(u,v,D.hw,D.hh))px(hx0+u,hy0+v,fullMask?c3:skin);
+  for(let v=0;v<D.hh;v++)for(let u=0;u<D.hw;u++)if(inHead(u,v,D.hw,D.hh)&&!inHead(u,v+1,D.hw,D.hh)&&!fullMask)px(hx0+u,hy0+v,shade(skin,-.12));
+  if(fullMask){x.fillStyle=c1;for(let k=0;k<3;k++)x.fillRect(hx0+4+k,hy0+3+k,D.hw-8-k*2,1);x.fillStyle=shade(c3,.3);x.fillRect(hx0+5,hy0+2,6,1)}
   // 頭髮
-  const hl=shade(hc,.35),hd=shade(hc,-.3);
-  hm.forEach(k=>{const [u,v]=k.split(",").map(Number);x.fillStyle=hc;x.fillRect(hx0+u,hy0+v,1,1)});
-  hm.forEach(k=>{const [u,v]=k.split(",").map(Number);if(!hm.has(u+","+(v+1))&&v>=0){x.fillStyle=hd;x.fillRect(hx0+u,hy0+v,1,1)}});
-  // 髮絲線：瀏海一束一束分開，頭頂也加幾條
-  if(!["bald","ninja","helmet","knight","tiger","bunny","wolf"].includes(C.h)){
-    const lum=(n=>.3*(n>>16)+.59*((n>>8)&255)+.11*(n&255))(parseInt(hc.slice(1),16));
-    const sl=lum<70?shade(hc,.2):shade(hc,lum>200?-.3:-.45);
-    x.fillStyle=sl;
-    // 少少幾條、間距和長短都不一樣
-    [[.24,4],[.45,2],[.66,5],[.84,3]].forEach(([fu,len],k)=>{const u=Math.round(fu*(D.hw-1));let bot=-9;
-      for(let v=0;v<D.hh+12;v++)if(hm.has(u+","+v))bot=v;if(bot<3)return;
-      const L=len+((cid+k)%2);for(let v=Math.max(3,bot-L);v<bot;v++)if(hm.has(u+","+v))x.fillRect(hx0+u,hy0+v,1,1)});
+  const hl=shade(hc,.4),hd=shade(hc,-.32),hdd=shade(hc,-.5);
+  const lum=(n=>.3*(n>>16)+.59*((n>>8)&255)+.11*(n&255))(parseInt(hc.slice(1),16));
+  hm.forEach(k=>{const [u,v]=k.split(",").map(Number);px(hx0+u,hy0+v,hc)});
+  // 瀏海底下的陰影、外側暗面
+  hm.forEach(k=>{const [u,v]=k.split(",").map(Number);
+    if(!hm.has(u+","+(v+1))&&v>=0)px(hx0+u,hy0+v,hd);
+    else if(!hm.has((u-1)+","+v)&&v>2)px(hx0+u,hy0+v,hd)});
+  // 髮束分隔線：從尖端之間的凹處往上
+  const bl=bangLine(C,D.hw,D.hh);
+  if(bl&&!["helmet","knight","ninja","tiger","bunny","wolf","mohawk","bald"].includes(C.h)){
+    const sl=lum<60?shade(hc,.28):hdd;
+    for(let u=1;u<D.hw-1;u++){if(bl[u]<bl[u-1]&&bl[u]<=bl[u+1]){const L=3+((u+cid)%3);for(let v=bl[u]-L;v<bl[u];v++)if(v>3&&hm.has(u+","+v))px(hx0+u,hy0+v,sl)}}
   }
-  if(!["bald","ninja","mohawk"].includes(C.h)){x.fillStyle=hl;for(let u=3;u<7;u++)x.fillRect(hx0+u,hy0+1,1,1);x.fillRect(hx0+2,hy0+2,1,1)}
-  if(C.h==="bald"&&!fullMask){x.fillStyle=shade(skin,.35);x.fillRect(hx0+4,hy0+2,3,1)}
-  // 頭套的耳朵、頭盔羽毛、帽子
-  if(C.h==="tiger"){x.fillStyle=hc;x.fillRect(hx0+1,hy0-3,3,3);x.fillRect(hx0+D.hw-4,hy0-3,3,3);x.fillStyle=PXOL;[4,8,12].forEach(u=>x.fillRect(hx0+u,hy0,1,2))}
-  if(C.h==="bunny"){x.fillStyle=hc;x.fillRect(hx0+3,hy0-8,3,8);x.fillRect(hx0+D.hw-6,hy0-8,3,8);x.fillStyle="#F8BBD0";x.fillRect(hx0+4,hy0-7,1,6);x.fillRect(hx0+D.hw-5,hy0-7,1,6)}
-  if(C.h==="wolf"){x.fillStyle=hc;for(let k=0;k<4;k++){x.fillRect(hx0+1+k,hy0-1-k,4-k,1);x.fillRect(hx0+D.hw-5,hy0-1-k,4-k,1)}}
-  if(C.h==="knight"){x.fillStyle=c3;for(let k=0;k<6;k++)x.fillRect(hx0+4-k,hy0-2-k+(k>3?2:0),3,2)}
-  if(C.h==="helmet"||C.h==="knight"){x.fillStyle=shade(hc,-.4);x.fillRect(hx0,hy0+6,D.hw,1)}
-  if(C.h==="tophat"){x.fillStyle="#1A1426";x.fillRect(hx0-1,hy0-1,D.hw+2,2);x.fillRect(hx0+3,hy0-8,D.hw-6,7);x.fillStyle=c3;x.fillRect(hx0+3,hy0-3,D.hw-6,1)}
-  if(has("hat")){x.fillStyle="#7B5B3A";x.fillRect(hx0-3,hy0+1,D.hw+6,2);for(let k=0;k<6;k++)x.fillRect(hx0+3+k,hy0-k,D.hw-6-k*2,1);x.fillStyle="#AED581";x.fillRect(hx0+3,hy0,D.hw-6,1)}
-  if(has("crown")){x.fillStyle="#FFD54F";x.fillRect(hx0+4,hy0-2,D.hw-8,2);[4,8,12].forEach(u=>x.fillRect(hx0+u,hy0-4,1,2))}
-  if(has("horns")){x.fillStyle="#F5E6C8";[[3,-1],[D.hw-4,1]].forEach(([u,s])=>{x.fillRect(hx0+u,hy0-2,2,2);x.fillRect(hx0+u+s,hy0-4,1,2);x.fillRect(hx0+u+s*2,hy0-5,1,1)})}
-  if(has("band")){x.fillStyle=c3;x.fillRect(hx0,hy0+4,D.hw,2);x.fillRect(hx0-3,hy0+5,3,1);x.fillRect(hx0-5,hy0+6,3,1)}
-  // 五官
-  const er=hy0+ri(D.hh*.55),e1=hx0+ri(D.hw*.33)+1,e2=hx0+ri(D.hw*.7)+1;
-  const ec=shade(C.fx,-.3);
-  if(fullMask){x.fillStyle="#fff";x.fillRect(e1-1,er,3,2);x.fillRect(e2-1,er,3,2)}
-  if(P.hurt){x.fillStyle=PXOL;[e1,e2].forEach(e=>{x.fillRect(e-1,er,1,1);x.fillRect(e,er+1,1,1);x.fillRect(e+1,er,1,1);x.fillRect(e-1,er+2,1,1);x.fillRect(e+1,er+2,1,1)})}
-  else if(P.happy){x.fillStyle=PXOL;[e1,e2].forEach(e=>{x.fillRect(e-1,er+1,1,1);x.fillRect(e,er,1,1);x.fillRect(e+1,er+1,1,1)})}
-  else{[e1,e2].forEach(e=>{x.fillStyle=PXOL;x.fillRect(e,er,1,2);x.fillStyle=ec;x.fillRect(e,er+2,1,1);if(fem){x.fillStyle=PXOL;x.fillRect(e+1,er-1,1,1)}})}
-  if(C.g==="m"&&!fullMask&&C.h!=="ninja"){x.fillStyle=shade(hc==="#EAF4FF"||hc==="#FFFFFF"||hc==="#EEEEEE"?"#8A8090":hc,-.25);x.fillRect(e1-1,er-2,2,1);x.fillRect(e2,er-2,2,1)}
-  if(!fullMask&&!has("mask")&&C.h!=="ninja"){x.fillStyle=fem?"rgba(255,120,140,.7)":"rgba(255,120,120,.35)";x.fillRect(e1-2,er+3,2,1);x.fillRect(e2+1,er+3,2,1)}
-  if(has("mask")&&!fullMask){x.fillStyle=c3==="#9C27B0"||c3==="#7E57C2"?"#151018":c3;x.fillRect(hx0+2,er+3,D.hw-3,D.hh-ri(D.hh*.55)-4)}
-  else if(!fullMask&&C.h!=="ninja"){x.fillStyle=P.hurt?"#7A2A2A":fem?"#E04848":"#9A4040";const mx=ri((e1+e2)/2);x.fillRect(mx-(P.hurt||P.happy?1:0),er+4,P.hurt||P.happy?3:2,1)}
-  if(has("beard")){x.fillStyle="#EEEEEE";for(let v=0;v<5;v++)x.fillRect(hx0+4+v,hy0+D.hh-2+v,D.hw-8-v*2,1)}
-  // 前手＋武器
-  const h=arm(shF,P.fa,C.sl?c1:skin);
+  // 頭頂的光澤：一條斷斷續續的弧
+  if(!["bald","ninja","mohawk"].includes(C.h)){
+    for(let u=3;u<D.hw-4;u++){const v=ri(2.2+Math.pow((u-D.hw*.42)/(D.hw*.36),2)*3);if((u%5)!==4&&hm.has(u+","+v)){px(hx0+u,hy0+v,hl);if(u>5&&u<D.hw*.6&&(u%5)<2)px(hx0+u,hy0+v+1,shade(hc,.2))}}
+  }
+  if(C.h==="bald"&&!fullMask){x.fillStyle=shade(skin,.4);x.fillRect(hx0+6,hy0+3,4,1);x.fillRect(hx0+5,hy0+4,2,1)}
+  // ---- 頭飾 ----
+  if(C.h==="tiger"){x.fillStyle=hc;x.fillRect(hx0+1,hy0-4,5,4);x.fillRect(hx0+D.hw-6,hy0-4,5,4);x.fillStyle="#FFE0B2";x.fillRect(hx0+2,hy0-3,3,2);x.fillRect(hx0+D.hw-5,hy0-3,3,2);x.fillStyle=PXOL;[6,12,18].forEach(u=>x.fillRect(hx0+u,hy0-1,1,3))}
+  if(C.h==="bunny"){[[4],[D.hw-9]].forEach(([u])=>{x.fillStyle=hc;x.fillRect(hx0+u,hy0-12,5,12);x.fillStyle="#F8BBD0";x.fillRect(hx0+u+1,hy0-11,3,9)})}
+  if(C.h==="wolf"){x.fillStyle=hc;for(let k=0;k<6;k++){x.fillRect(hx0+1+k,hy0-1-k,6-k,1);x.fillRect(hx0+D.hw-7,hy0-1-k,6-k,1)}x.fillStyle="#90A4AE";x.fillRect(hx0+3,hy0-3,2,2);x.fillRect(hx0+D.hw-5,hy0-3,2,2)}
+  if(C.h==="knight"){for(let k=0;k<9;k++){x.fillStyle=k%3?c3:shade(c3,-.25);x.fillRect(hx0+6-k,hy0-3-k+(k>5?3:0),4,2)}}
+  if(C.h==="helmet"||C.h==="knight"){x.fillStyle=shade(hc,-.45);x.fillRect(hx0,hy0+8,D.hw,2);x.fillStyle=shade(hc,.4);x.fillRect(hx0+4,hy0+1,8,1)}
+  if(C.n==="鋼鐵Z"){x.fillStyle="#FF5252";x.fillRect(hx0+ri(D.hw*.55),hy0+10,8,2)}
+  if(C.h==="tophat"){x.fillStyle="#1A1426";x.fillRect(hx0-2,hy0-1,D.hw+4,3);x.fillRect(hx0+4,hy0-12,D.hw-8,11);x.fillStyle=c3;x.fillRect(hx0+4,hy0-4,D.hw-8,2);x.fillStyle="#3A2E52";x.fillRect(hx0+5,hy0-11,2,6)}
+  if(has("hat")){x.fillStyle="#7B5B3A";x.fillRect(hx0-4,hy0+1,D.hw+8,3);for(let k=0;k<9;k++)x.fillRect(hx0+4+k,hy0-k,D.hw-8-k*2,1);x.fillStyle="#AED581";x.fillRect(hx0+4,hy0-1,D.hw-8,2);x.fillStyle="#5A4028";x.fillRect(hx0-4,hy0+3,D.hw+8,1)}
+  if(has("crown")){x.fillStyle="#FFD54F";x.fillRect(hx0+6,hy0-3,D.hw-12,3);[6,ri(D.hw/2)-1,D.hw-8].forEach(u=>{x.fillRect(hx0+u,hy0-6,2,3);px(hx0+u,hy0-7,"#FFD54F")});px(hx0+ri(D.hw/2),hy0-2,"#E53935")}
+  if(has("horns")){x.fillStyle="#F5E6C8";[[5,-1],[D.hw-7,1]].forEach(([u,s])=>{x.fillRect(hx0+u,hy0-3,3,3);x.fillRect(hx0+u+s,hy0-6,2,3);x.fillRect(hx0+u+s*2,hy0-8,1,2)})}
+  if(has("band")){x.fillStyle=c3;x.fillRect(hx0-1,hy0+6,D.hw+2,3);x.fillStyle=shade(c3,-.3);x.fillRect(hx0-1,hy0+8,D.hw+2,1);x.fillStyle=c3;x.fillRect(hx0-5,hy0+7,4,2);x.fillRect(hx0-8,hy0+9,4,2)}
+  // ---- 五官 ----
+  const er=hy0+ri(D.hh*.53),e1=hx0+ri(D.hw*.32),e2=hx0+ri(D.hw*.68);
+  const ec=shade(C.fx,-.25);
+  if(fullMask){x.fillStyle="#fff";x.fillRect(e1-2,er-1,5,4);x.fillRect(e2-2,er-1,5,4)}
+  if(P.hurt){[e1,e2].forEach(e=>{for(let k=-1;k<=2;k++){px(e-1+k,er-1+k,PXOL);px(e+2-k,er-1+k,PXOL)}})}
+  else if(P.happy){[e1,e2].forEach(e=>{px(e-1,er+1,PXOL);px(e,er,PXOL);px(e+1,er,PXOL);px(e+2,er+1,PXOL)})}
+  else{[e1,e2].forEach(e=>{x.fillStyle=PXOL;x.fillRect(e-1,er-2,3,5);x.fillRect(e,er-3,2,1);px(e,er-1,"#FFFFFF");px(e+1,er-2,"#FFFFFF");x.fillStyle=ec;x.fillRect(e-1,er+1,3,2);px(e,er+2,shade(ec,.4));
+    if(fem){px(e-2,er-2,PXOL);px(e+2,er-3,PXOL);px(e-2,er-3,PXOL)}})}
+  if(C.g==="m"&&!fullMask&&C.h!=="ninja"){x.fillStyle=lum>200?"#8A8090":shade(hc,lum<60?.1:-.3);x.fillRect(e1-2,er-6,4,1);px(e1+2,er-5,x.fillStyle);x.fillRect(e2-1,er-6,4,1);px(e2-2,er-5,x.fillStyle)}
+  if(!fullMask&&!has("mask")&&C.h!=="ninja"){x.fillStyle=fem?"rgba(255,110,130,.75)":"rgba(255,120,120,.4)";x.fillRect(e1-4,er+4,3,2);x.fillRect(e2+3,er+4,3,2)}
+  if(has("mask")&&!fullMask){x.fillStyle=c3==="#9C27B0"||c3==="#7E57C2"?"#151018":c3;for(let v=er+4;v<hy0+D.hh;v++)for(let u=2;u<D.hw-1;u++)if(inHead(u,v-hy0,D.hw,D.hh))px(hx0+u,v,x.fillStyle)}
+  else if(!fullMask&&C.h!=="ninja"){const mx=ri((e1+e2)/2)+1;
+    if(P.hurt||P.happy){x.fillStyle=P.hurt?"#7A2A2A":"#C83A3A";x.fillRect(mx-2,er+5,4,2);if(P.happy)px(mx-1,er+6,"#FF8A80")}
+    else{x.fillStyle=fem?"#E04848":"#9A4040";x.fillRect(mx-1,er+6,3,1);if(fem)px(mx,er+7,"#F48A8A")}}
+  if(has("beard")){for(let v=0;v<8;v++){x.fillStyle=v%3===2?"#D0D0D0":"#EEEEEE";x.fillRect(hx0+6+ri(v*.7),hy0+D.hh-4+v,D.hw-12-ri(v*1.4),1)}}
+  // ---- 前手＋武器 ----
+  const h=arm(shF,P.fa,C.sl?c1:skin,true);
   const dx=P.fa[0],dyy=P.fa[1],len=Math.hypot(dx,dyy)||1,ux=dx/len,uy=dyy/len;
   switch(C.w){
-    case "sword":pline(x,h[0],h[1],ri(h[0]+ux*13-uy*2),ri(h[1]+uy*13+ux*2),1,"#E3E9F2");x.fillStyle=c3;x.fillRect(h[0]-1,h[1]-1,3,1);break;
-    case "staff":pline(x,ri(h[0]-ux*7),ri(h[1]-uy*7),ri(h[0]+ux*12),ri(h[1]+uy*12),1,"#8B5A2B");x.fillStyle=c3;x.fillRect(ri(h[0]+ux*12)-1,ri(h[1]+uy*12)-1,2,2);break;
-    case "hammer":pline(x,h[0],h[1],ri(h[0]+ux*8),ri(h[1]+uy*8),1,"#6B4A2B");x.fillStyle="#8D9AA0";x.fillRect(ri(h[0]+ux*8)-2,ri(h[1]+uy*8)-2,5,4);break;
-    case "fan":x.fillStyle=c3==="#FFFFFF"?c1:c3;for(let k=0;k<4;k++)x.fillRect(h[0]+1+k,h[1]-2-k+((k>>1)),2,3+k);break;
-    case "claw":x.fillStyle="#DDE3EA";for(let k=-1;k<=1;k++){x.fillRect(h[0]+2,h[1]+k*2,3,1)}break;
+    case "sword":{const tx=ri(h[0]+ux*20-uy*3),ty=ri(h[1]+uy*20+ux*3);pline(x,h[0],h[1],tx,ty,2,"#DDE4EE");pline(x,h[0],h[1],tx,ty,1,"#FFFFFF");x.fillStyle=c3;x.fillRect(h[0]-2,h[1]-1,5,2);pline(x,h[0],h[1],ri(h[0]-ux*4),ri(h[1]-uy*4),2,"#3A2A20");break}
+    case "staff":pline(x,ri(h[0]-ux*10),ri(h[1]-uy*10),ri(h[0]+ux*18),ri(h[1]+uy*18),2,"#8B5A2B");x.fillStyle=c3;x.fillRect(ri(h[0]+ux*18)-2,ri(h[1]+uy*18)-2,4,4);px(ri(h[0]+ux*18)-1,ri(h[1]+uy*18)-1,"#fff");break;
+    case "hammer":pline(x,h[0],h[1],ri(h[0]+ux*12),ri(h[1]+uy*12),2,"#6B4A2B");x.fillStyle="#8D9AA0";x.fillRect(ri(h[0]+ux*12)-4,ri(h[1]+uy*12)-3,8,6);x.fillStyle="#B8C4CA";x.fillRect(ri(h[0]+ux*12)-3,ri(h[1]+uy*12)-2,6,1);break;
+    case "fan":for(let k=0;k<6;k++){x.fillStyle=k%2?(c3==="#FFFFFF"?c1:c3):shade(c3==="#FFFFFF"?c1:c3,-.2);x.fillRect(h[0]+1+k,h[1]-3-k+(k>>1),1,5+k)}break;
+    case "claw":x.fillStyle="#DDE3EA";for(let k=-1;k<=1;k++){x.fillRect(h[0]+2,h[1]+k*3,5,1);px(h[0]+7,h[1]+k*3-1,"#DDE3EA")}break;
   }
-  // 外框：外面一圈黑線
+  // ---- 外框 ----
   const img=x.getImageData(0,0,SPW,SPH),d=img.data,ol=[26,16,32];
   const op=i=>d[i*4+3]>40;const mark=[];
   for(let y=0;y<SPH;y++)for(let X=0;X<SPW;X++){const i=y*SPW+X;if(op(i))continue;
@@ -1022,13 +1051,13 @@ let SHX=0,SHY=0;
 function drawFighter(c,f,side,flash){
   if(f.hidden)return;
   const pn=poseName(f),spr=drawSprite(f.cid,pn==="tumble"?"hit":pn);
-  const PS=3,X=ri(f.x/PS)*PS+SHX*2,Y=ri(f.y/PS)*PS+SHY*2;
+  const X=ri(f.x/PS)*PS+SHX*2,Y=ri(f.y/PS)*PS+SHY*2;
   c.save();c.setTransform(1,0,0,1,0,0);c.imageSmoothingEnabled=false;
   // 影子
   c.fillStyle="rgba(0,0,0,.28)";const sw=ri(10*Math.max(.4,1-(GROUND-f.y)/200));c.fillRect(X-sw*PS,GROUND+2+SHY*2,sw*2*PS,PS);
   c.translate(X,Y);c.scale(PS,PS);
-  if(pn==="lie"){c.translate(0,-9);c.rotate(-Math.PI/2*f.face)}
-  else if(pn==="tumble"){c.translate(0,-12);c.rotate(-Math.PI/2*f.face*Math.min(1,f.t/10));c.translate(0,12)}
+  if(pn==="lie"){c.translate(0,-14);c.rotate(-Math.PI/2*f.face)}
+  else if(pn==="tumble"){c.translate(0,-18);c.rotate(-Math.PI/2*f.face*Math.min(1,f.t/10));c.translate(0,12)}
   c.scale(f.face,1);
   const glow=(f.st==="atk"&&f.mv&&(f.mv.super||f.mv.ty==="counter"))||f.rush;
   if(glow){c.shadowColor=CH[f.cid].fx;c.shadowBlur=24}
@@ -1045,9 +1074,9 @@ function drawPortrait(cv,cid,opt){
   const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,shade(C.fx,-.35));g.addColorStop(1,shade(C.fx,-.75));c.fillStyle=g;c.fillRect(0,0,w,h);
   const spr=drawSprite(cid,opt.pose||"idle"),D=sprDims(C);
   c.imageSmoothingEnabled=false;
-  if(opt.full){const k=Math.max(1,Math.floor(h/40));c.drawImage(spr,ri(w/2-SPX*k),ri(h-SPY*k-k*2),SPW*k,SPH*k)}
-  else{const top=SPY-1-D.L-D.th-D.hh+3-4,cw=D.hw+8,k=Math.max(1,Math.floor(Math.min(w/cw,h/(D.hh+10))));
-    c.drawImage(spr,SPX-cw/2,top,cw,D.hh+10,ri(w/2-cw*k/2),ri(h/2-(D.hh+10)*k/2+k*2),cw*k,(D.hh+10)*k)}
+  if(opt.full){const k=Math.max(1,Math.floor(h/60));c.drawImage(spr,ri(w/2-SPX*k),ri(h-SPY*k-k*2),SPW*k,SPH*k)}
+  else{const top=SPY-1-D.L-D.th-D.hh+4-8,cw=D.hw+12,ch=D.hh+16,k=Math.max(1,Math.min(w/cw,h/ch));
+    c.drawImage(spr,SPX-cw/2,top,cw,ch,ri(w/2-cw*k/2),ri(h/2-ch*k/2+k*3),cw*k,ch*k)}
   c.imageSmoothingEnabled=true;
   if(opt.lock){c.globalCompositeOperation="source-atop";c.fillStyle="#0B0812";c.fillRect(0,0,w,h);c.globalCompositeOperation="source-over";
     c.fillStyle="rgba(255,255,255,.6)";c.font=`900 ${h*.38}px sans-serif`;c.textAlign="center";c.textBaseline="middle";c.fillText("?",w/2,h*.55)}
@@ -1561,7 +1590,7 @@ function drawIdle(){
 function titleArt(){
   const c=$("titleArt"),x=c.getContext("2d");x.clearRect(0,0,640,220);x.imageSmoothingEnabled=false;
   [[0,"punch",1],[1,"cast",1],[3,"idle",1],[6,"slash",-1],[2,"idle",-1],[7,"cast",-1]].forEach(([id,pn,f],i)=>{
-    const spr=drawSprite(id,pn);x.save();x.translate(70+i*100,214);x.scale(3.4*f,3.4);x.drawImage(spr,-SPX,-SPY);x.restore()});
+    const spr=drawSprite(id,pn);x.save();x.translate(70+i*100,214);x.scale(2.3*f,2.3);x.drawImage(spr,-SPX,-SPY);x.restore()});
 }
 /* 螢幕保持亮著 */
 let wakeLock=null;
