@@ -923,16 +923,16 @@ function drawHair(x,C,D,hx,hy,hc,cid){
   const fringe=()=>{
     rect(x,L+2,base-4,hw-4,4,hc);
     if(bang==="straight"){
-      // 後層：深色、長一點
-      const back=[[0,3,4],[3,4,3],[7,3,5],[10,4,4],[14,3,3],[17,4,5],[21,3,4],[24,4,3]];
-      back.forEach(([o,w,h])=>{const u=L+2+o;if(u+w>R)return;for(let v=0;v<h;v++){const ww=v>=h-1?Math.max(1,w-2):v>=h-2?Math.max(1,w-1):w;rect(x,u+ri((w-ww)/2),base+v,ww,1,dk)}});
-      // 前層：寬窄長短都不一樣，尾端圓的
-      const front=[[1,3,2],[4,2,1],[6,4,3],[10,3,2],[13,2,3],[15,4,1],[19,3,3],[22,2,2],[24,3,1]];
-      front.forEach(([o,w,h])=>{const u=L+2+o;if(u+w>R)return;for(let v=-4;v<h;v++){const ww=v>=h-1?Math.max(1,w-2):v>=h-2?Math.max(1,w-1):w;rect(x,u+ri((w-ww)/2),base+v,ww,1,hc)}});
-      // 髮絲：幾條細線，深淺交錯
-      [[2,-3,4,dk],[8,-3,5,lt],[12,-3,3,dk],[17,-3,4,dk],[20,-3,3,lt],[25,-3,3,dk]].forEach(([o,v0,len,col])=>{const u=L+2+o;if(u<R)rect(x,u,base+v0,1,len,col)});
-    }
-    else if(bang==="m"){tooth(L+2,5,3);tooth(L+6,5,5);tooth(L+10,4,3);tooth(R-9,4,3);tooth(R-6,5,5);tooth(R-2,3,3)}
+      // 整片由長髮束組成：寬 2~4、長短不一、尾端圓的；下半段束與束之間留一格縫，描邊後變成黑線
+      const strands=[[0,3,10],[4,2,8],[7,3,11],[11,4,9],[16,2,10],[19,3,8],[23,3,11],[27,2,9]];
+      const y0=top+hh*.22;
+      strands.forEach(([o,w,h])=>{const u=L+1+o;if(u>=R)return;const ww=Math.min(w,R-u);
+        for(let v=0;v<h;v++){const tipW=v>=h-1?Math.max(1,ww-2):v>=h-2?Math.max(1,ww-1):ww;rect(x,u+ri((ww-tipW)/2),y0+v,tipW,1,hc)}});
+      // 縫：相鄰髮束之間下半段清掉一格
+      strands.forEach(([o,w,h],i)=>{if(i===0)return;const u=L+1+o-1;if(u>=R)return;x.clearRect(u,y0+Math.max(3,h-6),1,h)});
+      // 幾條淺色髮絲
+      [[1,1,4],[8,1,5],[12,2,4],[20,1,5],[24,1,4]].forEach(([o,dx,len])=>{const u=L+1+o+dx;if(u<R)rect(x,u,y0+1,1,len,lt)});
+    }    else if(bang==="m"){tooth(L+2,5,3);tooth(L+6,5,5);tooth(L+10,4,3);tooth(R-9,4,3);tooth(R-6,5,5);tooth(R-2,3,3)}
     else if(bang==="side"){tooth(L+2,4,2);tooth(L+5,5,3);tooth(L+9,6,5);tooth(L+14,6,6);tooth(L+19,5,4);tooth(R-4,4,2)}
     else if(bang==="up"){for(let u=L+2,k=0;u<R-1;u+=4,k++)tooth(u,4,k%2?2:1)}
     // 瀏海底下深一階
@@ -1026,7 +1026,7 @@ function drawSprite(cid,pn){
   if(has("beard"))part(m,x=>{for(let v=0;v<6;v++)rect(x,hx+7+v,hy+D.hh-2+v,D.hw-14-v*2,1,"#EEEEEE")});
   // ---- 五官（不描邊）----
   part(m,x=>{
-    const ey=fy+3,e1=hx+ri(D.hw*.3),e2=hx+ri(D.hw*.7)-2;
+    const ey=fy+(BANG[cid]==="straight"?2:3),e1=hx+ri(D.hw*.3),e2=hx+ri(D.hw*.7)-2;
     if(fullMask){rect(x,e1-1,ey-1,4,5,"#fff");rect(x,e2-1,ey-1,4,5,"#fff")}
     if(P.hurt){[e1,e2].forEach(e=>{for(let k=-1;k<=1;k++){rect(x,e+k,ey+1+k,1,1,PXOL);rect(x,e-k,ey+1+k,1,1,PXOL)}})}
     else if(P.happy){[e1,e2].forEach(e=>{rect(x,e-1,ey+1,1,1,PXOL);rect(x,e,ey,1,1,PXOL);rect(x,e+1,ey+1,1,1,PXOL)})}
