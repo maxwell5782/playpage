@@ -287,6 +287,21 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .wm .wi small{color:var(--soft)}
 .wm .st{align-self:flex-start;background:var(--pink2);border-radius:999px;padding:1px 10px;font-size:12px;font-weight:700;margin-top:2px}
 .wm button.here .st{background:var(--pink);color:#fff}
+
+/* ---------- word book ---------- */
+.wb-list{width:100%;max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:5px;text-align:left;padding:2px}
+.wb-row{display:grid;grid-template-columns:20px minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:6px 8px;border-radius:12px;background:#fff;border:1.5px solid var(--line)}
+.wb-row.ok{background:var(--mint2);border-color:#A9E6D2}
+.wb-row .st{color:var(--good);font-weight:900;text-align:center}
+.wb-row .w{display:flex;flex-direction:column;min-width:0}
+.wb-row .w b{font-size:17px;overflow-wrap:anywhere}
+.wb-row .w small{color:var(--soft);font-size:13px}
+.wb-row .cnt{display:flex;gap:4px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.wb-row .cnt i{font-style:normal;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.wb-row .cnt .g{color:var(--good);background:#E2F8F0}
+.wb-row .cnt .b{color:var(--bad);background:#FFE6EC}
+.wb-row .spk{min-height:34px;padding:2px 12px}
+.wb-star{font-size:72px;line-height:1;color:#FFC93C;text-shadow:0 4px 0 #E5A52E;animation:pop .4s ease-out}
 </style>
 </head>
 <body>
@@ -353,7 +368,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
       <button class="btn sm dress" data-act="book">怪獸圖鑑</button>
       <button class="btn sm" data-act="level">換關卡</button>
       <button class="btn sm" data-act="rules">規則</button>
-      <button class="btn sm" data-act="missed">錯字本</button>
+      <button class="btn sm" data-act="words" id="btnWords">單字本</button>
       <button class="btn sm" data-act="save">存檔</button>
       <button class="btn sm" data-act="home">主選單</button>
     </div>
@@ -1223,6 +1238,7 @@ function render(){
   <div class="mini">${ZONES.map((z,k)=>`<span class="zp${p.pass[k]?' on':''}" style="--zc:${z.color}">${z.zone} ${countOf(p,k)}</span>`).join('')}</div>
   <small>怪獸圖鑑 ${p.items.length}/${TOTAL}・答對 ${p.right}・答錯 ${p.wrong}</small>
   <div class="bar"><i style="width:${(p.items.length/TOTAL*100).toFixed(1)}%"></i></div></div>`;
+ try{$('#btnWords').textContent=allPassed()?'單字本 ★':'單字本'}catch(e){}
  renderRunners();
 }
 
@@ -1308,7 +1324,7 @@ async function landOn(){
  const p=cur(),m=MAP(),c=m.cells[p.pos];
  switch(c.t){
   case 'word':{
-   const w=nextWord();const ok=await quiz(w);
+   const w=nextWord();const ok=await quiz(w);await recordWord(w,ok);
    if(ok){
     add(p,REWARD[G.level]);p.right++;setMsg(`答對了！拿到 ${REWARD[G.level]} 星星幣`);
     if(Math.random()<.3){const g=grantHere(p,1);if(g.length){render();await showCatch(p,g,`答對加碼！野生${ZONES[m.z].el}系怪獸跑來了`)}}
@@ -1369,10 +1385,11 @@ async function onGate(p){
 /* ---------- 對話框 ---------- */
 let modalResolve=null,teamSt=null,bookSt=null;
 function openModal(html,wide){const c=$('#modalCard');c.className='card'+(wide?' wide':'');c.innerHTML=html;$('#modal').hidden=false;return new Promise(r=>modalResolve=r)}
-function closeModal(v){$('#modal').hidden=true;teamSt=null;bookSt=null;const r=modalResolve;modalResolve=null;r&&r(v)}
+function closeModal(v){$('#modal').hidden=true;teamSt=null;bookSt=null;wbSt=null;const r=modalResolve;modalResolve=null;r&&r(v)}
 $('#modalCard').addEventListener('click',e=>{
  const s=e.target.closest('[data-speak]');if(s){speak(s.dataset.speak);return}
  if(teamSt&&teamClick(e))return;
+ if(wbSt&&wordsClick(e))return;
  if(bookSt&&bookClick(e))return;
  const b=e.target.closest('[data-v]');if(b&&!b.disabled)closeModal(b.dataset.v);
 });
@@ -1555,6 +1572,43 @@ setInterval(()=>{
  r.appendChild(b);setTimeout(()=>b.remove(),2400);
 },1600);
 
+/* ---------- 單字本（記錄每個字答對、答錯幾次） ---------- */
+let wbSt=null;
+const WB_BONUS=300;
+const wordList=()=>{const seen=new Set();return WORDS[G.part].filter(w=>!seen.has(w.en)&&seen.add(w.en))};
+const wstat=en=>((G.stats||(G.stats={}))[en])||[0,0];
+const wPassed=en=>wstat(en)[0]>0;
+const allPassed=()=>wordList().every(w=>wPassed(w.en));
+async function recordWord(w,ok){
+ if(!G.stats)G.stats={};
+ const before=allPassed();
+ const s=G.stats[w.en]||(G.stats[w.en]=[0,0]);
+ s[ok?0:1]++;
+ if(ok&&!before&&allPassed()&&!G.wordStar){
+  G.wordStar=true;cur().coins+=WB_BONUS;save(true);render();
+  const n=wordList().length;
+  await openModal(`<div class="wb-star">★</div><h3>全部單字都過關了！</h3><p>${partName(G.part)} 的 ${n} 個單字都答對過，太厲害了！<br>獎勵 <b>${WB_BONUS}</b> 星星幣</p><div class="m-btns"><button class="btn pri" data-v="ok">耶！</button></div>`);
+ }
+}
+function openWords(){const pr=openModal('',true);wbSt={f:'all'};drawWords();return pr}
+function drawWords(){
+ const list=wordList(),n=list.length,ok=list.filter(w=>wPassed(w.en)).length,all=ok===n,f=wbSt.f;
+ let show=list.filter(w=>{const[r,x]=wstat(w.en);return f==='all'||(f==='pass'&&r>0)||(f==='todo'&&r===0)||(f==='miss'&&x>0)});
+ if(f==='miss')show=show.slice().sort((a,b)=>wstat(b.en)[1]-wstat(a.en)[1]);
+ const tabs=[['all','全部'],['todo','還沒過關'],['pass','已過關'],['miss','答錯過']];
+ $('#modalCard').innerHTML=`<h3>${all?'★ ':''}單字本</h3>
+ ${all?`<div class="wb-star">★</div><p><b>全部單字都過關了！</b></p>`:''}
+ <div class="bk-top"><div class="big">已過關 ${ok} / ${n}</div><div class="bar" style="height:12px"><i style="width:${(ok/n*100).toFixed(1)}%"></i></div></div>
+ <div class="tabs">${tabs.map(t=>`<button data-wf="${t[0]}" class="${t[0]===f?'on':''}">${t[1]}</button>`).join('')}</div>
+ <div class="wb-list">${show.length?show.map(w=>{const[r,x]=wstat(w.en);return `<div class="wb-row${r>0?' ok':''}"><span class="st">${r>0?'✓':''}</span><span class="w"><b>${esc(w.en)}</b><small>${esc(w.zh)}</small></span><span class="cnt"><i class="g">對 ${r}</i><i class="b">錯 ${x}</i></span><button class="spk" data-speak="${esc(w.en)}" aria-label="聽 ${esc(w.en)}">聽</button></div>`}).join(''):'<p style="text-align:center">這裡還沒有單字喔</p>'}</div>
+ <small style="color:var(--soft)">答對一次就算過關，${n} 個單字全部過關會出現 ★</small>
+ <div class="m-btns"><button class="btn pri" data-v="ok">關閉</button></div>`;
+}
+function wordsClick(e){
+ const t=e.target.closest('[data-wf]');if(!t)return false;
+ wbSt.f=t.dataset.wf;drawWords();const l=$('#modalCard .wb-list');if(l)l.scrollTop=0;return true;
+}
+
 /* ---------- 其他按鈕 ---------- */
 function rulesHtml(){return `<h3>遊戲規則</h3><div class="rules">
  <div><b>出發：</b>一開始有 ${START} 星星幣，擲骰子在地圖外圈冒險。經過基地拿 ${BONUS_START}。</div>
@@ -1567,6 +1621,7 @@ function rulesHtml(){return `<h3>遊戲規則</h3><div class="rules">
  <div><b>捷徑：</b>每張地圖都有一條捷徑（熔岩橋、浮木橋、樹洞小路、閃電通道、滑雪道），<u>剛好停在捷徑入口</u>才可以選擇要不要走。</div>
  <div><b>幸運星和四個角落：</b>會有驚喜！</div>
  <div><b>目標：</b>收齊圖鑑就是怪獸大師！</div>
+ <div><b>單字本：</b>記錄每個單字答對、答錯幾次。答對一次就算過關，全部單字都過關會出現 ★，還有 ${WB_BONUS} 星星幣獎勵！</div>
  <div><b>存檔：</b>每走完一回合會自動存檔，在主選單可以繼續玩。</div></div>
  <div class="m-btns"><button class="btn pri" data-v="ok">知道了</button></div>`}
 function missedHtml(){
@@ -1582,6 +1637,7 @@ document.addEventListener('click',e=>{
  if(act==='world'){if(busy||modalResolve){toast('等這一步走完再換地圖喔');return}openWorld()}
  if(act==='book'){if(busy||modalResolve){toast('等這一步走完再看圖鑑喔');return}openBook()}
  if(act==='level'){if(busy||modalResolve){toast('等這一步走完再換關卡喔');return}openLevel()}
+ if(act==='words'&&!modalResolve)openWords();
  if(act==='save')save(false);
  if(act==='home'){if(busy){toast('等這一步走完再回主選單喔');return}if(G)save(true);renderSlots();show('scrTitle')}
 });
