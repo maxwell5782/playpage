@@ -908,32 +908,67 @@ function part(main,fn,noOutline){
 }
 const ell=(x,cx,cy,rx,ry,col)=>{x.fillStyle=col;for(let v=-ry;v<=ry;v++)for(let u=-rx;u<=rx;u++)if((u*u)/(rx*rx)+(v*v)/(ry*ry)<=1)x.fillRect(cx+u,cy+v,1,1)};
 const rect=(x,u,v,w,h,col)=>{x.fillStyle=col;x.fillRect(u,v,w,h)};
-/* 頭髮：一大團，蓋住臉的上半部，下緣鋸齒 */
-function drawHair(x,C,D,hx,hy,hc){
-  const st=C.h,hw=D.hw,hh=D.hh,cx=hx+hw/2,top=hy;
-  const blob=(extra)=>{ell(x,cx,top+hh*.3,hw/2+(extra||0),hh*.32+(extra||0)/2,hc)};
-  const jag=(base,amp,w,from,to)=>{ // 鋸齒下緣：base 是最短處，往下長 amp
-    let k=0;for(let u=from;u<to;u+=w){const L=amp*((k%2)?1:.5);for(let i=0;i<w&&u+i<to;i++){const t=1-Math.abs(i-(w-1)/2)/((w+1)/2);rect(x,u,base,1,ri(L*t)+1,hc)}k++}};
-  const L=hx+1,R=hx+hw-1;
+/* ---- 頭髮：每種髮型有自己的輪廓；瀏海分中分、旁分、齊瀏海、上翹；髮尾深一階 ---- */
+const BANG={0:"side",1:"straight",2:"none",3:"none",4:"m",5:"none",6:"m",7:"straight",8:"up",9:"none",10:"straight",11:"none",12:"up",13:"none",14:"straight",15:"up",16:"m",17:"straight",18:"up",19:"none",20:"none",21:"m",22:"m",23:"side",24:"m",25:"side",26:"side",27:"side",28:"m",29:"up"};
+function drawHair(x,C,D,hx,hy,hc,cid){
+  const st=C.h,hw=D.hw,hh=D.hh,cx=hx+hw/2,top=hy,L=hx+1,R=hx+hw-1,dk=shade(hc,-.28),lt=shade(hc,.35);
+  const dome=(ex,ey,col)=>ell(x,cx,top+hh*.3,hw/2+(ex||0),hh*.32+(ey||0),col||hc);
+  // 側髮：框住臉的兩束
+  const sides=(len,w,col)=>{for(let k=0;k<w;k++){rect(x,L+k,top+hh*.3,1,len-((k%2)?2:0),col||hc);rect(x,R-k,top+hh*.3,1,len-((k%2)?2:0),col||hc)}
+    for(let k=0;k<w;k++){rect(x,L+k,top+hh*.3+len-3-((k%2)?2:0),1,3,dk);rect(x,R-k,top+hh*.3+len-3-((k%2)?2:0),1,3,dk)}};
+  // 瀏海
+  const base=top+hh*.5;
+  const bang=BANG[cid]||"straight";
+  const tooth=(u,w,h,col)=>{for(let v=0;v<h;v++){const ww=Math.max(1,ri(w*(1-v/h)));rect(x,u+ri((w-ww)/2),base+v,ww,1,col||hc)}};
+  const fringe=()=>{
+    rect(x,L+2,base-4,hw-4,4,hc);
+    if(bang==="straight"){for(let u=L+2,k=0;u<R-1;u+=4,k++)tooth(u,4,k%2?4:3)}
+    else if(bang==="m"){tooth(L+2,5,3);tooth(L+6,5,5);tooth(L+10,4,3);tooth(R-9,4,3);tooth(R-6,5,5);tooth(R-2,3,3)}
+    else if(bang==="side"){tooth(L+2,4,2);tooth(L+5,5,3);tooth(L+9,6,5);tooth(L+14,6,6);tooth(L+19,5,4);tooth(R-4,4,2)}
+    else if(bang==="up"){for(let u=L+2,k=0;u<R-1;u+=4,k++)tooth(u,4,k%2?2:1)}
+    // 瀏海底下深一階
+    for(let u=L+2;u<R-1;u++){let v=base+12;while(v>base-4&&x.getImageData(u,v,1,1).data[3]===0)v--;if(v>base-4)rect(x,u,v,1,1,dk)}
+  };
   switch(st){
-    case "long":blob();for(let u=L;u<R;u++){const len=hh+12-((u-L)%5===2?3:0);if(u<L+5||u>R-6)rect(x,u,top+hh*.3,1,len,hc)}jag(top+hh*.55,3,4,L+3,R-3);break;
-    case "pony":blob();rect(x,hx-4,top+8,5,hh+6,hc);rect(x,hx-6,top+hh+8,5,5,hc);jag(top+hh*.55,3,4,L+2,R-2);break;
-    case "twin":blob();rect(x,hx-5,top+hh*.5,5,hh*.8,hc);rect(x,hx+hw,top+hh*.5,5,hh*.8,hc);jag(top+hh*.55,3,4,L+2,R-2);break;
-    case "bun":blob();ell(x,hx+6,top-2,6,5,hc);jag(top+hh*.55,3,5,L+2,R-2);break;
-    case "bob":blob(1);for(let u=L;u<R;u++)if(u<L+5||u>R-6)rect(x,u,top+hh*.3,1,hh*.6,hc);jag(top+hh*.56,3,5,L+2,R-2);break;
-    case "topknot":ell(x,cx,top+hh*.3,hw/2,hh*.3,hc);ell(x,cx,top-1,5,5,hc);jag(top+hh*.55,3,4,L+3,R-3);break;
-    case "spiky":blob();[[.1,5],[.3,8],[.5,10],[.7,8],[.9,5]].forEach(([f,h])=>{const u=ri(hx+hw*f);for(let v=0;v<h;v++)rect(x,u-ri((h-v)/3),top+hh*.05-v,ri((h-v)/1.5)+1,1,hc)});jag(top+hh*.55,3,4,L+2,R-2);break;
-    case "wild":blob(2);[[.0,6],[.2,9],[.4,11],[.6,10],[.8,9],[1,6]].forEach(([f,h])=>{const u=ri(hx+hw*f);for(let v=0;v<h;v++)rect(x,u-ri((h-v)/2.5),top+hh*.1-v,ri((h-v)/1.3)+1,1,hc)});for(let u=L;u<R;u++)if(u<L+4||u>R-5)rect(x,u,top+hh*.3,1,hh*.7,hc);jag(top+hh*.55,4,4,L+2,R-2);break;
-    case "mohawk":rect(x,cx-4,top-8,8,hh*.55,hc);for(let v=0;v<6;v++)rect(x,cx-4+v,top-8-v,8-v*2,1,hc);break;
+    case "long":dome(0,0,dk);for(let u=L-1;u<=R;u++){const d=Math.min(u-L+1,R-u),len=hh+10+(d<2?3:0)-((u-L)%5===2?2:0);if(d<6){rect(x,u,top+hh*.3,1,len,d<1?dk:hc);rect(x,u,top+hh*.3+len-4,1,4,dk)}}dome();fringe();break;
+    case "pony":dome();rect(x,hx-5,top+6,5,hh*.9,dk);rect(x,hx-7,top+hh*.9,5,6,dk);rect(x,hx-4,top+8,2,hh*.8,hc);sides(hh*.45,3);fringe();break;
+    case "twin":dome();rect(x,hx-6,top+hh*.45,6,hh*.85,hc);rect(x,hx+hw,top+hh*.45,6,hh*.85,hc);rect(x,hx-6,top+hh*.45+hh*.85-4,6,4,dk);rect(x,hx+hw,top+hh*.45+hh*.85-4,6,4,dk);rect(x,hx-7,top+hh*.45,8,2,C.c3);rect(x,hx+hw-1,top+hh*.45,8,2,C.c3);sides(hh*.3,2);fringe();break;
+    case "bun":dome();ell(x,hx+7,top-1,6,5,hc);ell(x,hx+7,top-1,4,3,dk);rect(x,hx+4,top-1,6,2,C.c3);sides(hh*.4,2);fringe();break;
+    case "bob":dome(1,1);for(let u=L;u<R;u++)if(u<L+6||u>R-7)rect(x,u,top+hh*.3,1,hh*.62-((u-L)%3?0:2),hc);for(let u=L;u<R;u++)if(u<L+6||u>R-7)rect(x,u,top+hh*.3+hh*.62-3-((u-L)%3?0:2),1,3,dk);fringe();break;
+    case "topknot":ell(x,cx,top+hh*.32,hw/2,hh*.3,hc);ell(x,cx,top-2,6,5,hc);rect(x,cx-3,top+2,6,2,C.c3);rect(x,L+2,base-6,hw-4,3,hc);for(let u=L+2,k=0;u<R-1;u+=5,k++)tooth(u,4,2);break;
+    case "spiky":dome();sides(hh*.42,3);[[.05,6,5],[.22,9,6],[.42,11,6],[.62,10,6],[.82,7,5]].forEach(([f,h,w])=>{const u=ri(hx+hw*f);for(let v=0;v<h;v++){const ww=Math.max(1,ri(w*(1-v/h)));rect(x,u+ri((w-ww)/2)-ri(v/4),top+hh*.08-v,ww,1,hc)}});fringe();break;
+    case "wild":dome(2,1);for(let u=L-2;u<R+2;u++)if(u<L+5||u>R-6)rect(x,u,top+hh*.3,1,hh*.8-((u-L)%2?3:0),u<L||u>R?dk:hc);[[-.02,7,5],[.15,10,6],[.33,12,7],[.52,12,7],[.7,11,6],[.88,8,5],[1.02,6,4]].forEach(([f,h,w])=>{const u=ri(hx+hw*f);for(let v=0;v<h;v++){const ww=Math.max(1,ri(w*(1-v/h)));rect(x,u+ri((w-ww)/2)-ri(v/3),top+hh*.1-v,ww,1,hc)}});fringe();break;
+    case "short":dome();sides(hh*.38,3);fringe();break;
+    case "mohawk":rect(x,cx-4,top-9,8,hh*.6,hc);for(let v=0;v<6;v++)rect(x,cx-4+v,top-9-v,8-v*2,1,hc);rect(x,cx-1,top-6,2,hh*.5,lt);break;
     case "bald":break;
-    case "helmet":case "knight":ell(x,cx,top+hh*.36,hw/2+1,hh*.38,hc);rect(x,hx+1,top+hh*.55,hw-2,3,shade(hc,-.45));break;
-    case "ninja":ell(x,cx,top+hh*.5,hw/2,hh*.5,hc);break;
-    case "tiger":case "bunny":case "wolf":ell(x,cx,top+hh*.5,hw/2+1,hh*.5,hc);break;
-    case "tophat":blob();jag(top+hh*.55,3,4,L+2,R-2);break;
-    default:blob();jag(top+hh*.55,3,4,L+2,R-2);
+    case "helmet":case "knight":ell(x,cx,top+hh*.36,hw/2+1,hh*.38,hc);rect(x,hx+1,top+hh*.55,hw-2,3,shade(hc,-.45));rect(x,hx+4,top+4,6,2,lt);rect(x,cx-1,top+hh*.4,2,hh*.2,shade(hc,-.45));break;
+    case "ninja":ell(x,cx,top+hh*.5,hw/2,hh*.5,hc);rect(x,hx+3,top+hh*.58,hw-6,2,shade(hc,-.4));break;
+    case "tiger":case "bunny":case "wolf":ell(x,cx,top+hh*.5,hw/2+1,hh*.5,hc);rect(x,hx+4,top+4,6,2,lt);break;
+    case "tophat":dome();sides(hh*.4,2);fringe();break;
+    default:dome();sides(hh*.4,2);fringe();
   }
-  // 頭髮上兩三筆淺色
-  if(!["bald","ninja","helmet","knight","tiger","bunny","wolf","mohawk"].includes(st)){const lc=shade(hc,.35);rect(x,cx-hw*.3,top+4,4,1,lc);rect(x,cx-hw*.3+1,top+6,2,1,lc);rect(x,cx+hw*.05,top+3,3,1,lc)}
+  if(!["bald","ninja","helmet","knight","tiger","bunny","wolf","mohawk"].includes(st)){rect(x,cx-hw*.3,top+4,4,1,lt);rect(x,cx-hw*.3+1,top+6,2,1,lt);rect(x,cx+hw*.08,top+3,3,1,lt)}
+}
+/* ---- 服裝款式 ---- */
+const OUTFIT={0:"coat",1:"dress",2:"wrestler",3:"ninja",4:"tank",5:"monk",6:"coat",7:"dress",8:"vest",9:"gi",10:"dress",11:"armor",12:"robe",13:"vest",14:"dress",15:"armor",16:"vest",17:"robe",18:"tank",19:"armor",20:"ninja",21:"dress",22:"gi",23:"vest",24:"tank",25:"coat",26:"armor",27:"coat",28:"dress",29:"armor"};
+function drawBody(x,C,D,cid,tTop,hipY,tL,tR,fem,skin){
+  const c1=C.c1,c2=C.c2,c3=C.c3,ot=OUTFIT[cid]||(fem?"dress":"gi"),dk=shade(c1,-.25),lt=shade(c1,.25);
+  const body=(col)=>{for(let v=0;v<D.th;v++){const w=D.tw+ri(v*.5);rect(x,SPX-(w>>1),tTop+v,w,1,col)}};
+  const belt=()=>{rect(x,tL,hipY-3,D.tw+ri(D.th*.5)-1,2,c3);rect(x,SPX-1,hipY-3,3,2,shade(c3,.4))};
+  const neckV=(col,d)=>{for(let k=0;k<d;k++)rect(x,SPX-d+1+k,tTop+k,(d-k)*2-1,1,col)};
+  switch(ot){
+    case "gi":body(c1);rect(x,SPX+1,tTop,1,D.th-3,dk);for(let k=0;k<5;k++){rect(x,SPX-3+k,tTop+k,1,1,dk);rect(x,SPX+1,tTop+k+2,1,1,dk)}neckV(skin,3);belt();break;
+    case "coat":body(c1);rect(x,SPX-2,tTop,5,D.th,c2===c1?dk:c2);rect(x,SPX-3,tTop,1,D.th,dk);rect(x,SPX+3,tTop,1,D.th,dk);rect(x,SPX-1,tTop,3,2,skin);rect(x,tL+1,tTop+2,2,D.th-2,lt);rect(x,tR-2,tTop+2,2,D.th-2,lt);belt();break;
+    case "dress":body(c1);{const w=D.tw+ri(D.th*.5)+4;for(let v=0;v<4;v++)rect(x,SPX-(w>>1)-(v>>1),hipY-2+v,w+(v>>1)*2,1,v===3?dk:c1)}rect(x,tL+2,tTop,D.tw-4,2,"#FFFFFF");rect(x,SPX-1,tTop,3,1,skin);rect(x,SPX,tTop+3,1,2,c3);rect(x,tL,hipY-4,D.tw+ri(D.th*.5)-1,2,c3);break;
+    case "wrestler":body(c1);rect(x,tL-1,tTop,4,D.th-2,c2);rect(x,tR-3,tTop,4,D.th-2,c2);rect(x,SPX-3,tTop+3,7,3,c3);belt();break;
+    case "ninja":body(c1);rect(x,tL,tTop,D.tw,1,dk);for(let k=0;k<D.th-2;k++)rect(x,tL+2+ri(k*.8),tTop+k,2,1,dk);rect(x,tL,hipY-3,D.tw+ri(D.th*.5)-1,2,c3);break;
+    case "tank":body(c1);rect(x,tL+1,tTop,3,2,skin);rect(x,tR-4,tTop,3,2,skin);rect(x,SPX-2,tTop,5,1,skin);rect(x,SPX-4,tTop+4,9,2,c3);belt();break;
+    case "monk":body(c1);rect(x,tL,tTop,D.tw,D.th,c1);for(let k=0;k<D.th;k++)rect(x,tR-5+ri(k*.3),tTop+k,2,1,dk);rect(x,tL,tTop,ri(D.tw*.55),1,skin);rect(x,SPX-2,tTop,5,1,skin);rect(x,tL,hipY-4,D.tw+ri(D.th*.5)-1,3,c3);break;
+    case "vest":body(c2);rect(x,tL+2,tTop,D.tw-4,D.th,c1);rect(x,tL+2,tTop,2,D.th,dk);rect(x,tR-4,tTop,2,D.th,dk);rect(x,SPX-2,tTop,5,1,skin);rect(x,SPX,tTop+3,1,D.th-4,dk);belt();break;
+    case "armor":body(c1);rect(x,tL+2,tTop+2,D.tw-4,ri(D.th*.55),lt);rect(x,tL+3,tTop+3,D.tw-6,2,"#FFFFFF");rect(x,SPX,tTop+2,1,ri(D.th*.55),dk);rect(x,tL-1,tTop,4,3,c3);rect(x,tR-3,tTop,4,3,c3);belt();break;
+    case "robe":body(c1);rect(x,SPX-5,tTop,11,1,skin);for(let k=0;k<D.th-3;k++)rect(x,SPX-5+ri(k*.5),tTop+k,2,1,c3);rect(x,tL,hipY-4,D.tw+ri(D.th*.5)-1,3,c3);break;
+    default:body(c1);belt();
+  }
 }
 function drawSprite(cid,pn){
   const key=cid+"|"+pn;if(SPC[key])return SPC[key];
@@ -953,22 +988,20 @@ function drawSprite(cid,pn){
   if(has("scarf"))part(m,x=>{for(let k=0;k<8;k++)rect(x,tL-1-k,tTop+(k>>1),1,3,c3)});
   // ---- 後手、後腳 ----
   const arm=(sh,o,col)=>x=>{const h=[sh[0]+o[0],sh[1]+o[1]];pline(x,sh[0],sh[1],h[0],h[1],D.aw,col);
+    if(C.sl){const cf=[ri(sh[0]+o[0]*.8),ri(sh[1]+o[1]*.8)];pline(x,cf[0],cf[1],ri(sh[0]+o[0]*.9),ri(sh[1]+o[1]*.9),D.aw,shade(col,-.3))}
     if(C.w==="glove")rect(x,h[0]-3,h[1]-3,6,6,c3);else rect(x,h[0]-2,h[1]-2,4,4,skin)};
   const leg=(hp,o,col)=>x=>{const ft=[hp[0]+o[0],groundY+o[1]];rect(x,ft[0]-3,ft[1]-D.L+1,6,D.L-2,col);rect(x,ft[0]-3,ft[1]-2,7,2,shoe)};
   part(m,arm(shB,ba,C.sl?shade(c1,-.15):skin));
   part(m,leg([SPX-4,hipY],P.bl,c2));
-  // ---- 身體（胖梯形） ----
-  part(m,x=>{for(let v=0;v<D.th;v++){const w=D.tw+ri(v*.5);rect(x,SPX-(w>>1),tTop+v,w,1,c1)}
-    if(fem){const w=D.tw+ri(D.th*.5)+2;rect(x,SPX-(w>>1),hipY-1,w,2,c1)}
-    rect(x,tL+1,hipY-3,D.tw-2+ri(D.th*.5),1,c3);
-    if(C.sl&&!fem){for(let k=0;k<3;k++)rect(x,SPX-2+k,tTop+k,5-k*2,1,c1===c3?shade(c1,.3):c3)}else rect(x,SPX-2,tTop,5,1,skin)});
+  // ---- 身體 ----
+  part(m,x=>drawBody(x,C,D,cid,tTop,hipY,tL,tR,fem,skin));
   // ---- 前腳 ----
   part(m,leg([SPX+4,hipY],P.fl,c2));
   // ---- 臉 ----
   part(m,x=>{ell(x,hx+D.hw/2,hy+D.hh*.52,D.hw/2-2,D.hh*.5,fullMask?c3:skin);
     if(fullMask){for(let k=0;k<3;k++)rect(x,hx+6+k,fy-2+k,D.hw-12-k*2,1,c1)}});
   // ---- 頭髮、頭飾 ----
-  part(m,x=>drawHair(x,C,D,hx,hy,hc));
+  part(m,x=>drawHair(x,C,D,hx,hy,hc,cid));
   if(C.h==="ninja")part(m,x=>rect(x,hx+5,fy,D.hw-10,6,skin),true);
   if(["tiger","bunny","wolf"].includes(C.h))part(m,x=>ell(x,hx+D.hw/2,fy+4,D.hw/2-5,5,skin),true);
   if(has("band"))part(m,x=>{rect(x,hx-1,fy-1,D.hw+2,3,c3);rect(x,hx-5,fy,4,2,c3);rect(x,hx-8,fy+2,4,2,c3)});
