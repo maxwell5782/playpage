@@ -954,7 +954,11 @@ function drawHair(x,C,D,hx,hy,hc,cid){
     if(bang==="up")for(let u=L+2;u<R-1;u++){let v=base+12;while(v>base-4&&x.getImageData(u,v,1,1).data[3]===0)v--;if(v>base-4)rect(x,u,v,1,1,dk)}
   };
   switch(st){
-    case "long":dome(0,0,dk);for(let u=L-1;u<=R;u++){const d=Math.min(u-L+1,R-u),len=hh+3+(d<2?2:0)-((u-L)%5===2?2:0);if(d<6){rect(x,u,top+hh*.3,1,len,d<1?dk:hc);rect(x,u,top+hh*.3+len-4,1,4,dk)}}dome();fringe();break;
+    case "long":dome(0,0,dk);for(let u=L-1;u<=R;u++){const d=Math.min(u-L+1,R-u),len=hh+3+(d<2?2:0)-((u-L)%5===2?2:0);if(d<6){rect(x,u,top+hh*.3,1,len,d<1?dk:hc);rect(x,u,top+hh*.3+len-4,1,4,dk)}}
+      if(C.n==="蛇姬"){const tieY=top+hh*.3+hh+3-7;// 腰的地方綁起來：綁帶以下收窄
+        x.clearRect(L-1,tieY,2,12);x.clearRect(R,tieY,2,12);x.clearRect(L+1,tieY+3,1,12);x.clearRect(R-2,tieY+3,1,12);
+        rect(x,L-1,tieY,6,3,C.c3);rect(x,R-4,tieY,6,3,C.c3);rect(x,L+1,tieY+1,2,1,shade(C.c3,-.35));rect(x,R-2,tieY+1,2,1,shade(C.c3,-.35))}
+      dome();fringe();break;
     case "pony":dome();rect(x,hx-5,top+6,5,hh*.9,dk);rect(x,hx-7,top+hh*.9,5,6,dk);rect(x,hx-4,top+8,2,hh*.8,hc);sides(hh*.45,3);fringe();break;
     case "twin":dome();rect(x,hx-6,top+hh*.45,6,hh*.85,hc);rect(x,hx+hw,top+hh*.45,6,hh*.85,hc);rect(x,hx-6,top+hh*.45+hh*.85-4,6,4,dk);rect(x,hx+hw,top+hh*.45+hh*.85-4,6,4,dk);rect(x,hx-7,top+hh*.45,8,2,C.c3);rect(x,hx+hw-1,top+hh*.45,8,2,C.c3);sides(hh*.3,2);fringe();break;
     case "bun":dome();ell(x,hx+7,top-1,6,5,hc);ell(x,hx+7,top-1,4,3,dk);rect(x,hx+4,top-1,6,2,C.c3);sides(hh*.4,2);fringe();break;
