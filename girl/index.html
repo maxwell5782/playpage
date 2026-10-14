@@ -286,6 +286,42 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .wb-row .cnt .b{color:var(--bad);background:#FFE6EC}
 .wb-row .spk{min-height:34px;padding:2px 12px}
 .wb-star{font-size:72px;line-height:1;color:#FFC93C;text-shadow:0 4px 0 #E5A52E;animation:pop .4s ease-out}
+
+/* ---------- hidden group uniforms ---------- */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes floaty{50%{transform:translateY(-5%)}}
+#board.world .lair{position:absolute;width:21%;aspect-ratio:100/148;transform:translate(-50%,-50%);border:0;background:none;padding:0;cursor:pointer;z-index:1}
+#board.world .lair .lair-idol{position:relative;width:100%;height:100%;display:block;animation:floaty 2.6s ease-in-out infinite;filter:drop-shadow(0 4px 6px rgba(90,46,87,.4))}
+.lair-glow{position:absolute;left:50%;top:50%;width:150%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,240,170,.95) 0,rgba(255,200,230,.55) 40%,rgba(255,255,255,0) 70%);pointer-events:none}
+.lair-glow::before{content:"";position:absolute;inset:8%;border-radius:50%;background:repeating-conic-gradient(rgba(255,255,255,.55) 0 6deg,transparent 6deg 30deg);animation:spin 18s linear infinite;-webkit-mask:radial-gradient(circle,#000 30%,transparent 70%);mask:radial-gradient(circle,#000 30%,transparent 70%)}
+#board.world .lair-tag{position:absolute;z-index:3;left:50%;top:-8%;transform:translateX(-50%);background:linear-gradient(90deg,#FF5C9D,#9B7BFF);color:#fff;font-weight:900;font-size:calc(var(--u)*.52);padding:1px 10px;border-radius:999px;white-space:nowrap;box-shadow:0 2px 0 rgba(90,46,87,.25)}
+#board.world .lair.beat .lair-tag{background:#2FB27A}
+#board.world .cell,#board.world .sc{z-index:2}
+.uni-head{width:100%;display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,var(--uc),#5A2E57);border-radius:20px;padding:8px 14px 8px 8px;color:#fff;text-align:left}
+.uni-art{position:relative;width:84px;height:124px;flex:none}
+.uni-art .uni-big{position:relative;width:100%;height:100%;display:block}
+.uni-art #uniFig{display:block;width:100%;height:100%;transition:filter .5s}
+.uni-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.uni-info b{font-size:21px;letter-spacing:.06em;text-shadow:0 2px 0 rgba(0,0,0,.3)}
+.hpbar{height:16px;border-radius:999px;background:rgba(255,255,255,.22);overflow:hidden;box-shadow:0 0 0 2px rgba(255,255,255,.4) inset}
+.hpbar i{display:block;height:100%;background:linear-gradient(90deg,#FFE066,#FF8FBF,#B79CFF);border-radius:999px;transition:width .4s ease}
+.uni-info small{font-variant-numeric:tabular-nums;opacity:.92;font-size:14px}
+.uni-art.hit{animation:uhit .5s ease}
+.uni-art.atk{animation:uatk .45s ease}
+@keyframes uhit{30%{transform:scale(1.12);filter:brightness(1.4)}}
+@keyframes uatk{25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
+.uni-show{position:relative;width:170px;max-width:60vw;aspect-ratio:100/148;margin-top:10px}
+.uni-show .uni-big{position:relative;width:100%;height:100%;display:block;animation:floaty 2.6s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(90,46,87,.35))}
+.uni-show::before{content:"";position:absolute;left:50%;top:50%;width:160%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,#FFF4B8 0,#FFD3E6 45%,rgba(255,255,255,0) 70%)}
+.boss-rule{background:var(--lav2);border-radius:16px;padding:10px 14px;font-size:15px}
+.uni-row{display:flex;justify-content:center;gap:0;flex-wrap:wrap;background:radial-gradient(ellipse at center,#FFF4B8 0,#FFE0EE 55%,transparent 75%);border-radius:20px;padding:4px}
+.uni-row .uni-mini{width:clamp(54px,15vw,92px);height:auto}
+.it.uniit{border-color:#FFC93C;background:linear-gradient(180deg,#FFFBEA,#FFE9F3)}
+.it.uniit.on{border-color:var(--pink);box-shadow:0 0 0 2px var(--pink) inset}
+.it.uniit.lock{background:#F6F1F5}
+.it.uniit.lock svg{filter:brightness(0) opacity(.18)}
+.it.uniit.lock .q{color:#FFC93C}
+.it.uniit small{font-weight:400;color:var(--soft);font-size:11px}
 </style>
 </head>
 <body>
@@ -1053,13 +1089,17 @@ function idolSVG(i,wear={},opt={}){
   heart:HEART(72,28,7,d.color)
  }[d.acc];
  const legs=`<rect x="41" y="108" width="7" height="28" rx="3.5" fill="${SK}"/><rect x="52" y="108" width="7" height="28" rx="3.5" fill="${SK}"/><path d="M38 88 Q31 98 32 110" stroke="${SK}" stroke-width="6" stroke-linecap="round" fill="none"/><path d="M62 88 Q69 98 68 110" stroke="${SK}" stroke-width="6" stroke-linecap="round" fill="none"/>`;
- let clothes='';
+ let clothes='',uniTop='';
+ const UNI=wear&&wear.uni!=null?+wear.uni:-1;
+ if(UNI>=0){const U=uniformParts(UNI,i,ctx);clothes=U.body;uniTop=U.head}
+ else{
  if(wear&&wear.set)clothes=W('set');
  else clothes=(wear&&wear.bottom?W('bottom'):SKIRT(d.color,shade(d.color,.25)))+(wear&&wear.top?W('top'):TEE('#FFFFFF','#E8D3DE'));
  clothes+=W('coat');
  clothes+=wear&&wear.shoes?W('shoes'):CAT_BY.f.shapes[2][1]('#FFFFFF','#D9BFCD');
+ }
  const face=`<rect x="46" y="76" width="8" height="9" fill="${SK}"/><circle cx="50" cy="55" r="27" fill="${SK}"/>${bangs}<ellipse cx="40" cy="60" rx="4" ry="5" fill="#4A2B45"/><ellipse cx="60" cy="60" rx="4" ry="5" fill="#4A2B45"/><circle cx="41.6" cy="58" r="1.6" fill="#fff"/><circle cx="61.6" cy="58" r="1.6" fill="#fff"/><ellipse cx="33" cy="68" rx="5" ry="3" fill="#FF9FBF" opacity=".75"/><ellipse cx="67" cy="68" rx="5" ry="3" fill="#FF9FBF" opacity=".75"/><path d="M45 70 Q50 75 55 70" stroke="#C2456F" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
- const top=(wear&&wear.head?W('head'):(opt.noAcc?'':acc))+(hairRare?STARP(82,22,4.5,'#FFD35C'):'');
+ const top=(uniTop||(wear&&wear.head?W('head'):(opt.noAcc?'':acc)))+(hairRare?STARP(82,22,4.5,'#FFD35C'):'');
  return `<svg class="${opt.cls||'idol'}" viewBox="${VIEW[opt.view||'full']}" aria-label="${d.name}"><defs>${ctx.defs}</defs>${back}${legs}${clothes}${face}${top}</svg>`;
 }
 function itemThumb(key){
@@ -1069,6 +1109,134 @@ function itemThumb(key){
 const dressIcon=c=>`<svg class="ico" viewBox="0 0 24 24"><path d="M9 3.5 L15 3.5 L14 8 L19 20.5 L5 20.5 L10 8Z" fill="${c}"/><path d="M9.2 3.6 Q12 6.6 14.8 3.6" fill="none" stroke="#fff" stroke-width="1.1"/><path d="M6.5 17.5 L17.5 17.5" stroke="#fff" stroke-width="1"/></svg>`;
 const starSVG=`<svg class="ico" viewBox="0 0 24 24"><polygon points="12,2.5 14.8,8.9 21.7,9.4 16.4,13.8 18.1,20.6 12,16.9 5.9,20.6 7.6,13.8 2.3,9.4 9.2,8.9" fill="#FFC93C" stroke="#E5A52E" stroke-width="1" stroke-linejoin="round"/></svg>`;
 const gateSVG=`<svg class="ico" viewBox="0 0 24 24"><path d="M2.5 19 A9.5 9.5 0 0 1 21.5 19" stroke="#FF6FA8" stroke-width="2.6" fill="none"/><path d="M5.6 19 A6.4 6.4 0 0 1 18.4 19" stroke="#FFC93C" stroke-width="2.6" fill="none"/><path d="M8.7 19 A3.3 3.3 0 0 1 15.3 19" stroke="#2EC4A0" stroke-width="2.6" fill="none"/></svg>`;
+
+/* ================= 隱藏團服（全部單字過關後出現） ================= */
+const UNI_REWARD=500;
+const UNIFORMS=[
+ {name:'甜心公主團服',c:'#FF5C9D',light:'#FFD3E6',cape:'#FFB0D0',boot:'#FFFFFF',motif:'heart',lair:[45,57],txt:'粉紅色的公主舞台裝，裙擺上綴滿了愛心。'},
+ {name:'星光閃耀團服',c:'#6A4FD8',light:'#D6CCFF',cape:'#2E2470',boot:'#3A2F78',motif:'star',lair:[50,40],txt:'像夜空一樣閃亮的演唱會團服，披風上有星星。'},
+ {name:'夏日陽光團服',c:'#FF9A1F',light:'#FFF0B3',cape:'#FFD36B',boot:'#FFFFFF',motif:'sun',lair:[50,27],txt:'充滿陽光的夏日團服，穿上就想跳舞。'},
+ {name:'花之精靈團服',c:'#2FB27A',light:'#D9F7E6',cape:'#9EE6BE',boot:'#FFFFFF',motif:'flower',lair:[66,49],txt:'花瓣做成的精靈團服，走路會有花香。'},
+ {name:'夢幻樂園團服',c:'#FF7A59',light:'#FFE1D3',cape:'#9B7BFF',boot:'#FFFFFF',motif:'rainbow',lair:[63,52],txt:'彩虹糖果色的樂園團服，最適合開演唱會！'}
+];
+const lite=(hex,f)=>{const n=parseInt(hex.slice(1),16);const m=v=>Math.round(v+(255-v)*f).toString(16).padStart(2,'0');return '#'+m((n>>16)&255)+m((n>>8)&255)+m(n&255)};
+function motifSVG(t,x,y,s,col){
+ switch(t){
+  case 'heart':return HEART(x,y,2.2*s,col);
+  case 'star':return STARP(x,y,2.6*s,col);
+  case 'sun':return `<circle cx="${x}" cy="${y}" r="${1.5*s}" fill="${col}"/>`+[0,1,2,3,4,5,6,7].map(k=>{const a=k*Math.PI/4;return `<path d="M${(x+2.2*s*Math.cos(a)).toFixed(1)} ${(y+2.2*s*Math.sin(a)).toFixed(1)} L${(x+3*s*Math.cos(a)).toFixed(1)} ${(y+3*s*Math.sin(a)).toFixed(1)}" stroke="${col}" stroke-width="${.6*s}" stroke-linecap="round"/>`}).join('');
+  case 'flower':return [0,1,2,3,4].map(k=>{const a=k*1.2566;return `<circle cx="${(x+1.5*s*Math.cos(a)).toFixed(1)}" cy="${(y+1.5*s*Math.sin(a)).toFixed(1)}" r="${1.05*s}" fill="${col}"/>`}).join('')+`<circle cx="${x}" cy="${y}" r="${.8*s}" fill="#FFD35C"/>`;
+  case 'rainbow':return ['#FF6FA8','#FFC93C','#2EC4A0','#5DB8E8'].map((c,k)=>`<path d="M${x-3*s+k*.6*s} ${y+1*s} A${3*s-k*.6*s} ${3*s-k*.6*s} 0 0 1 ${x+3*s-k*.6*s} ${y+1*s}" stroke="${c}" stroke-width="${.55*s}" fill="none"/>`).join('');
+ }
+}
+function uniformParts(k,i,ctx){
+ const U=UNIFORMS[k],mc=IDOLS[i].color,id='u'+(++UID);
+ ctx.defs+=`<linearGradient id="${id}a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${lite(U.c,.35)}"/><stop offset="1" stop-color="${U.c}"/></linearGradient>
+  <linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF6B0"/><stop offset=".5" stop-color="#FFC93C"/><stop offset="1" stop-color="#D08A00"/></linearGradient>`;
+ const A=`url(#${id}a)`,GD=`url(#${id}g)`,mcol=U.motif==='star'?'#FFE066':'#FFFFFF';
+ const hem='M20 130 Q26 134 32 130 Q38 135 44 130 Q50 135 56 130 Q62 135 68 130 Q74 134 80 130';
+ const body=`
+  <path d="M38 86 Q25 108 22 134 Q29 130 35 134 Q39 112 43 92Z" fill="${U.cape}" opacity=".95"/><path d="M62 86 Q75 108 78 134 Q71 130 65 134 Q61 112 57 92Z" fill="${U.cape}" opacity=".95"/>
+  <path d="M38 86 Q25 108 22 134 M62 86 Q75 108 78 134" stroke="${GD}" stroke-width="1" fill="none"/>
+  ${U.motif==='star'?STARP(28,120,1.6,'#FFE066')+STARP(72,114,1.4,'#FFE066')+STARP(31,104,1.1,'#fff')+STARP(70,126,1.2,'#fff'):''}
+  <rect x="40.5" y="118" width="8" height="21" rx="3" fill="${U.boot}" stroke="#D9BFCD" stroke-width=".6"/><rect x="51.5" y="118" width="8" height="21" rx="3" fill="${U.boot}" stroke="#D9BFCD" stroke-width=".6"/>
+  <rect x="40.5" y="118" width="8" height="2.6" fill="${GD}"/><rect x="51.5" y="118" width="8" height="2.6" fill="${GD}"/>${motifSVG(U.motif,44.5,126,.7,U.c)}${motifSVG(U.motif,55.5,126,.7,U.c)}
+  <path d="M34 106 L66 106 Q77 117 80 130 Q74 134 68 130 Q62 135 56 130 Q50 135 44 130 Q38 135 32 130 Q26 134 20 130 Q23 117 34 106Z" fill="${A}"/>
+  <path d="${hem}" stroke="${GD}" stroke-width="1.4" fill="none"/>
+  ${[[27,125],[38,127],[50,126.5],[62,127],[73,125],[33,117],[45,119],[56,119],[67,117]].map(([x,y])=>motifSVG(U.motif,x,y,.75,mcol)).join('')}
+  <path d="M37 105 L63 105 Q71 112 72 119 Q66 122 61 119 Q56 123 50 119 Q44 123 39 119 Q34 122 28 119 Q29 112 37 105Z" fill="${U.light}" opacity=".92"/>
+  <path d="M28 119 Q34 122 39 119 Q44 123 50 119 Q56 123 61 119 Q66 122 72 119" stroke="${GD}" stroke-width="1" fill="none"/>
+  <path d="M35 96 Q32 102 32 110" stroke="#fff" stroke-width="6.4" stroke-linecap="round" fill="none"/><path d="M65 96 Q68 102 68 110" stroke="#fff" stroke-width="6.4" stroke-linecap="round" fill="none"/>
+  <path d="M32.2 97 l5 1.4 M67.8 97 l-5 1.4" stroke="${GD}" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M39 84 Q50 81 61 84 L62 106 Q50 109 38 106Z" fill="${A}"/>
+  <path d="M39 84 L50 97 L61 84" stroke="${GD}" stroke-width="1.6" fill="none" stroke-linejoin="round"/>
+  <path d="M50 97 V105" stroke="${GD}" stroke-width="1" stroke-dasharray="1 1.4"/>
+  <circle cx="37" cy="88" r="5.6" fill="${U.light}" stroke="${GD}" stroke-width="1"/><circle cx="63" cy="88" r="5.6" fill="${U.light}" stroke="${GD}" stroke-width="1"/>
+  ${[41,44.5,48,52,55.5,59].map(x=>`<circle cx="${x}" cy="${83.4+(Math.abs(50-x)<3?0.6:0)}" r="1.6" fill="#fff"/>`).join('')}
+  <rect x="38" y="102.5" width="24" height="4" rx="1.6" fill="${mc}"/>
+  <path d="M50 104.5 L42 99 L42 110Z" fill="${mc}" stroke="${GD}" stroke-width=".7"/><path d="M50 104.5 L58 99 L58 110Z" fill="${mc}" stroke="${GD}" stroke-width=".7"/>
+  <path d="M48.5 106 L46 115 L49 113 M51.5 106 L54 115 L51 113" fill="${mc}" stroke="${mc}" stroke-width="1.6" stroke-linejoin="round"/>
+  <circle cx="50" cy="104.5" r="2.4" fill="${GD}"/>
+  ${motifSVG(U.motif,50,91.5,1.05,U.motif==='star'?'#FFE066':'#FFFFFF')}
+  ${STARP(24,108,1.8,'#FFE066')}${STARP(77,100,1.5,'#FFFFFF')}${STARP(79,121,1.3,'#FFE066')}${STARP(21,123,1.2,'#FFFFFF')}`;
+ const head=`<path d="M35 31 L38 18 L44 25 L50 12 L56 25 L62 18 L65 31 Q50 26 35 31Z" fill="${GD}" stroke="#B07A00" stroke-width="1" stroke-linejoin="round"/>
+  <circle cx="50" cy="21" r="2.6" fill="${U.c}" stroke="#fff" stroke-width=".8"/><circle cx="41.5" cy="25.5" r="1.4" fill="${mc}"/><circle cx="58.5" cy="25.5" r="1.4" fill="${mc}"/><circle cx="38" cy="18" r="1.3" fill="#fff"/><circle cx="62" cy="18" r="1.3" fill="#fff"/><circle cx="50" cy="12" r="1.4" fill="#fff"/>`;
+ return {body,head};
+}
+const uniOpen=p=>!!(G&&(G.wordStar||(p.uniforms&&p.uniforms.some(Boolean))));
+function uniGrid(p,i,w){
+ if(!p.uniforms)p.uniforms=[false,false,false,false,false];
+ return `<div class="grid">${UNIFORMS.map((U,k)=>p.uniforms[k]
+  ?`<button class="it uniit${w.uni===k?' on':''}" data-du="${k}">${idolSVG(i,{uni:k},{view:'thumb',noAcc:true})}<span>${U.name}</span>${w.uni===k?'<span class="wearing">穿著中</span>':''}</button>`
+  :`<div class="it lock uniit"><div class="q">★</div><span>${MAPS[k].name}的團服挑戰</span></div>`).join('')}</div>
+  ${p.uniforms.some(Boolean)?`<div class="m-btns" style="margin-top:6px">${UNIFORMS.map((U,k)=>p.uniforms[k]?`<button class="btn sm alt" data-duall="${k}">全員換上${U.name.replace('團服','')}</button>`:'').join('')}</div>`:'<small style="color:var(--soft)">去每張地圖挑戰「團服挑戰」，就能拿到華麗的團服！</small>'}`;
+}
+function uniSec(p,i){
+ if(!uniOpen(p))return '';
+ if(!p.uniforms)p.uniforms=[false,false,false,false,false];
+ return `<div class="bk-sec"><h4>隱藏團服 ★ <small>${p.uniforms.filter(Boolean).length}/5</small></h4><div class="grid" style="max-height:none;overflow:visible">${UNIFORMS.map((U,k)=>p.uniforms[k]
+  ?`<div class="it uniit">${idolSVG(i,{uni:k},{view:'thumb',noAcc:true})}<span>${U.name}</span></div>`
+  :`<div class="it lock uniit">${idolSVG(i,{uni:k},{view:'thumb',noAcc:true})}<span>？？？</span><small>${MAPS[k].name}</small></div>`).join('')}</div></div>`;
+}
+function lairHTML(){
+ if(!G||!G.wordStar)return '';
+ const p=cur(),k=p.map,U=UNIFORMS[k],got=p.uniforms&&p.uniforms[k];
+ return `<button class="lair${got?' beat':''}" data-act="uni" style="left:${U.lair[0]}%;top:${U.lair[1]}%" title="${U.name}">
+  <span class="lair-glow"></span>${idolSVG(MAPS[k].idol,{uni:k},{cls:'lair-idol'})}<span class="lair-tag">${got?'已獲得':'團服挑戰！'}</span></button>`;
+}
+function uniHead(k,done,total){
+ const U=UNIFORMS[k],i=MAPS[k].idol,pr=done/total;
+ return `<div class="uni-head" style="--uc:${U.c}"><div class="uni-art" id="uniArt"><span class="lair-glow"></span><span id="uniFig" style="filter:grayscale(${(1-pr).toFixed(2)}) brightness(${(1+.25*(1-pr)).toFixed(2)})">${idolSVG(i,{uni:k},{cls:'uni-big'})}</span></div>
+ <div class="uni-info"><b>${U.name}</b><div class="hpbar"><i id="uniFill" style="width:${(pr*100).toFixed(1)}%"></i></div><small id="uniTxt">完成度 ${done} / ${total}</small></div></div>`;
+}
+function uniWordsFor(p,k){
+ if(!p.uniWords)p.uniWords={};
+ const all=(()=>{const seen=new Set();return WORDS[3].filter(w=>!seen.has(w.en)&&seen.add(w.en))})();
+ if(!p.uniWords[k]){
+  const used=new Set(Object.values(p.uniWords).flat());
+  p.uniWords[k]=shuffle(all.filter(w=>!used.has(w.en))).slice(0,100).map(w=>w.en);
+ }
+ const map=new Map(all.map(w=>[w.en,w]));
+ return p.uniWords[k].map(en=>map.get(en)).filter(Boolean);
+}
+function wearAll(p,k){IDOLS.forEach((_,i)=>{if(p.idols[i])p.wear[i].uni=k})}
+async function uniChallenge(){
+ const p=cur(),k=p.map,U=UNIFORMS[k],i=MAPS[k].idol;
+ if(!p.uniforms)p.uniforms=[false,false,false,false,false];
+ const show=`<div class="uni-show">${idolSVG(i,{uni:k},{cls:'uni-big'})}</div>`;
+ if(p.uniforms[k]){
+  const v=await openModal(`${show}<h3>${U.name}</h3><p>${U.txt}<br>已經拿到了！</p><div class="m-btns"><button class="btn alt" data-v="all">全員換上</button><button class="btn pri" data-v="ok">好</button></div>`,true);
+  if(v==='all'){wearAll(p,k);save(true);render();toast(`大家都換上${U.name}了！`)}
+  return;
+ }
+ const words=uniWordsFor(p,k),total=words.length;save(true);
+ const go=await openModal(`${show}<h3>團服挑戰・${U.name}</h3><p>${U.txt}</p>
+  <div class="boss-rule"><b>連續答對 ${total} 個單字</b>，團服就會完成！<br>每答對一題，團服就多縫一針。答錯的字會再出現一次。<br>中途離開的話，要從頭開始喔。<br><small>每套團服的題目都不一樣，不會跟其他團服重複。</small></div>
+  <div class="m-btns"><button class="btn" data-v="no">下次再來</button><button class="btn pri" data-v="go">開始挑戰！</button></div>`,true);
+ if(go!=='go')return;
+ const queue=shuffle(words.slice());let done=0;
+ while(queue.length){
+  const w=queue[0];
+  const r=await quiz(w,{raw:true,fast:true,flee:true,head:uniHead(k,done,total),onResult:ok=>{
+   const art=$('#uniArt');if(art){art.classList.remove('hit','atk');void art.offsetWidth;art.classList.add(ok?'hit':'atk')}
+   if(ok){const n=done+1,pr=n/total,f=$('#uniFill'),t=$('#uniTxt'),fig=$('#uniFig');if(f)f.style.width=(pr*100).toFixed(1)+'%';if(t)t.textContent=`完成度 ${n} / ${total}`;if(fig)fig.style.filter=`grayscale(${(1-pr).toFixed(2)}) brightness(${(1+.25*(1-pr)).toFixed(2)})`}
+  }});
+  if(r==='flee'||r==null){setMsg(`離開了團服挑戰，下次再從頭開始吧！`);return}
+  if(r==='ok'){queue.shift();done++}else queue.push(queue.shift());
+  try{await recordWord(w,r==='ok')}catch(e){}
+ }
+ p.uniforms[k]=true;add(p,UNI_REWARD);save(true);buildBoard();fitBoard();render();
+ const v=await openModal(`<div class="uni-row">${IDOLS.map((_,j)=>idolSVG(j,{uni:k,hair:p.wear[j]&&p.wear[j].hair},{cls:'uni-mini'})).join('')}</div>
+  <h3>${U.name}完成了！</h3><p>連續答對 ${total} 個單字，太厲害了！<br>五位團員都可以穿上這套團服，還送你 <b>${UNI_REWARD}</b> 星星幣！</p>
+  ${p.uniforms.every(Boolean)?'<p><b>五套隱藏團服全部收齊了！星星女孩要開超級演唱會囉！</b></p>':''}
+  <div class="m-btns"><button class="btn" data-v="ok">好</button><button class="btn pri" data-v="all">全員換上</button></div>`,true);
+ setMsg(`拿到${U.name}了！`);
+ if(v==='all'){wearAll(p,k);save(true);render();toast(`大家都換上${U.name}了！`)}
+}
+async function onAllWords(){
+ buildBoard();fitBoard();render();
+ await openModal(`<div class="uni-row">${IDOLS.map((_,j)=>idolSVG(j,{uni:j},{cls:'uni-mini'})).join('')}</div><h3>隱藏團服出現了！</h3><p>五張地圖上都出現了「團服挑戰」，<br>連續答對 100 個單字就能拿到華麗的團服，<br>讓五位團員一起穿！</p><div class="m-btns"><button class="btn pri" data-v="ok">去挑戰！</button></div>`,true);
+}
 
 /* ================= 地圖 ================= */
 const START=100, IDOL_PRICE=200, BAG_PRICE=100, BAG_N=2, BONUS_START=50, PASS_PRICE=150, HOME_MAP=0;
@@ -1297,7 +1465,7 @@ const pct=v=>v+'%';
 function buildBoard(){
  const m=MAP(),b=$('#board');
  b.className='world';b.style.setProperty('--tile',m.tile);b.style.setProperty('--edge',m.edge);
- let h=`<svg class="scene" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${sceneSVG(m,'B')}</svg>`;
+ let h=`<svg class="scene" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${sceneSVG(m,'B')}</svg>`+lairHTML();
  m.sc.forEach((p,k)=>{const[x,y]=ctr(p);h+=`<div class="sc" id="s${k}" style="left:${pct(x)};top:${pct(y)}"><div class="toks"></div></div>`});
  m.path.forEach((p,i)=>{const[r,c]=p;h+=`<div class="cell" id="c${i}" data-i="${i}" style="left:${pct(c*10+.9)};top:${pct(r*10+.9)}"></div>`});
  b.innerHTML=h;
@@ -1536,24 +1704,28 @@ function drawDress(){
  const i=s.idol,w=p.wear[i],have=new Set(p.items),cat=CAT_BY[s.cat];
  const idolTabs=`<div class="tabs who">${IDOLS.map((d,k)=>`<button data-di="${k}" class="${k===i?'on':''}" ${p.idols[k]?'':'disabled'}>${idolSVG(k,wearOf(p,k),{view:'head'})}${p.idols[k]?d.name:'？？'}</button>`).join('')}</div>`;
  const catTabs=`<div class="tabs">${CATS.map(c=>{const n=allKeys(i).filter(k=>k[1]===c.k&&have.has(k)).length;return `<button data-dc="${c.k}" class="${c.k===s.cat?'on':''}">${c.name} ${n}/${c.n}</button>`}).join('')}</div>`;
- const grid=`<div class="grid">${[...Array(cat.n)].map((_,j)=>{const k=`${i}${cat.k}${j}`;
+ const uniTab=uniOpen(p)?`<button data-dc="U" class="${s.cat==='U'?'on':''}">團服 ★ ${(p.uniforms||[]).filter(Boolean).length}/5</button>`:'';
+ const grid=s.cat==='U'?uniGrid(p,i,w):`<div class="grid">${[...Array(cat.n)].map((_,j)=>{const k=`${i}${cat.k}${j}`;
   if(!have.has(k))return `<div class="it lock" aria-label="未解鎖"><div class="q">?</div>${lvTag(LV_OF[k])}</div>`;
   const on=w[cat.slot]===k;
   return `<button class="it${on?' on':''}" data-dk="${k}">${itemThumb(k)}<span>${esc(spec(k).name)}</span>${on?'<span class="wearing">穿著中</span>':s.fresh.has(k)?'<span class="wearing">NEW</span>':''}</button>`}).join('')}</div>`;
  $('#modalCard').innerHTML=`<h3>換裝間</h3>${who}${idolTabs}
  <div class="dr"><div class="dr-prev">${idolSVG(i,w)}<div class="nm" style="color:${IDOLS[i].color}">${IDOLS[i].name}</div><div class="cnt">已收集 ${countOf(p,i)}/${PER_IDOL} 件</div><button class="btn sm" data-dclear="1">全部脫掉</button></div>
- <div class="dr-side">${catTabs}${grid}<small style="color:var(--soft)">點一下穿上，再點一次脫掉。套裝會換掉上衣和下身。</small></div></div>
+ <div class="dr-side">${catTabs.replace(/<\/div>$/,uniTab+'</div>')}${grid}<small style="color:var(--soft)">點一下穿上，再點一次脫掉。套裝會換掉上衣和下身。</small></div></div>
  <div class="m-btns"><button class="btn pri" data-v="ok">完成</button></div>`;
 }
 function dressClick(e){
  const s=dressSt,p=G.players[s.pk];
- const t=e.target.closest('[data-dp],[data-di],[data-dc],[data-dk],[data-dclear]');if(!t)return false;
+ const t=e.target.closest('[data-dp],[data-di],[data-dc],[data-dk],[data-dclear],[data-du],[data-duall]');if(!t)return false;
  if(t.dataset.dp!=null){s.pk=+t.dataset.dp;const q=G.players[s.pk];s.idol=q.idols[s.idol]?s.idol:q.idols.findIndex(Boolean)}
  else if(t.dataset.di!=null)s.idol=+t.dataset.di;
  else if(t.dataset.dc!=null)s.cat=t.dataset.dc;
  else if(t.dataset.dclear!=null)p.wear[s.idol]={};
+ else if(t.dataset.du!=null){const k=+t.dataset.du,w=p.wear[s.idol];w.uni=(w.uni===k)?null:k}
+ else if(t.dataset.duall!=null){wearAll(p,+t.dataset.duall);toast('大家都換上團服了！')}
  else if(t.dataset.dk){
   const k=t.dataset.dk,slot=spec(k).cat.slot,w=p.wear[s.idol];
+  if(slot!=='hair')w.uni=null;
   if(w[slot]===k)w[slot]=null;else{w[slot]=k;if(slot==='set'){w.top=null;w.bottom=null}if(slot==='top'||slot==='bottom')w.set=null}
  }
  const sc=$('#modalCard .grid');const top=sc?sc.scrollTop:0;
@@ -1592,7 +1764,7 @@ function drawBook(){
  ${idolTabs}
  ${p.idols[i]?'':`<div class="bk-note">還沒收集 ${d.name}，先去「${MAPS[i].name}」邀請她加入，才能打開她的衣櫃喔！</div>`}
  ${filt}
- <div class="bk-list">${secs}</div>
+ <div class="bk-list">${uniSec(p,i)}${secs}</div>
  <div class="m-btns">${p.idols[i]?`<button class="btn alt" data-bdress="1">幫${d.name}換裝</button>`:''}<button class="btn pri" data-v="ok">關閉</button></div>`;
 }
 function bookClick(e){
@@ -1767,6 +1939,7 @@ function rulesHtml(){return `<h3>遊戲規則</h3><div class="rules">
  <div><b>關卡收集：</b>衣服和髮型平均分給四個關卡，每個關卡只能拿到自己那一份。按「換關卡」可以隨時切換，四個關卡都要玩才能全部收齊！</div>
  <div><b>目標：</b>全部 ${TOTAL} 件收齊就是造型大師！</div>
  <div><b>單字本：</b>記錄每個單字答對、答錯幾次。答對一次就算過關，全部單字都過關會出現 ★，還有 ${WB_BONUS} 星星幣獎勵！</div>
+ <div><b>隱藏團服：</b>單字本全部過關以後，五張地圖都會出現「團服挑戰」。連續答對 100 個單字就能拿到一套華麗的團服，五位團員都能一起穿！五套團服的題目都不重複。</div>
  <div><b>存檔：</b>每走完一回合會自動存檔，在主選單可以繼續玩。</div></div>
  <div class="m-btns"><button class="btn pri" data-v="ok">知道了</button></div>`}
 function missedHtml(){
@@ -1783,6 +1956,7 @@ document.addEventListener('click',e=>{
  if(act==='book'){if(busy||modalResolve){toast('等這一步走完再看收集冊喔');return}openBook()}
  if(act==='level'){if(busy||modalResolve){toast('等這一步走完再換關卡喔');return}openLevel()}
  if(act==='words'&&!modalResolve)openWords();
+ if(act==='uni'){if(busy||modalResolve){toast('等這一步走完再挑戰喔');return}uniChallenge()}
  if(act==='save')save(false);
  if(act==='home'){if(busy){toast('等這一步走完再回主選單喔');return}if(G)save(true);renderSlots();show('scrTitle')}
 });
