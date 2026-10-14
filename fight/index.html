@@ -978,7 +978,7 @@ const OUTFIT={0:"coat",1:"dress",2:"wrestler",3:"ninja",4:"tank",5:"monk",6:"coa
 function drawBody(x,C,D,cid,tTop,hipY,tL,tR,fem,skin){
   const c1=C.c1,c2=C.c2,c3=C.c3,ot=OUTFIT[cid]||(fem?"dress":"gi"),dk=shade(c1,-.25),lt=shade(c1,.25);
   // 身體寬度：肩膀寬 → 腰收窄（腰帶那兩列）→ 下擺張開
-  const waist=D.tw-4,wid=v=>{const b0=D.th-3;if(v<b0){const t=v/b0;return ri(D.tw+2-(D.tw+2-waist)*t*t)}if(v<D.th-1)return waist;return waist+4};
+  const waist=D.tw,wid=v=>D.tw;
   const body=(col)=>{for(let v=0;v<D.th;v++){const w=wid(v);rect(x,SPX-(w>>1),tTop+v,w,1,col)}};
   const bw=waist,bx=SPX-(bw>>1);
   const belt=()=>{rect(x,bx,hipY-3,bw,2,c3);rect(x,SPX-1,hipY-3,3,2,shade(c3,.4))};
