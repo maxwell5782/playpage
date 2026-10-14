@@ -41,6 +41,11 @@ button:focus-visible,.card:focus-visible,.slot:focus-visible{outline:3px solid v
 .slot.sealed{background:#fde9b8}
 .slot.target{border:3px solid var(--leaf);box-shadow:0 0 0 4px rgba(90,164,105,.3);cursor:pointer;animation:glow 1s ease-in-out infinite}
 @keyframes glow{50%{box-shadow:0 0 0 8px rgba(90,164,105,.15)}}
+.slot.target .sum,.slot.target .empty{color:var(--leaf);opacity:1;font-weight:700;animation:tcol 1s ease-in-out infinite}
+@keyframes tcol{50%{color:#2c6e3a}}
+.slot.target .tap{font-size:12px;font-weight:700;color:#fff;background:var(--leaf);border:1.5px solid var(--ink);border-radius:999px;padding:1px 8px}
+.slot.target:hover .sum,.slot.target:hover .empty,.slot.target:active .sum,.slot.target:active .empty{color:var(--red);animation:none}
+.slot.chosen .sum{color:var(--red)}
 .slot.chosen{border:3px solid var(--red);background:#fff1ec;box-shadow:0 0 0 6px rgba(214,72,60,.25);transform:scale(1.05);transition:transform .25s;z-index:2}
 .slot .grab{position:absolute;top:-16px;left:50%;transform:translateX(-50%);animation:grab .5s ease-out}
 @keyframes grab{from{transform:translate(-50%,-14px) scale(.4);opacity:0}}
@@ -403,9 +408,10 @@ function show(v){
   $("table").innerHTML=V.stacks.map((st,i)=>{
     const t=tg.includes(i),a=t?' role="button" tabindex="0"':'';
     if(tk&&tk.k===i&&st)return `<div class="slot has chosen${st.sealed?' sealed':''}" data-i="${i}"><span class="grab">${bear(V.players[tk.i].c,32)}</span><div class="sum">${val(st)} 分</div>${st.sealed?'<span class="tag">蓋上了</span>':''}<div class="pile">${st.cards.map(c=>cardSVG(c,true)).join("")}</div></div>`;
-    if(!st)return `<div class="slot${t?' target':''}" data-i="${i}"${a}><div class="empty">空位<br>第 ${i+1} 疊</div></div>`;
+    const tap=t?'<span class="tap">點這裡</span>':'';
+    if(!st)return `<div class="slot${t?' target':''}" data-i="${i}"${a}><div class="empty">空位<br>第 ${i+1} 疊</div>${tap}</div>`;
     const cards=st.cards.map(c=>cardSVG(c,true)).join("");
-    return `<div class="slot has${st.sealed?' sealed':''}${t?' target':''}" data-i="${i}"${a}><div class="sum">${val(st)} 分</div>${st.sealed?'<span class="tag">蓋上了</span>':''}<div class="pile">${cards}</div></div>`}).join("");
+    return `<div class="slot has${st.sealed?' sealed':''}${t?' target':''}" data-i="${i}"${a}><div class="sum">${val(st)} 分</div>${tap}${st.sealed?'<span class="tag">蓋上了</span>':''}<div class="pile">${cards}</div></div>`}).join("");
   $("msg").textContent=V.msg;
   const me=V.players[V.me];
   const lbl=V.phase==="end"?"遊戲結束":V.planning?`選好了（${sel.length}/3）`:V.phase==="plan"?"等其他小熊…":V.pickCard?"選一張出":V.targets?"選一疊":"大家出牌中…";
