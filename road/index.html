@@ -63,7 +63,11 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
 .card h1{font-family:var(--display);font-weight:800;font-size:34px;margin:0;line-height:1.1;text-wrap:balance}
 .card p{margin:10px 0 0;line-height:1.6;font-size:15px}
 .rules{text-align:left;background:#f3f9e8;border-radius:14px;padding:10px 14px;margin-top:14px;font-size:14px;line-height:1.6}
-.rules li{margin-left:-6px}
+.rules{list-style:none;display:flex;flex-direction:column;gap:10px;padding:12px}
+.rules li{display:flex;align-items:center;gap:10px}
+.ri{flex:none;width:108px;display:flex;align-items:center;justify-content:center}
+.ri svg{width:34px;height:34px;display:block;border-radius:6px}
+.ri .ic{border-radius:0}
 .pick{display:flex;gap:10px;justify-content:center;margin-top:16px}
 .pick button{width:72px;height:72px;border-radius:20px;border:0;background:var(--gold);box-shadow:0 4px 0 #c9a12a;font-family:var(--display);font-weight:800;font-size:28px;line-height:1}
 .pick button span{display:block;font-family:var(--body);font-size:12px;font-weight:400}
@@ -109,10 +113,11 @@ html,body{margin:0}[hidden]{display:none!important}
     <h1>小熊鋪路趣</h1>
     <p>大家輪流把小路拼起來，幫小熊們找到回家的路！</p>
     <ul class="rules">
-      <li>每回合拿一片路，路要接路、草要接草。</li>
-      <li>按「轉一轉」換方向，再點地圖上的虛線格子放下去。</li>
-      <li>一條路的兩頭都封住（接到小屋或池塘），路上有幾隻你的小熊，你就送出幾根小旗子。</li>
-      <li>最先把小旗子送完的人贏！</li>
+      <li><span class="ri" data-ic="match"></span><span>每回合拿一片路，路要接路、草要接草。</span></li>
+      <li><span class="ri" data-ic="turn"></span><span>按「轉一轉」換方向，再點地圖上的虛線格子放下去。</span></li>
+      <li><span class="ri" data-ic="ends"></span><span>路的盡頭是<b>小屋</b>或<b>池塘</b>。</span></li>
+      <li><span class="ri" data-ic="done"></span><span>一條路的兩頭都封住，路會變金色。路上有幾隻你的小熊，你就送出幾根小旗子。</span></li>
+      <li><span class="ri" data-ic="flag"></span><span>最先把小旗子送完的人贏！</span></li>
     </ul>
     <div class="menu">
       <button id="btnMatch" class="big">隨機配對</button>
@@ -620,6 +625,18 @@ $("btnCancel").onclick=()=>{
 };
 $("again").onclick=()=>{cleanup();hideAll();$("start").hidden=false};
 
+/* 規則說明的小圖示：直接用遊戲裡的路片畫 */
+const mini=(type,edges,animal,done)=>tileSVG({type,seed:5,segs:edges.map((e,k)=>({edges:e,animal:k===0?animal:null,done:!!done}))});
+const arrow=d=>`<svg class="ic" viewBox="0 0 40 40" aria-hidden="true" style="width:20px;height:20px">${d}</svg>`;
+const flag=c=>`<svg class="ic" viewBox="0 0 40 40" aria-hidden="true" style="width:24px;height:24px"><path d="M10 36V5" stroke="#2b2a22" stroke-width="3" stroke-linecap="round"/><path d="M11 6h20l-6 7 6 7H11z" fill="${c}" stroke="#2b2a22" stroke-width="2" stroke-linejoin="round"/></svg>`;
+const ICON={
+  match:()=>mini("straight",[[1,3]],0)+mini("curve",[[3,2]],null)+arrow(`<path d="M8 20l8 8 16-16" stroke="#3f9a3a" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`),
+  turn:()=>mini("curve",[[0,1]],null)+arrow(`<path d="M30 20a10 10 0 1 1-4-8" stroke="#2b2a22" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M27 4v9h-9" stroke="#2b2a22" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`)+mini("curve",[[1,2]],null),
+  ends:()=>mini("dead",[[2]],null)+mini("tee",[[0],[1],[3]],null),
+  done:()=>mini("dead",[[1]],null,true)+mini("straight",[[1,3]],1,true)+mini("dead",[[3]],null,true),
+  flag:()=>COLORS.map(c=>flag(c.c)).join("")
+};
+document.querySelectorAll(".ri").forEach(el=>{const f=ICON[el.dataset.ic];if(f)el.innerHTML=f()});
 document.querySelectorAll(".pick button").forEach(b=>b.onclick=()=>startGame([{type:"local"}],+b.dataset.n));
 </script>
 
