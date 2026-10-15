@@ -67,7 +67,7 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
     <canvas id="cv"></canvas>
     <div id="hint"></div>
     <div id="zoom"><button id="zIn" aria-label="放大">＋</button><button id="zOut" aria-label="縮小">－</button><button id="zHome" aria-label="回主堡" style="font-size:16px">🏠</button></div>
-    <div id="sel" hidden><span id="selName"></span><button id="cancelBtn">取消建造<small id="selRefund"></small></button></div>
+    <div id="sel" hidden><span id="selName"></span><button id="cancelBtn">取消建造<small id="selRefund"></small></button><button id="deselBtn" style="background:#38574A;box-shadow:0 3px 0 #1F342B;min-width:0" aria-label="取消選取">✕</button></div>
   </div>
   <div id="panel">
     <div class="prow" id="rowBuild"><span class="lab">建造</span></div>
@@ -90,6 +90,7 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
       <li>工人會自己去挖<b>晶礦</b>；蓋了<b>精煉廠</b>，會自動派 3 個工人去採<b>瓦斯</b>。</li>
       <li>按「建造」裡的建築，再點地圖放下去，最近的工人會走過去蓋。蓋到一半可以點建築<b>取消</b>，越早取消退越多資源。人口不夠就蓋<b>補給站</b>；礦挖得差不多，就到別的礦區蓋<b>主堡</b>開分基地。</li>
       <li>科技：兵營 → 研究所（火焰兵、升級）→ 工廠（坦克）→ 星港（戰機）。</li>
+      <li>有好幾間兵營（或工廠、星港、主堡）時，<b>點其中一間</b>選取它，按生產就會從那間出；沒選取就自動排到最閒的那間。</li>
       <li>新兵都會到<b>集結旗</b>下排隊待命，<b>不會自己衝出去</b>；敵人靠近旗子才會迎戰。</li>
       <li>按<b>進攻</b>再點地圖，旗下待命的兵一起殺過去，打完會自己找下一棟看過的敵方建築。按<b>撤退</b>，出擊的兵不戀戰跑回旗下。</li>
       <li>相剋：火焰兵燒步兵、坦克轟地面部隊、戰機打坦克（坦克和火焰兵打不到飛機）、步兵打戰機。</li>
@@ -901,7 +902,9 @@ function doMake(k){
   const req=UNITS[k]?UNITS[k].req:null;
   if(req&&!hasDone(0,req))return hint('要先蓋好'+BLD[req].name);
   const from=UNITS[k]?UNITS[k].from:'acad';
-  const b=prodBuilding(tm,k);if(!b)return hint(G.blds.some(x=>x.team===0&&x.kind===from)?(BLD[from].name+'還沒蓋好或排滿了'):('要先蓋'+BLD[from].name));
+  const picked=sel&&sel.done&&sel.kind===from?sel:null;
+  if(picked&&picked.queue.length>=5)return hint('這間'+BLD[from].name+'排滿了');
+  const b=picked||prodBuilding(tm,k);if(!b)return hint(G.blds.some(x=>x.team===0&&x.kind===from)?(BLD[from].name+'還沒蓋好或排滿了'):('要先蓋'+BLD[from].name));
   const c=costOf(tm,k);if(!c)return hint('已經升到最高級');
   if(!canAfford(tm,c))return hint(c[1]>tm.gas?'瓦斯不夠':'晶礦不夠');
   enqueue(tm,b,k);
@@ -927,8 +930,11 @@ function tapWorld(x,y){
   const tm=G.teams[0];
   if(!armed){
     const b=G.blds.find(b=>b.team===0&&x>=b.x0&&x<=b.x1&&y>=b.y0&&y<=b.y1);
-    sel=b&&!b.done?b:null;
-    if(b&&b.done)hint(BLD[b.kind].name);
+    sel=b&&(!b.done||(BLD[b.kind].makes&&b.kind!=='turret'))?b:null;
+    if(b&&b.done){
+      const mk=BLD[b.kind].makes;
+      hint(mk?`已選取這間${BLD[b.kind].name}，按「生產」會從這裡出`:BLD[b.kind].name,mk?4:2.5);
+    }
     updUI();return;
   }
   if(armed==='flag'){tm.flag={x:clamp(x,20,W-20),y:clamp(y,20,H-20)};for(const u of G.units)if(u.team===0&&u.mode==='hold')u.tgt=null;armed=null;hint('集結旗插好了');return}
@@ -945,9 +951,11 @@ function updUI(){
   $('hMin').textContent=Math.floor(tm.min);$('hGas').textContent=Math.floor(tm.gas);
   const used=supplyUsed(0),cap=supplyCap(0);$('hSup').textContent=used+'/'+cap;$('hSup').style.color=used>=cap?'#FF8A7A':'';
   $('hEn').textContent=Math.floor(tm.energy);
-  if(sel&&(sel.hp<=0||sel.done))sel=null;
+  if(sel&&sel.hp<=0)sel=null;
   $('sel').hidden=!sel;
-  if(sel){const r=refundOf(sel);$('selName').textContent=BLD[sel.kind].name+' '+Math.floor(sel.prog/BLD[sel.kind].time*100)+'%';$('selRefund').innerHTML=`退回 ${r[0]}`+(r[1]?` <span class="g">${r[1]}</span>`:'')}
+  $('cancelBtn').hidden=!sel||sel.done;
+  if(sel&&sel.done)$('selName').textContent=`已選取${BLD[sel.kind].name}・排隊 ${sel.queue.length}/5`;
+  else if(sel){const r=refundOf(sel);$('selName').textContent=BLD[sel.kind].name+' '+Math.floor(sel.prog/BLD[sel.kind].time*100)+'%';$('selRefund').innerHTML=`退回 ${r[0]}`+(r[1]?` <span class="g">${r[1]}</span>`:'')}
   $('alert').textContent=G.alert&&G.t-G.alert.t<5?'⚠ 遭受攻擊':'';
   document.querySelectorAll('[data-build]').forEach(b=>{const k=b.dataset.build,D=BLD[k];b.disabled=(D.req&&!hasDone(0,D.req))||!canAfford(tm,[D.min,D.gas]);b.classList.toggle('arm',armed===k)});
   document.querySelectorAll('[data-make]').forEach(b=>{
@@ -1009,6 +1017,7 @@ cv.addEventListener('pointerup',e=>{
 cv.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);drag=null;pinch=null});
 cv.addEventListener('wheel',e=>{e.preventDefault();const p=local(e);zoomAt(e.deltaY<0?1.12:1/1.12,p.x,p.y)},{passive:false});
 $('zIn').onclick=()=>zoomAt(1.25,CW/2,CH/2);$('zOut').onclick=()=>zoomAt(.8,CW/2,CH/2);
+$('deselBtn').onclick=()=>{sel=null;updUI()};
 $('cancelBtn').onclick=()=>{if(live())cancelBuild(sel)};
 $('zHome').onclick=()=>{if(G)centerCam(G.teams[0].main.x,G.teams[0].main.y)};
 $('alert').onclick=()=>{if(G&&G.alert)centerCam(G.alert.x,G.alert.y)};
