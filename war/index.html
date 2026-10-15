@@ -37,6 +37,8 @@ button.arm{outline:3px solid var(--gold);outline-offset:-3px}
 button.b{background:#6E6A62;box-shadow:inset 0 2px 0 #9A958A,inset 0 -3px 0 #45423C,0 2px 0 #140A04}
 button.atk{background:#A8322A;box-shadow:inset 0 2px 0 #D45A48,inset 0 -3px 0 #6A1610,0 2px 0 #140A04}
 button.flag{background:#2F5A9E;box-shadow:inset 0 2px 0 #5A86C8,inset 0 -3px 0 #1A3666,0 2px 0 #140A04}
+button.sq{background:#3A5A8E;box-shadow:inset 0 2px 0 #6A8AC0,inset 0 -3px 0 #22385E,0 2px 0 #140A04}
+button.feint{background:#B0742A;box-shadow:inset 0 2px 0 #D89A4A,inset 0 -3px 0 #6E4614,0 2px 0 #140A04}
 button.skill{background:#6A3E8E;box-shadow:inset 0 2px 0 #9468B8,inset 0 -3px 0 #3E2058,0 2px 0 #140A04}
 .scr{position:fixed;inset:0;overflow:auto;touch-action:pan-y;background:radial-gradient(ellipse at 50% 0%,#5A3A1E 0%,#2A1A0E 65%,#160D06 100%);padding:max(20px,env(safe-area-inset-top)) 16px 24px;display:flex;flex-direction:column;align-items:center;gap:14px;z-index:5}
 .scr.clear{background:rgba(20,12,6,.84)}
@@ -72,9 +74,16 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
   <div id="panel">
     <div class="prow" id="rowBuild"><span class="lab">建造</span></div>
     <div class="prow" id="rowMake"><span class="lab">生產</span></div>
+    <div class="prow" id="rowSq"><span class="lab">軍團</span>
+      <button class="sq" data-sq="0">Ⅰ 一軍<small>待命 0</small></button>
+      <button class="sq" data-sq="1">Ⅱ 二軍<small>待命 0</small></button>
+      <button class="sq" data-sq="2">Ⅲ 三軍<small>待命 0</small></button>
+      <button class="atk" data-cmd="all">⚔ 齊攻<small>各軍同時殺到</small></button>
+    </div>
     <div class="prow" id="rowCmd"><span class="lab">指揮</span>
-      <button class="flag" data-cmd="flag">⚑ 插旗<small>新兵在旗下待命</small></button>
+      <button class="flag" data-cmd="flag">⚑ 插旗<small id="cFlag">一軍集結點</small></button>
       <button class="atk" data-cmd="attack">⚔ 進攻<small id="cAtk">待命 0</small></button>
+      <button class="feint" data-cmd="feint">🎭 佯攻<small>打一陣就撤</small></button>
       <button data-cmd="retreat">↩ 撤退<small id="cOut">出擊 0</small></button>
       <button class="skill" data-cmd="scan">🦅 鷹眼<small>50 號令</small></button>
       <button class="skill" data-cmd="bolt">⚡ 天雷<small>75 號令</small></button>
@@ -91,8 +100,10 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
       <li>按「建造」裡的建築，再點地圖放下去，最近的農民會走過去蓋。蓋到一半可以點建築<b>取消</b>，越早取消退越多資源。人口不夠就蓋<b>民房</b>；礦挖得差不多，就到別的金礦蓋<b>城堡</b>開分基地。</li>
       <li>科技：兵營 → 鐵匠鋪（劍士、升級）→ 攻城工坊（投石車）→ 獅鷲巢（獅鷲騎士）。</li>
       <li>有好幾間兵營（或攻城工坊、獅鷲巢、城堡）時，<b>點其中一間</b>選取它，按生產就會從那間出；沒選取就自動排到最閒的那間。</li>
-      <li>新兵都會到<b>集結旗</b>下排隊待命，<b>不會自己衝出去</b>；敵人靠近旗子才會迎戰。</li>
-      <li>按<b>進攻</b>再點地圖，旗下待命的兵一起殺過去，打完會自己找下一棟看過的敵方建築。按<b>撤退</b>，出擊的兵不戀戰跑回旗下。</li>
+      <li>你有<b>一軍、二軍、三軍</b>，各有一面集結旗。在「軍團」選一軍（或直接點地圖上的旗子），新兵就編進那一軍；插旗、進攻、佯攻、撤退也只指揮那一軍。</li>
+      <li>新兵都會到自己軍的<b>集結旗</b>下排隊待命，<b>不會自己衝出去</b>；敵人靠近旗子才會迎戰。按<b>進攻</b>再點地圖，這一軍就殺過去；按<b>撤退</b>就跑回旗下。</li>
+      <li><b>聲東擊西</b>：讓一軍<b>佯攻</b>，打一陣子就會自己撤回。敵人會先調兵去擋，這時用主力打另一邊。</li>
+      <li><b>左右夾擊</b>：把各軍的旗插在不同方向，按<b>齊攻</b>點目標，各軍會算好出發時間同時殺到。敵人同時被兩面攻擊，受到的傷害多 30%。</li>
       <li>相剋：劍士砍弓箭手、投石車砸地面部隊、獅鷲騎士打投石車（投石車和劍士打不到天上）、弓箭手射獅鷲。</li>
       <li>敵人在地圖右上角，一開始被戰爭迷霧蓋住。把對方建築全部打掉就贏了。</li>
     </ul>
@@ -150,11 +161,12 @@ const UNITS={
 const UNIT_ORDER=['worker','marine','flame','tank','jet'];
 const UPG={atk:{name:'攻擊',cost:[[100,100],[175,175],[250,250]],time:40},arm:{name:'護甲',cost:[[100,100],[175,175],[250,250]],time:40}};
 const SKILLS={scan:{name:'鷹眼',en:50,cd:0},bolt:{name:'天雷',en:75,cd:12}};
-const MAX_SUP=100,EN_MAX=200;
+const MAX_SUP=100,EN_MAX=200,FEINT_T=12,FLANK=1.3;
+const SQN=['一軍','二軍','三軍'];
 const DIFF=[
-  {name:'簡單',think:1.6,mine:.8,need:18,grow:4,expand:330,q:1,smart:.2},
-  {name:'普通',think:.9,mine:1,need:14,grow:6,expand:240,q:1,smart:.6},
-  {name:'困難',think:.45,mine:1.15,need:12,grow:6,expand:170,q:2,smart:.9},
+  {name:'簡單',think:1.6,mine:.8,need:18,grow:4,expand:330,q:1,smart:.2,commit:22,tactic:0},
+  {name:'普通',think:.9,mine:1,need:14,grow:6,expand:240,q:1,smart:.6,commit:14,tactic:.35},
+  {name:'困難',think:.45,mine:1.15,need:12,grow:6,expand:170,q:2,smart:.9,commit:8,tactic:.6},
 ];
 const COL=[{body:'#3F8CFF',dark:'#173F8A',light:'#B5D2FF'},{body:'#E5483B',dark:'#7E1A12',light:'#FFB9B0'}];
 
@@ -195,8 +207,8 @@ const tileAt=(x,y)=>idx(clamp(Math.floor(x/TS),0,MW-1),clamp(Math.floor(y/TS),0,
 const walk=i=>!terrain[i]&&!occ[i];
 
 function newTeam(i){
-  return {i,min:50,gas:0,energy:50,up:{atk:0,arm:0},skillCd:{scan:0,bolt:0},flag:null,attackPt:null,
-    made:0,kills:0,lost:0,ai:{t:0,need:0,atkStart:0,def:false,home:null,boltT:0}};
+  return {i,min:50,gas:0,energy:50,up:{atk:0,arm:0},skillCd:{scan:0,bolt:0},sq:[0,1,2].map(i=>({i,flag:null,pt:null,feint:false,go:0,engT:0,hp0:0})),cur:0,
+    made:0,kills:0,lost:0,ai:{t:0,need:0,atkStart:0,def:false,home:null,boltT:0,defPt:null,commit:0}};
 }
 function start(d){
   nid=1;occ=new Array(N).fill(null);fieldCache.clear();gridVer++;
@@ -211,7 +223,8 @@ function start(d){
     const hq=addBld(tm.i,'hq',sp.hq[0],sp.hq[1],true);
     tm.main=hq;
     const ft=tm.i===0?[20,28]:mir(20,28,1,1);
-    tm.flag={x:(ft[0]+.5)*TS,y:(ft[1]+.5)*TS};tm.ai.home={...tm.flag};
+    const home={x:(ft[0]+.5)*TS,y:(ft[1]+.5)*TS};tm.ai.home={...home};setFlags(tm,home);
+    if(tm.i===0){tm.sq[1].flag=walkPt(home.x-130,home.y-110);tm.sq[2].flag=walkPt(home.x+130,home.y+70)}
     for(let k=0;k<6;k++)G.units.push(mkUnit(tm.i,'worker',hq.x+(k-2.5)*16,hq.y+(tm.i===0?-1:1)*70));
     tm.ai.need=G.diff.need;
   }
@@ -223,6 +236,16 @@ function start(d){
   hint('農民已經開始挖金礦，先蓋民房和兵營吧',5);
   last=performance.now();
 }
+function setFlags(tm,p){for(const S of tm.sq)S.flag={x:p.x,y:p.y}}
+function walkPt(x,y){
+  const cx=Math.floor(x/TS),cy=Math.floor(y/TS);
+  for(let r=0;r<8;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+    if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;const tx=cx+dx,ty=cy+dy;
+    if(inb(tx,ty)&&walk(idx(tx,ty)))return {x:(tx+.5)*TS,y:(ty+.5)*TS};
+  }
+  return {x,y};
+}
+const aiSide=tm=>tm.i===1||G.autoP;
 function addRes(kind,tx,ty,w,h,amount){
   const r=rectify({id:nid++,isR:true,kind,tx,ty,w,h,amount,ref:null});
   for(const i of tilesOf(r))occ[i]=r;
@@ -237,7 +260,7 @@ function addBld(team,kind,tx,ty,done,geyser){
 }
 function mkUnit(team,kind,x,y){
   const T=UNITS[kind];
-  return {id:nid++,team,kind,x,y,hp:T.hp,max:T.hp,r:T.r,flying:!!T.flying,mode:'hold',st:'idle',cdLeft:0,retarget:0,tgt:null,flash:0,face:team===0?-Math.PI/4:Math.PI*.75,carry:null,res:null,bld:null,t:0};
+  return {id:nid++,team,kind,x,y,hp:T.hp,max:T.hp,r:T.r,flying:!!T.flying,mode:'hold',sq:0,st:'idle',cdLeft:0,retarget:0,tgt:null,flash:0,face:team===0?-Math.PI/4:Math.PI*.75,carry:null,res:null,bld:null,t:0};
 }
 function hint(s,t){$('hint').textContent=s;$('hint').style.opacity=1;hintT=t||2.5}
 
@@ -419,33 +442,43 @@ function findTarget(team,x,y,range,def,leashPt,leash){
   return best;
 }
 function atkDmg(team,kind,base){return base+G.teams[team].up.atk*(kind==='tank'?3:1)}
-function damage(t,amt,team){
+function damage(t,amt,team,sx,sy){
+  if(!t.isB&&sx!=null){
+    const a=Math.atan2(sy-t.y,sx-t.x);
+    if(t.hitA!=null&&G.t-t.hitT<1.5){
+      let d=Math.abs(a-t.hitA)%(2*Math.PI);if(d>Math.PI)d=2*Math.PI-d;
+      if(d>2.1){amt*=FLANK;if(!(G.t-t.flankT<2))G.fx.push({k:'txt',s:'夾擊！',x:t.x,y:t.y-30,t:1,team});t.flankT=G.t}
+    }
+    t.hitA=a;t.hitT=G.t;
+  }
   const arm=t.isB?1:(UNITS[t.kind].arm||0)+G.teams[t.team].up.arm;
   t.hp-=Math.max(1,amt-arm);t.flash=.12;
   if(t.team===0&&(!G.alert||G.alert.t<G.t-4))G.alert={x:t.x,y:t.y,t:G.t};
 }
-function splash(x,y,r,amt,team,primary){
-  for(const e of G.units)if(e.team!==team&&!e.flying&&e!==primary){const d=Math.hypot(e.x-x,e.y-y);if(d<r+e.r)damage(e,amt*(d<15?1:.5),team)}
+function splash(x,y,r,amt,team,primary,sx,sy){
+  for(const e of G.units)if(e.team!==team&&!e.flying&&e!==primary){const d=Math.hypot(e.x-x,e.y-y);if(d<r+e.r)damage(e,amt*(d<15?1:.5),team,sx,sy)}
 }
 function fire(src,def,t,team,kind){
   const dmg=atkDmg(team,kind,def.dmg),sx=src.x,sy=src.y;
   if(src.isB)src.face=Math.atan2(t.y-sy,t.x-sx);
-  if(def.shot==='tracer'){damage(t,dmg,team);G.fx.push({k:'tracer',x:sx,y:sy,x2:t.x+(Math.random()-.5)*8,y2:t.y+(Math.random()-.5)*8,t:.08,team})}
-  else if(def.shot==='flame'){damage(t,dmg,team);if(!t.isB)splash(t.x,t.y,def.splash,dmg,team,t);G.fx.push({k:'flame',x:sx,y:sy,x2:t.x,y2:t.y,t:.3,team})}
-  else if(def.shot==='shell')G.shots.push({k:'shell',x:sx,y:sy,tx:t.x,ty:t.y,tgt:t,dmg,team,sp:380,splash:def.splash,d0:Math.hypot(t.x-sx,t.y-sy)});
-  else G.shots.push({k:def.shot,x:sx,y:sy,tgt:t,dmg,team,sp:def.shot==='missile'?340:420});
+  if(def.shot==='tracer'){damage(t,dmg,team,sx,sy);G.fx.push({k:'tracer',x:sx,y:sy,x2:t.x+(Math.random()-.5)*8,y2:t.y+(Math.random()-.5)*8,t:.08,team})}
+  else if(def.shot==='flame'){damage(t,dmg,team,sx,sy);if(!t.isB)splash(t.x,t.y,def.splash,dmg,team,t,sx,sy);G.fx.push({k:'flame',x:sx,y:sy,x2:t.x,y2:t.y,t:.3,team})}
+  else if(def.shot==='shell')G.shots.push({k:'shell',x:sx,y:sy,ox:sx,oy:sy,tx:t.x,ty:t.y,tgt:t,dmg,team,sp:380,splash:def.splash,d0:Math.hypot(t.x-sx,t.y-sy)});
+  else G.shots.push({k:def.shot,x:sx,y:sy,ox:sx,oy:sy,tgt:t,dmg,team,sp:def.shot==='missile'?340:420});
 }
 function slotsFor(tm){
-  const res=new Map(),f=tm.flag,em=G.teams[1-tm.i].main||{x:W/2,y:H/2};
-  const a=Math.atan2(em.y-f.y,em.x-f.x),fx=Math.cos(a),fy=Math.sin(a),px=-fy,py=fx;
+  const res=new Map(),em=G.teams[1-tm.i].main||{x:W/2,y:H/2};
+  for(const S of tm.sq){
+  const f=S.flag,a=Math.atan2(em.y-f.y,em.x-f.x),fx=Math.cos(a),fy=Math.sin(a),px=-fy,py=fx;
   let row=0;
   for(const k of ['flame','marine','jet','tank']){
-    const list=G.units.filter(u=>u.team===tm.i&&u.kind===k&&u.mode!=='attack');
+    const list=G.units.filter(u=>u.team===tm.i&&u.sq===S.i&&u.kind===k&&u.mode!=='attack');
     for(let s=0;s<list.length;s+=6){
       const n=Math.min(6,list.length-s);
       for(let j=0;j<n;j++){const lat=(j-(n-1)/2)*26,fw=24-row*26;res.set(list[s+j],{x:clamp(f.x+fx*fw+px*lat,15,W-15),y:clamp(f.y+fy*fw+py*lat,15,H-15)})}
       row++;
     }
+  }
   }
   return res;
 }
@@ -455,14 +488,14 @@ function nextAttackTarget(tm,from){
   return best;
 }
 function updArmy(u,dt,slots){
-  const T=UNITS[u.kind],tm=G.teams[u.team];
+  const T=UNITS[u.kind],tm=G.teams[u.team],S=tm.sq[u.sq];
   u.cdLeft-=dt;u.retarget-=dt;
   if(u.mode==='retreat'){
-    const s=slots.get(u)||tm.flag;
-    if(Math.hypot(s.x-u.x,s.y-u.y)<34)u.mode='hold';else stepToward(u,s.x,s.y,T.speed*1.15,dt);
+    const s=slots.get(u)||S.flag;
+    if(Math.hypot(s.x-u.x,s.y-u.y)<34){u.mode='hold';if(aiSide(tm))u.sq=0}else stepToward(u,s.x,s.y,T.speed*1.15,dt);
     return;
   }
-  const leashPt=u.mode==='hold'?tm.flag:null;
+  const leashPt=u.mode==='hold'?S.flag:null;
   if(u.tgt&&(u.tgt.hp<=0||distTo(u,u.tgt)>T.sight*TS*1.3))u.tgt=null;
   if(u.retarget<=0||!u.tgt){u.retarget=.3+Math.random()*.1;u.tgt=findTarget(u.team,u.x,u.y,Math.max(T.sight*TS,T.range),T,leashPt,380)}
   const t=u.tgt;
@@ -472,18 +505,56 @@ function updArmy(u,dt,slots){
     else{u.face=Math.atan2(t.y-u.y,t.x-u.x);if(u.cdLeft<=0){u.cdLeft=T.cd;fire(u,T,t,u.team,u.kind)}}
     return;
   }
-  if(u.mode==='hold'){const s=slots.get(u)||tm.flag;if(Math.hypot(s.x-u.x,s.y-u.y)>6)stepToward(u,s.x,s.y,T.speed,dt);return}
-  const p=tm.attackPt;if(!p)return;
+  if(u.mode==='hold'){const s=slots.get(u)||S.flag;if(Math.hypot(s.x-u.x,s.y-u.y)>6)stepToward(u,s.x,s.y,T.speed,dt);return}
+  const p=S.pt;if(!p)return;
   if(Math.hypot(p.x-u.x,p.y-u.y)>70)stepToward(u,p.x,p.y,T.speed,dt,p.obj&&p.obj.hp>0?p.obj:null);
-  else{const nb=nextAttackTarget(tm,p);if(nb)tm.attackPt={x:nb.x,y:nb.y,obj:nb}}
+  else{const nb=nextAttackTarget(tm,p);if(nb)S.pt={x:nb.x,y:nb.y,obj:nb}}
 }
-function command(tm,cmd,pt){
-  const army=G.units.filter(u=>u.team===tm.i&&u.kind!=='worker');
+function mkPt(tm,pt){
+  let obj=null;for(const b of G.blds)if(b.team!==tm.i&&rectDist(b,pt.x,pt.y)<20&&(tm.i===1||b.seen0))obj=b;
+  return {x:pt.x,y:pt.y,obj};
+}
+const armyOf=(tm,si)=>G.units.filter(u=>u.team===tm.i&&u.kind!=='worker'&&(si==null||u.sq===si));
+function pathLen(a,p,flying){
+  const direct=Math.hypot(p.x-a.x,p.y-a.y);if(flying)return direct;
+  const t=tileAt(p.x,p.y),f=getField('t'+t,()=>[t]),v=f[tileAt(a.x,a.y)];
+  return v<1e8?v/10*TS:direct*1.3;
+}
+// every squad with waiting troops heads for the same point, timed to arrive together
+function allAttack(tm,pt){
+  const P=mkPt(tm,pt),go=[];
+  for(const S of tm.sq){
+    const us=armyOf(tm,S.i).filter(u=>u.mode!=='attack');if(!us.length)continue;
+    go.push([S,Math.max(...us.map(u=>pathLen(u,P,u.flying)/UNITS[u.kind].speed)),us]);
+  }
+  if(!go.length)return 0;
+  const mx=Math.max(...go.map(g=>g[1]));
+  for(const [S,eta,us] of go){S.pt={...P};S.feint=false;S.engT=0;S.hp0=us.reduce((s,u)=>s+u.hp,0);S.go=G.t+Math.max(.01,mx-eta)}
+  tm.ai.atkStart=armyOf(tm).reduce((s,u)=>s+UNITS[u.kind].sup,0);
+  return go.length;
+}
+function updSquads(tm){
+  for(const S of tm.sq){
+    if(S.go&&G.t>=S.go){S.go=0;for(const u of armyOf(tm,S.i))if(u.mode==='hold'){u.mode='attack';u.tgt=null}}
+    if(!S.feint)continue;
+    const us=armyOf(tm,S.i).filter(u=>u.mode==='attack');
+    if(!us.length){S.feint=false;continue}
+    if(!S.engT&&us.some(u=>u.tgt))S.engT=G.t;
+    const hp=us.reduce((s,u)=>s+u.hp,0);
+    if((S.engT&&G.t-S.engT>FEINT_T)||hp<S.hp0*.6){
+      S.feint=false;for(const u of us){u.mode='retreat';u.tgt=null}
+      if(!aiSide(tm))hint(SQN[S.i]+'佯攻完成，撤回旗下',3);
+    }
+  }
+}
+function command(tm,cmd,pt,si,feint){
+  const army=armyOf(tm,si);
   if(cmd==='attack'){
+    if(si==null)for(const u of army)u.sq=0;
+    const S=tm.sq[si||0];
     let n=0;for(const u of army)if(u.mode!=='attack'){u.mode='attack';u.tgt=null;n++}
-    let obj=null;for(const b of G.blds)if(b.team!==tm.i&&rectDist(b,pt.x,pt.y)<20&&(tm.i===1||b.seen0))obj=b;
-    tm.attackPt={x:pt.x,y:pt.y,obj};
-    tm.ai.atkStart=army.reduce((s,u)=>s+UNITS[u.kind].sup,0);
+    S.pt=mkPt(tm,pt);S.feint=!!feint;S.engT=0;S.go=0;S.hp0=army.reduce((s,u)=>s+u.hp,0);
+    tm.ai.atkStart=armyOf(tm).reduce((s,u)=>s+UNITS[u.kind].sup,0);
     return n;
   }
   if(cmd==='retreat'){let n=0;for(const u of army)if(u.mode==='attack'){u.mode='retreat';u.tgt=null;n++}return n}
@@ -518,13 +589,14 @@ function step(dt){
       b.queue.shift();
       if(UPG[q.kind]){tm.up[q.kind]++;if(b.team===0)hint(UPG[q.kind].name+'升到 '+tm.up[q.kind]+' 級')}
       else{
-        const f=tm.flag,a=Math.atan2(f.y-b.y,f.x-b.x);
+        const si=aiSide(tm)?0:tm.cur,f=tm.sq[si].flag,a=Math.atan2(f.y-b.y,f.x-b.x);
         const u=mkUnit(b.team,q.kind,b.x+Math.cos(a)*(b.r+14),b.y+Math.sin(a)*(b.r+14));
         if(!u.flying&&blockedAt(u.x,u.y)){for(const [dx,dy] of [[0,1],[0,-1],[1,0],[-1,0]]){const x=b.x+dx*(b.r+14),y=b.y+dy*(b.r+14);if(!blockedAt(x,y)){u.x=x;u.y=y;break}}}
-        G.units.push(u);tm.made++;
+        u.sq=si;G.units.push(u);tm.made++;
       }
     }
   }
+  for(const tm of G.teams)updSquads(tm);
   const sl=[slotsFor(G.teams[0]),slotsFor(G.teams[1])];
   for(const b of G.blds)b.flash=Math.max(0,b.flash-dt);
   for(const u of G.units){u.flash=Math.max(0,u.flash-dt);if(u.kind==='worker')updWorker(u,dt);else updArmy(u,dt,sl[u.team])}
@@ -551,14 +623,14 @@ function step(dt){
       const dx=s.tx-s.x,dy=s.ty-s.y,d=Math.hypot(dx,dy),mv=s.sp*dt;
       if(d<=mv){s.dead=true;
         const t=s.tgt;
-        if(t.hp>0&&(t.isB||Math.hypot(t.x-s.tx,t.y-s.ty)<t.r+10))damage(t,s.dmg,s.team);
-        splash(s.tx,s.ty,s.splash,s.dmg,s.team,t);G.fx.push({k:'boom',x:s.tx,y:s.ty,t:.35,r:s.splash,team:s.team})}
+        if(t.hp>0&&(t.isB||Math.hypot(t.x-s.tx,t.y-s.ty)<t.r+10))damage(t,s.dmg,s.team,s.ox,s.oy);
+        splash(s.tx,s.ty,s.splash,s.dmg,s.team,t,s.ox,s.oy);G.fx.push({k:'boom',x:s.tx,y:s.ty,t:.35,r:s.splash,team:s.team})}
       else{s.x+=dx/d*mv;s.y+=dy/d*mv}
       continue;
     }
     const tg=s.tgt;if(tg.hp<=0){s.dead=true;continue}
     const dx=tg.x-s.x,dy=tg.y-s.y,d=Math.hypot(dx,dy),mv=s.sp*dt;
-    if(d<=mv+(tg.isB?tg.r*.6:4)){damage(tg,s.dmg,s.team);s.dead=true;G.fx.push({k:'pop',x:s.x,y:s.y,t:.15,team:s.team})}
+    if(d<=mv+(tg.isB?tg.r*.6:4)){damage(tg,s.dmg,s.team,s.ox,s.oy);s.dead=true;G.fx.push({k:'pop',x:s.x,y:s.y,t:.15,team:s.team})}
     else{s.x+=dx/d*mv;s.y+=dy/d*mv;s.a=Math.atan2(dy,dx)}
   }
   G.shots=G.shots.filter(s=>!s.dead);
@@ -650,6 +722,20 @@ function aiPickUnit(me,bk){
   if(bk==='port')return Math.random()<.45+s*tank/tot-s*.5*inf/tot?'jet':null;
   return null;
 }
+// send a small squad at a far-away building first, then the main army at the real target
+function aiFeint(tm,main){
+  let far=null,fd=10*TS;
+  for(const b of G.blds)if(b.team!==tm.i&&(tm.i===1||G.autoP||b.seen0)){const d=dist(b,main);if(d>fd){fd=d;far=b}}
+  if(!far)return false;
+  const us=armyOf(tm).filter(u=>u.mode==='hold').sort((a,b)=>UNITS[a.kind].min-UNITS[b.kind].min);
+  const tot=us.reduce((s,u)=>s+UNITS[u.kind].sup,0);let fs=0;
+  for(const u of us){if(fs>=tot*.3)break;if(u.kind==='tank')continue;u.sq=1;fs+=UNITS[u.kind].sup}
+  if(!fs)return false;
+  command(tm,'attack',{x:far.x,y:far.y},1,true);
+  const S=tm.sq[0];S.pt=mkPt(tm,{x:main.x,y:main.y});S.feint=false;S.engT=0;S.go=G.t+8;
+  S.hp0=armyOf(tm,0).reduce((s,u)=>s+u.hp,0);tm.ai.atkStart=tot;
+  return true;
+}
 function aiThink(me){
   const tm=G.teams[me],op=1-me,D=G.diff;
   const my=G.blds.filter(b=>b.team===me);
@@ -694,17 +780,25 @@ function aiThink(me){
   const enemyS=G.units.filter(u=>u.team===op&&u.kind!=='worker').reduce((s,u)=>s+sup(u),0);
   const threats=G.units.filter(u=>u.team===op&&u.kind!=='worker'&&my.some(b=>rectDist(b,u.x,u.y)<9*TS));
   if(threats.length){
-    let cx=0,cy=0;for(const u of threats){cx+=u.x;cy+=u.y}
-    tm.flag={x:cx/threats.length,y:cy/threats.length};tm.ai.def=true;
+    // commit to one threat for a while: a feint can pull the defenders away from the real attack
+    const mid=l=>{let x=0,y=0;for(const u of l){x+=u.x;y+=u.y}return {x:x/l.length,y:y/l.length}};
+    let pt=null;
+    if(tm.ai.def&&G.t<tm.ai.commit){const near=threats.filter(u=>Math.hypot(u.x-tm.ai.defPt.x,u.y-tm.ai.defPt.y)<6*TS);if(near.length)pt=mid(near)}
+    if(!pt){
+      let best=threats[0],bs=-1;
+      for(const u of threats){let s=0;for(const v of threats)if(Math.hypot(u.x-v.x,u.y-v.y)<6*TS)s+=sup(v);if(s>bs){bs=s;best=u}}
+      pt=mid(threats.filter(v=>Math.hypot(best.x-v.x,best.y-v.y)<6*TS));tm.ai.commit=G.t+D.commit;
+    }
+    tm.ai.defPt=pt;setFlags(tm,pt);tm.ai.def=true;
     const thS=threats.reduce((s,u)=>s+sup(u),0);
     if(atkS>0&&thS>holdS*1.5&&Math.random()<D.smart)command(tm,'recall');
-  }else if(tm.ai.def){tm.flag={...tm.ai.home};tm.ai.def=false}
+  }else if(tm.ai.def){setFlags(tm,tm.ai.home);tm.ai.def=false}
   if(atkS===0&&!tm.ai.def){
     if(holdS>=tm.ai.need||used>=MAX_SUP-4){
-      const tgt=nextAttackTarget(tm,tm.flag);
-      if(tgt){command(tm,'attack',{x:tgt.x,y:tgt.y});tm.ai.need=Math.min(60,tm.ai.need+D.grow)}
+      const tgt=nextAttackTarget(tm,tm.sq[0].flag);
+      if(tgt){if(!(holdS>=10&&Math.random()<D.tactic&&aiFeint(tm,tgt)))command(tm,'attack',{x:tgt.x,y:tgt.y});tm.ai.need=Math.min(60,tm.ai.need+D.grow)}
     }
-  }else if(atkS>0&&atkS<tm.ai.atkStart*.35&&enemyS>atkS*1.3)command(tm,'retreat');
+  }else if(atkS>0&&!tm.sq.some(S=>S.go||S.feint)&&atkS<tm.ai.atkStart*.35&&enemyS>atkS*1.3)command(tm,'retreat');
   // skills
   tm.ai.boltT-=D.think;
   if(tm.energy>=75&&tm.ai.boltT<=0){
@@ -936,6 +1030,7 @@ function drawUnit(u){
   blit(u.flash>0?whiteOf(`f${u.kind}`,c):c,u.x,y,flip);
   top=y-c.height*PX;
   if(u.mode==='attack'&&u.kind!=='worker'){ctx.fillStyle=u.team===0?'#FFD34D':'#FF8A3D';ctx.fillRect(Math.round(u.x/2)*2-2,top-4,4,4)}
+  if(u.flankT&&G.t-u.flankT<.4){ctx.fillStyle='#FF7A1A';const x=Math.round(u.x/2)*2;ctx.fillRect(x-8,top-14,4,6);ctx.fillRect(x+4,top-14,4,6);ctx.fillRect(x-8,top-6,4,2);ctx.fillRect(x+4,top-6,4,2)}
   if(u.hp<u.max)bar(u.x-12,top-2,24,u.hp/u.max);
 }
 
@@ -966,6 +1061,10 @@ function drawRes(r){
 // ---------- effects ----------
 function drawFx(f){
   if(f.team===1&&f.k!=='bolt'&&!visAt(f.x,f.y))return;
+  if(f.k==='txt'){
+    const y=f.y-(1-f.t)*24;ctx.globalAlpha=clamp(f.t*2,0,1);ctx.font='900 16px '+getComputedStyle(document.body).fontFamily;ctx.textAlign='center';
+    ctx.lineWidth=4;ctx.strokeStyle='#2A1608';ctx.strokeText(f.s,f.x,y);ctx.fillStyle=f.team===0?'#FFD34D':'#FF8A3D';ctx.fillText(f.s,f.x,y);ctx.globalAlpha=1;return;
+  }
   if(f.k==='tracer'){
     const q=1-clamp(f.t/.08,0,1),x=f.x+(f.x2-f.x)*q,y=f.y-10+(f.y2-f.y)*q,a=Math.atan2(f.y2-f.y,f.x2-f.x);
     ctx.strokeStyle=WD.dk;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x-Math.cos(a)*10,y-Math.sin(a)*10);ctx.lineTo(x,y);ctx.stroke();
@@ -996,19 +1095,33 @@ function drawFx(f){
     }
   }else if(f.k==='scan'&&f.team===0){ctx.strokeStyle=`rgba(255,220,140,${.35+.2*Math.sin(G.t*6)})`;ctx.lineWidth=4;ctx.setLineDash([12,8]);ctx.beginPath();ctx.arc(f.x,f.y,f.r,0,7);ctx.stroke();ctx.setLineDash([])}
 }
-function flagSprite(team,f){
-  return spr('flag'+team+f,18,30,p=>{
+function flagSprite(team,f,n){
+  return spr('flag'+team+f+n,18,30,p=>{
     const T=TEAM[team];
     p(2,0,2,30,WD.dk);p(1,0,4,2,GOLD);
-    p(4,2,12,8,T.m);p(4,2,12,1,T.l);p(8,4,4,4,GOLD);p(9,5,2,2,T.d);
+    p(4,2,12,8,T.m);p(4,2,12,1,T.l);
+    if(n)for(let k=0;k<n;k++)p([[9],[7,11],[6,9,12]][n-1][k],4,2,5,GOLD);else{p(8,4,4,4,GOLD);p(9,5,2,2,T.d)}
     if(f){p(4,10,5,3,T.m);p(11,10,5,2,T.m)}else{p(4,10,5,2,T.m);p(11,10,5,3,T.m)}
   });
 }
-function drawFlag(tm){
-  const r=tm.flag;
+function drawFlag(tm,S,cur){
+  const r=S.flag;
   shadow(r.x+4,r.y+2,16);
-  blit(flagSprite(tm.i,(G.t*3|0)%2),r.x+14,r.y+2);
-  ctx.strokeStyle='rgba(255,240,200,.25)';ctx.setLineDash([8,10]);ctx.lineWidth=2;ctx.beginPath();ctx.arc(r.x,r.y,380,0,7);ctx.stroke();ctx.setLineDash([]);
+  blit(flagSprite(tm.i,(G.t*3+S.i|0)%2,S.i+1),r.x+14,r.y+2);
+  if(cur){
+    ctx.strokeStyle='rgba(255,240,200,.3)';ctx.setLineDash([8,10]);ctx.lineWidth=2;ctx.beginPath();ctx.arc(r.x,r.y,380,0,7);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=GOLD;const y=r.y-66+Math.round(Math.sin(G.t*5))*2;for(let i=0;i<4;i++)ctx.fillRect(r.x+8-i*2,y+i*2,4+i*4,2);
+  }
+}
+function drawOrders(tm){
+  for(const S of tm.sq){
+    const p=S.pt,us=armyOf(tm,S.i);
+    if(!p||!(S.go||us.some(u=>u.mode==='attack')))continue;
+    const x=Math.round(p.x/2)*2,y=Math.round(p.y/2)*2;
+    if(S.go){ctx.strokeStyle='rgba(255,220,140,.55)';ctx.lineWidth=3;ctx.setLineDash([6,10]);ctx.beginPath();ctx.moveTo(S.flag.x,S.flag.y);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.setLineDash([])}
+    ctx.fillStyle=S.feint?'#E8A33A':'#C2392E';for(let i=-6;i<=6;i++){ctx.fillRect(x+i*2-2,y+i*2-2,4,4);ctx.fillRect(x-i*2-2,y+i*2-2,4,4)}
+    ctx.fillStyle=GOLD;for(let k=0;k<=S.i;k++)ctx.fillRect(x+18+k*6,y-14,4,10);
+  }
 }
 
 // ---------- terrain ----------
@@ -1097,7 +1210,7 @@ function draw(){
   ctx.drawImage(terrCv,cam.x/PX,cam.y/PX,vw/PX,vh/PX,cam.x,cam.y,vw,vh);
   for(const r of G.res)if(inView(r.x,r.y,60))drawRes(r);
   const tm=G.teams[0];
-  if(tm.attackPt&&G.units.some(u=>u.team===0&&u.mode==='attack')){const p=tm.attackPt,x=Math.round(p.x/2)*2,y=Math.round(p.y/2)*2;ctx.fillStyle='#C2392E';for(let i=-6;i<=6;i++){ctx.fillRect(x+i*2-2,y+i*2-2,4,4);ctx.fillRect(x-i*2-2,y+i*2-2,4,4)}}
+  drawOrders(tm);
   for(const f of G.fx)if(f.k==='scan'||(f.k==='bolt'&&!f.done))drawFx(f);
   // buildings and ground units sorted together by their base line
   const list=[];
@@ -1120,7 +1233,7 @@ function draw(){
   // fog
   if(--fogTick<=0){fogTick=3;updateFog()}
   ctx.drawImage(fogCv,0,0,W,H);
-  drawFlag(tm);
+  for(const S of tm.sq)drawFlag(tm,S,S.i===tm.cur);
   if(sel){ctx.strokeStyle='#FFC93C';ctx.lineWidth=4;ctx.setLineDash([8,6]);ctx.strokeRect(sel.x0-4,sel.y0-4,sel.x1-sel.x0+8,sel.y1-sel.y0+8);ctx.setLineDash([])}
   if(armed&&BLD[armed]&&hover){
     const g=ghostFor(armed,hover.x,hover.y),D=BLD[armed];
@@ -1157,6 +1270,11 @@ function buildUI(){
     b.innerHTML=`${U.name}<small>${U.min}${U.gas?` <span class="g">${U.gas}</span>`:''}</small><span class="bar"></span>`;b.onclick=()=>doMake(k);rm.appendChild(b)}
   for(const k of ['atk','arm']){const b=document.createElement('button');b.dataset.make=k;b.className='skill';b.innerHTML=`<span class="nm">${UPG[k].name}</span><small></small><span class="bar"></span>`;b.onclick=()=>doMake(k);rm.appendChild(b)}
   document.querySelectorAll('[data-cmd]').forEach(b=>b.onclick=()=>doCmd(b.dataset.cmd));
+  document.querySelectorAll('[data-sq]').forEach(b=>b.onclick=()=>selSq(+b.dataset.sq));
+}
+function selSq(i){
+  if(!live())return;const tm=G.teams[0];tm.cur=i;if(armed==='flag'||armed==='attack'||armed==='feint')armed=null;
+  hint(`選了${SQN[i]}：新兵編入${SQN[i]}，插旗和進攻都指揮這一軍`,3);updUI();
 }
 function setArmed(a,msg){armed=armed===a?null:a;if(armed&&msg)hint(msg,6);updUI()}
 function doBuild(k){
@@ -1180,9 +1298,11 @@ function doMake(k){
 }
 function doCmd(c){
   if(!live())return;const tm=G.teams[0];
-  if(c==='flag')return setArmed('flag','點地圖插集結旗');
-  if(c==='attack'){if(!G.units.some(u=>u.team===0&&u.kind!=='worker'))return hint('還沒有士兵');return setArmed('attack','點地圖選擇進攻的位置')}
-  if(c==='retreat'){const n=command(tm,'retreat');hint(n?`${n} 名士兵撤退回旗下`:'沒有出擊中的士兵');return}
+  const sn=SQN[tm.cur];
+  if(c==='flag')return setArmed('flag',`點地圖插${sn}的集結旗`);
+  if(c==='attack'||c==='feint'){if(!armyOf(tm,tm.cur).length)return hint(sn+'還沒有士兵');return setArmed(c,c==='feint'?`點地圖選擇${sn}佯攻的位置`:`點地圖選擇${sn}進攻的位置`)}
+  if(c==='all'){if(!armyOf(tm).some(u=>u.mode!=='attack'))return hint('沒有待命的士兵');return setArmed('all','點地圖選擇齊攻目標，各軍會同時殺到')}
+  if(c==='retreat'){const n=command(tm,'retreat',null,tm.cur);hint(n?`${sn} ${n} 名士兵撤退回旗下`:sn+'沒有出擊中的士兵');return}
   const S=SKILLS[c];if(tm.energy<S.en)return hint('號令不夠');if(tm.skillCd[c]>0)return hint('還在冷卻');
   setArmed(c,'點地圖選擇'+S.name+'的位置');
 }
@@ -1197,6 +1317,8 @@ function cancelBuild(b){
 function tapWorld(x,y){
   const tm=G.teams[0];
   if(!armed){
+    const fl=tm.sq.find(S=>x>=S.flag.x-10&&x<=S.flag.x+36&&y>=S.flag.y-62&&y<=S.flag.y+10);
+    if(fl){selSq(fl.i);return}
     const b=G.blds.find(b=>b.team===0&&x>=b.x0&&x<=b.x1&&y>=b.y0&&y<=b.y1);
     sel=b&&(!b.done||(BLD[b.kind].makes&&b.kind!=='turret'))?b:null;
     if(b&&b.done){
@@ -1205,8 +1327,10 @@ function tapWorld(x,y){
     }
     updUI();return;
   }
-  if(armed==='flag'){tm.flag={x:clamp(x,20,W-20),y:clamp(y,20,H-20)};for(const u of G.units)if(u.team===0&&u.mode==='hold')u.tgt=null;armed=null;hint('集結旗插好了');return}
-  if(armed==='attack'){const n=command(tm,'attack',{x,y});armed=null;hint(n?`${n} 名士兵出擊！`:'改變進攻目標');return}
+  const sn=SQN[tm.cur];
+  if(armed==='flag'){tm.sq[tm.cur].flag={x:clamp(x,20,W-20),y:clamp(y,20,H-20)};for(const u of armyOf(tm,tm.cur))if(u.mode==='hold')u.tgt=null;armed=null;hint(sn+'的集結旗插好了');return}
+  if(armed==='attack'||armed==='feint'){const f=armed==='feint',n=command(tm,'attack',{x,y},tm.cur,f);armed=null;hint(f?`${sn}佯攻！打一陣就會撤回`:n?`${sn} ${n} 名士兵出擊！`:sn+'改變進攻目標');return}
+  if(armed==='all'){const n=allAttack(tm,{x,y});armed=null;hint(n>1?`${n} 支軍隊齊攻，會同時殺到`:n?'只有一支軍隊有待命的兵，直接出擊':'沒有待命的士兵');return}
   if(SKILLS[armed]){if(cast(tm,armed,x,y))armed=null;else hint('號令不夠或還在冷卻');return}
   if(BLD[armed]){
     const g=ghostFor(armed,x,y);
@@ -1234,8 +1358,10 @@ function updUI(){
     let qe=b.querySelector('.q');if(n){if(!qe){qe=document.createElement('span');qe.className='q';b.appendChild(qe)}qe.textContent=n}else if(qe)qe.remove();
     b.querySelector('.bar').style.width=(best?(1-best.t/best.total)*100:0)+'%';
   });
-  let h=0,a=0;for(const u of G.units)if(u.team===0&&u.kind!=='worker'){if(u.mode==='attack')a++;else h++}
-  $('cAtk').textContent='待命 '+h;$('cOut').textContent='出擊 '+a;
+  const cnt=tm.sq.map(()=>[0,0]);for(const u of G.units)if(u.team===0&&u.kind!=='worker')cnt[u.sq][u.mode==='attack'?1:0]++;
+  document.querySelectorAll('[data-sq]').forEach(b=>{const i=+b.dataset.sq,S=tm.sq[i],[h,a]=cnt[i];b.classList.toggle('arm',tm.cur===i);
+    b.querySelector('small').textContent=S.go?`${Math.ceil(S.go-G.t)} 秒後出發`:a?`待命 ${h}・出擊 ${a}`:`待命 ${h}`});
+  $('cAtk').textContent='待命 '+cnt[tm.cur][0];$('cOut').textContent='出擊 '+cnt[tm.cur][1];$('cFlag').textContent=SQN[tm.cur]+'集結點';
   document.querySelectorAll('[data-cmd]').forEach(b=>{const k=b.dataset.cmd;b.classList.toggle('arm',armed===k);if(SKILLS[k])b.disabled=tm.energy<SKILLS[k].en||tm.skillCd[k]>0});
 }
 function end(win){
@@ -1294,7 +1420,7 @@ document.addEventListener('keydown',e=>{
   if(e.key===' '){e.preventDefault();setPause(!paused);return}
   if(e.key==='Escape'){armed=null;sel=null;return}
   const k=e.key.toLowerCase();
-  if(k==='f')doCmd('flag');else if(k==='a')doCmd('attack');else if(k==='r')doCmd('retreat');
+  if(k==='f')doCmd('flag');else if(k==='a')doCmd('attack');else if(k==='e')doCmd('feint');else if(k==='g')doCmd('all');else if(k==='r')doCmd('retreat');else if('123'.includes(k)&&k)selSq(+k-1);
 });
 document.addEventListener('keyup',e=>keys.delete(e.key));
 function setPause(p){if(!G||G.over||!running)return;paused=p;$('pauseScr').hidden=!p;last=performance.now()}
