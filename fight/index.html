@@ -185,7 +185,7 @@ input.code{font-family:var(--f);font-size:28px;font-weight:900;letter-spacing:.3
    st：[體力, 速度, 力量, 跳躍] 1~5
    sp：[一般必殺, 前+必殺, 上+必殺]，su：大絕招 */
 const CH=[
- {n:"阿烈",ti:"赤焰劍士",b:"n",sk:"#EFC19A",c1:"#2F3A56",c2:"#1E2536",c3:"#C2CCDC",h:"spiky",hc:"#4A3220",a:"",w:"sword",st:[3,3,4,3],sp:[["proj","烈焰波","orb"],["dash","赤焰衝"],["rise","昇炎拳"]],su:["dragon","烈火龍"],fx:"#FF6A2A",bio:"話不多的少年劍士，劍上燃著赤紅的火焰。"},
+ {n:"阿烈",ti:"赤焰劍士",b:"n",sk:"#EFC19A",c1:"#2F3A56",c2:"#1E2536",c3:"#C2CCDC",h:"spiky",hc:"#4A3220",a:"",w:"sword",st:[3,3,4,3],sp:[["ignite","燃劍"],["pierce","赤閃"],["wheel","火輪斬"]],su:["cross","紅蓮十字斬"],fx:"#FF6A2A",bio:"話不多的少年劍士，劍上燃著赤紅的火焰。"},
  {n:"雪菈",ti:"冰晶舞者",b:"l",sk:"#F7DCCB",c1:"#8FD3FF",c2:"#E9F6FF",c3:"#FFFFFF",h:"long",hc:"#EAF4FF",a:"",w:"fan",st:[2,4,3,4],sp:[["proj","冰晶鏢","ice"],["spin","冰旋舞"],["tele","雪隱步"]],su:["meteor","冰晶雨"],fx:"#9BE7FF",bio:"在冰湖上跳舞長大，扇子一揮就會下雪。"},
  {n:"剛力",ti:"雷鳴摔角手",b:"b",sk:"#D9A06F",c1:"#FFD23F",c2:"#1F2A5C",c3:"#D62828",h:"bald",hc:"#000",a:"mask",w:"none",st:[5,1,5,1],sp:[["grab","雷霆摔"],["dash","猛牛肩撞"],["slam","天雷落"]],su:["quake","大地雷震"],fx:"#FFE14D",bio:"蒙面摔角冠軍，抓到就不放手。"},
  {n:"小燕",ti:"疾風忍者",b:"l",sk:"#F2C9A8",c1:"#2C3E50",c2:"#2C3E50",c3:"#E74C3C",h:"ninja",hc:"#2C3E50",a:"scarf",w:"claw",st:[2,5,2,5],sp:[["proj","風魔鏢","blade"],["tele","影分身"],["rise","燕返"]],su:["rush","疾風亂舞"],fx:"#7CFFB2",bio:"速度最快的忍者，一眨眼就跑到你背後。"},
@@ -306,6 +306,10 @@ function special([ty,nm,kind],d,R,c){
     case "tele":return{...b,pose:"tele",s:15,a:6,r:16,dmg:d(78),box:[0,72+R*.5,-140,-50],hs:20,bs:12,kb:6,lv:"m"};
     case "counter":return{...b,pose:"counter",s:2,a:30,r:18,dmg:0};
     case "grab":return{...b,pose:"grab",s:5,a:3,r:26,dmg:d(130),range:80};
+    // 阿烈：點火（之後 3 次命中附帶燒傷）、穿身拔刀、往上迴旋斬（空中可用）
+    case "ignite":return{...b,pose:"cast",s:10,a:1,r:14,dmg:0,charges:3};
+    case "pierce":return{...b,pose:"dash",s:9,a:9,r:20,dmg:d(88),box:[-10,60+R*.5,-135,-50],hs:24,bs:14,kb:.5,lv:"m",vx:15};
+    case "wheel":return{...b,pose:"rise",s:4,a:22,r:10,dmg:d(26),box:[-56,62+R*.4,-170,-30],hs:16,bs:8,kb:2,lv:"m",inv:6,airOK:1};
   }
 }
 function superMove([ty,nm],d,c){
@@ -316,6 +320,7 @@ function superMove([ty,nm],d,c){
     case "meteor":return{...b,pose:"cast2",s:10,a:58,r:16,dmg:d(44)};
     case "quake":return{...b,pose:"slam",s:4,a:1,r:24,dmg:d(230)};
     case "dragon":return{...b,pose:"cast",s:12,a:1,r:36,dmg:d(84)};
+    case "cross":return{...b,pose:"dash",s:6,a:20,r:24,dmg:d(32),fin:d(150),box:[0,72,-140,-40],vx:12,burn:d(9)};
   }
 }
 
@@ -416,13 +421,19 @@ function hitBox(G,f,o,b,P){
 }
 function moveProps(mv,extra){return{dmg:mv.dmg,hs:mv.hs,bs:mv.bs,kb:mv.kb,lv:mv.lv,kd:mv.kd,vy:mv.vy,chip:mv.chip,...extra}}
 
+/* 燃劍：劍上還有火的話，命中就讓對手燒起來（每 15 格扣一點血，持續 90 格） */
+function burnOn(G,f,o,r){
+  if(r!=="hit"||!(f.burn>0))return;
+  f.burn--;o.burnT=Math.max(o.burnT||0,90);o.burnD=Math.round(9*stats(f.cid).pow);
+  ev(G,"burn",o.x,o.y-90,{c:CH[f.cid].fx});
+}
 function runMove(G,f,o,inp){
   const mv=f.mv,t=++f.mt;
   const bufd=b=>f.buf[b]!=null&&G.frame-f.buf[b]<=8, use=b=>{f.buf[b]=null};
   const T=G.teams[f.side];
   switch(mv.ty){
     case "n":{
-      if(t>=mv.s&&t<mv.s+mv.a&&!f.hit){const r=hitBox(G,f,o,mv.box,moveProps(mv));if(r)f.hit=r}
+      if(t>=mv.s&&t<mv.s+mv.a&&!f.hit){const r=hitBox(G,f,o,mv.box,moveProps(mv));if(r){f.hit=r;burnOn(G,f,o,r)}}
       // 連段取消
       if(t>=mv.s&&!mv.air){
         if(f.hit&&bufd("x")&&T.meter>=100){use("x");return startMove(G,f,"ss")}
@@ -485,6 +496,27 @@ function runMove(G,f,o,inp){
       if(t>=mv.s&&t<mv.s+mv.a&&!f.hit){const r=hitBox(G,f,o,mv.box,moveProps(mv));if(r)f.hit=r}
       if(t>=mv.s+mv.a+mv.r)endMove(f);return;
     }
+    case "ignite":{
+      if(t===mv.s){f.burn=mv.charges;ev(G,"ignite",f.x+f.face*36,f.y-120,{c:CH[f.cid].fx})}
+      if(t>=mv.s+mv.a+mv.r)endMove(f);return;
+    }
+    case "pierce":{ // 穿過對手，停在他背後
+      if(t>=mv.s&&t<mv.s+mv.a){f.vx=f.face*mv.vx;if(!f.hit){const r=hitBox(G,f,o,mv.box,moveProps(mv));if(r){f.hit=r;burnOn(G,f,o,r)}}}
+      else if(t>=mv.s+mv.a)f.vx*=.6;
+      if(t>=mv.s+mv.a+mv.r)endMove(f);return;
+    }
+    case "wheel":{
+      if(t<=mv.inv)f.inv=Math.max(f.inv,1);
+      if(t===mv.s){const air=f.y<GROUND-1;f.vy=air?-6:-9.5;f.vx=f.face*1.8;if(!air)f.y-=1}
+      if(t>=mv.s&&t<mv.s+mv.a){
+        if((t-mv.s)%5===0)f.hit=0;
+        if(!f.hit){const last=t>=mv.s+mv.a-5;const r=hitBox(G,f,o,mv.box,moveProps(mv,last?{kb:7,kd:1,vy:-7}:{launch:1,vy:-5}));if(r){f.hit=r;burnOn(G,f,o,r)}}
+        if(t%6===0)ev(G,"swing",f.x,f.y-100);
+      }
+      if(t>mv.s+2&&f.landed){f.mv=null;f.st="land";f.t=0;f.hs=mv.r;return}
+      if(t>140)endMove(f);
+      return;
+    }
     case "counter":{
       if(f.ctr){f.ctr=0;f.face=Math.sign(o.x-f.x)||f.face;return startMove(G,f,"cs")}
       if(t>=mv.s+mv.a+mv.r)endMove(f);return;
@@ -530,6 +562,23 @@ function runMove(G,f,o,inp){
       else if(t>=mv.s+mv.a)f.vx*=.75;
       if(t>=mv.s+mv.a+mv.r)endMove(f);return;
     }
+    case "cross":{ // 衝上去鎖住 → 連斬 4 下 → 火焰十字爆開
+      if(f.rush){
+        f.vx=0;f.rush++;
+        if(o.st!=="ko"){o.x=clamp(f.x+f.face*54*sc(f),WL,WR);o.vx=0}
+        if(f.rush%9===0&&f.rush<=36&&o.st!=="ko"){applyHit(G,f,o,{dmg:mv.dmg,hs:60,kb:0,noscale:1,unblock:1,hstop:3,y:o.y-80-((f.rush/9)%2)*30});G.combo[f.side]={n:f.rush/9+1,t:70}}
+        if(f.rush===48&&o.st!=="ko"){ev(G,"cross",o.x,o.y-90,{c:CH[f.cid].fx});applyHit(G,f,o,{dmg:mv.fin,kd:1,kb:12,vy:-10,noscale:1,unblock:1,hstop:16});o.burnT=150;o.burnD=mv.burn}
+        if(f.rush>=72)endMove(f);
+        return;
+      }
+      if(t>=mv.s&&t<mv.s+mv.a){f.vx=f.face*mv.vx;
+        if(canHitTarget(o)&&ovl(boxW(f,mv.box),hurt(o))){
+          const r=applyHit(G,f,o,{dmg:mv.dmg,hs:60,bs:16,kb:0,lv:"m",chip:1,y:o.y-100});
+          if(r==="hit"){f.rush=1;f.vx=0}else{f.mt=mv.s+mv.a;f.vx=-f.face*3}
+        }}
+      else if(t>=mv.s+mv.a)f.vx*=.75;
+      if(t>=mv.s+mv.a+mv.r)endMove(f);return;
+    }
     case "meteor":{
       if(t>=mv.s&&t<mv.s+mv.a&&(t-mv.s)%7===0){
         const x=clamp(o.x+(Math.random()*280-140),WL+20,WR-20);
@@ -563,6 +612,7 @@ function updF(G,f,o,inp){
   const bufd=b=>f.buf[b]!=null&&G.frame-f.buf[b]<=8, use=b=>{f.buf[b]=null};
   const fwd=f.face>0?inp.r:inp.l, back=f.face>0?inp.l:inp.r, s=stats(f.cid), T=G.teams[f.side];
   f.t++;if(f.inv>0)f.inv--;
+  if(f.burnT>0){f.burnT--;if(f.burnT%15===0&&G.phase==="fight"&&f.st!=="ko"&&f.hp>1)f.hp=Math.max(1,f.hp-(f.burnD||8))}
   switch(f.st){
     case "atk":runMove(G,f,o,inp);break;
     case "hit":if(!f.airhit&&--f.hs<=0){f.st="idle";f.t=0;f.combo=0}break;
@@ -572,6 +622,7 @@ function updF(G,f,o,inp){
     case "getup":if(f.t>=16){f.st="idle";f.t=0;f.combo=0;f.juggle=0}break;
     case "prejump":if(f.t>=3){f.st="jump";f.t=0;f.vy=-s.jmp;f.y-=1;f.airAtk=0;f.vx=f.jdir*s.spd*1.45;ev(G,"jump",f.x,GROUND)}break;
     case "jump":
+      if(!f.airAtk&&bufd("s")&&moves(f.cid).su.airOK){use("s");f.airAtk=1;startMove(G,f,"su");break}
       if(!f.airAtk&&(bufd("p")||bufd("k"))){const k=bufd("k")?"jk":"jp";use("p");use("k");f.airAtk=1;startMove(G,f,k)}
       break;
     case "grabbed":case "ko":case "win":case "intro":break;
@@ -612,6 +663,7 @@ function physics(G,f){
 }
 function pushApart(a,b){
   if(a.hidden||b.hidden||a.st==="grabbed"||b.st==="grabbed"||a.st==="ko"||b.st==="ko"||a.rush||b.rush)return;
+  const thru=f=>f.st==="atk"&&f.mv&&f.mv.ty==="pierce"&&f.mt>=f.mv.s&&f.mt<f.mv.s+f.mv.a;if(thru(a)||thru(b))return;
   const wa=hurt(a),wb=hurt(b);
   if(!(wa.y1<wb.y2-30&&wb.y1<wa.y2-30))return;
   const ra=(wa.x2-wa.x1)/2,rb=(wb.x2-wb.x1)/2,dx=b.x-a.x,ov=ra+rb-Math.abs(dx);
@@ -744,7 +796,7 @@ function aiInput(G,side){
   let seq=null;
   const oAir=o.y<GROUND-30;
   if(oAir&&d<210&&R()<.12+.14*L){
-    const i=has("rise");seq=i>=0&&R()<.7?press("s",spDir(i)):press("p",{d:1});
+    const i=has("rise")>=0?has("rise"):has("wheel");seq=i>=0&&R()<.7?press("s",spDir(i)):press("p",{d:1});
   }else if(meter>=100&&d<300&&R()<.06+.05*L){seq=press("x",{});}
   else if(d<100){
     const r=R();
@@ -759,7 +811,7 @@ function aiInput(G,side){
     const r=R();
     if(r<.36)seq=[hold({[F]:1},10+Math.round(R()*20))];
     else if(r<.52)seq=[hold({u:1,[F]:1},2),hold({[F]:1},18),...press(R()<.6?"k":"p",{})];
-    else if(r<.64){const i=has("dash");seq=press("s",spDir(i>=0?i:1))}
+    else if(r<.64){const i=has("dash")>=0?has("dash"):has("pierce");seq=press("s",spDir(i>=0?i:1))}
     else if(r<.74&&(has("proj")>=0||has("wave")>=0))seq=press("s",{});
     else if(r<.8&&has("spin")>=0&&d<180)seq=press("s",spDir(has("spin")));
     else if(r<.86&&has("slam")>=0&&d<200)seq=press("s",spDir(has("slam")));
@@ -768,6 +820,7 @@ function aiInput(G,side){
     const r=R();
     if(r<.32&&(has("proj")>=0||has("wave")>=0))seq=press("s",{});
     else if(r<.42&&has("tele")>=0)seq=press("s",spDir(has("tele")));
+    else if(r<.5&&has("ignite")>=0&&!(me.burn>0))seq=press("s",spDir(has("ignite")));
     else if(r<.55)seq=[hold({u:1,[F]:1},2),wait(24)];
     else seq=[hold({[F]:1},20+Math.round(R()*30))];
   }
@@ -929,22 +982,25 @@ const AREI={
   jkw:{fa:[5,-4],ba:[-6,-1],wa:-60,fl:[3,-6],bl:[-1,-5]},
   jka:{lean:-1,fa:[4,-3],ba:[-6,0],wa:-70,fl:[11,-1],bl:[-2,-4],focus:1},
   jkr:{fa:[5,-2],ba:[-6,0],wa:-50,fl:[6,-3],bl:[-2,-3]},
-  // 烈焰波：劍拉到身後蓄火 → 往前刺出
-  snw:{dy:3,lean:-1,fa:[-3,5],ba:[-5,4],wa:160,fl:[4,0],bl:[-5,0],fire:[2,1],focus:1},
-  sna:{lean:2,fa:[12,2],ba:[-6,4],wa:0,fl:[5,0],bl:[-5,0],tr:[35,0],fire:[2,1],shout:1},
-  snr:{lean:1,fa:[9,3],ba:[-5,5],wa:10,fl:[4,0],bl:[-4,0],fire:[1,2]},
-  // 赤焰衝：壓低 → 帶殘影突刺
-  sfw:{dy:3,lean:-1,fa:[-3,4],ba:[-5,3],wa:170,fl:[3,0],bl:[-5,0],fire:[2,2],focus:1},
-  sfa:{lean:3,fa:[12,1],ba:[-8,2],wa:0,fl:[6,0],bl:[-7,0],fire:[2,1],shout:1,ghost:1},
-  sfr:{lean:1,fa:[10,4],ba:[-5,4],wa:20,fl:[4,0],bl:[-5,0],fire:[1,2]},
-  // 昇炎拳：蹲 → 火焰上挑 → 劍舉高升空
+  // 燃劍：劍豎在面前、後手抹過劍身 → 火燒起來
+  igw:{fa:[5,-6],ba:[4,-2],wa:-90,fl:[3,0],bl:[-3,0],fire:[1,1],focus:1},
+  iga:{dy:1,fa:[5,-7],ba:[-3,6],wa:-90,fl:[3,0],bl:[-3,0],fire:[2,1],shout:1},
+  igr:{fa:[5,-2],ba:[-3,6],wa:-70,fl:[3,0],bl:[-3,0],fire:[2,2]},
+  // 赤閃：壓低、劍收在腰 → 穿過對手 → 劍甩到身後停住
+  pcw:{dy:3,lean:1,fa:[-2,5],ba:[0,5],wa:170,fl:[4,0],bl:[-5,0],focus:1},
+  pca:{lean:3,dy:1,fa:[12,0],ba:[-8,3],wa:3,fl:[7,0],bl:[-8,0],fire:[2,1],shout:1,ghost:1},
+  pcr:{dy:2,lean:1,fa:[8,4],ba:[-5,4],wa:150,fl:[5,0],bl:[-5,0],tr:[3,150],focus:1},
+  // 火輪斬：蹲 → 往上轉圈，劍劃出火輪
   suw:{dy:4,fa:[5,7],ba:[-4,4],wa:100,fl:[4,0],bl:[-4,0],fire:[2,1],focus:1},
-  sua:{dy:-1,fa:[4,-10],ba:[-5,2],wa:-80,fl:[2,-3],bl:[-2,-1],tr:[60,-80],fire:[2,1],shout:1},
-  sub:{dy:-1,fa:[2,-11],ba:[-5,0],wa:-95,fl:[1,-5],bl:[-2,-3],fire:[2,2],shout:1},
-  // 烈火龍：雙手高舉蓄力 → 全力突刺
-  ssw:{fa:[2,-10],ba:[1,-9],wa:-90,fl:[4,0],bl:[-4,0],fire:[2,1],focus:1},
-  ssa:{lean:2,dy:1,fa:[12,0],ba:[8,2],wa:-5,fl:[6,0],bl:[-6,0],tr:[-90,-5],fire:[2,1],shout:1},
+  whA:{dy:-1,fa:[9,-2],ba:[-5,2],wa:-20,fl:[2,-3],bl:[-2,-1],tr:[160,-20],fire:[2,1],shout:1},
+  whB:{dy:-1,lean:-1,fa:[-7,-3],ba:[4,2],wa:-160,fl:[1,-4],bl:[-2,-2],tr:[-20,-160],fire:[2,2],shout:1},
+  // 紅蓮十字斬：衝上去 → 交叉連斬 → 劍舉高、十字爆開
+  ssw:{dy:3,lean:-1,fa:[-3,4],ba:[-5,3],wa:170,fl:[3,0],bl:[-5,0],fire:[2,2],focus:1},
+  ssa:{lean:3,fa:[12,1],ba:[-8,2],wa:0,fl:[6,0],bl:[-7,0],fire:[2,1],shout:1,ghost:1},
   ssr:{lean:1,fa:[9,3],ba:[-4,5],wa:15,fl:[4,0],bl:[-4,0],fire:[1,2]},
+  xs1:{lean:1,fa:[10,4],ba:[-5,5],wa:45,fl:[4,0],bl:[-4,0],tr:[-120,45],fire:[2,1],focus:1},
+  xs2:{lean:1,fa:[10,-4],ba:[-5,4],wa:-45,fl:[4,0],bl:[-4,0],tr:[120,-45],fire:[2,2],focus:1},
+  xfin:{fa:[3,-11],ba:[-3,8],wa:-90,fl:[3,0],bl:[-3,0],fire:[2,1],shout:1},
   // 摔：抓住 → 往後丟
   th0:{lean:1,fa:[10,2],ba:[9,3],wa:-80,fl:[3,0],bl:[-3,0],focus:1},
   th1:{lean:-1,fa:[2,-10],ba:[-1,-9],wa:-120,fl:[2,0],bl:[-3,0],shout:1},
@@ -965,11 +1021,16 @@ const AREI={
   wn2:{fa:[3,-11],ba:[-3,8],wa:-90,fl:[2,0],bl:[-2,0],fire:[2,1],happy:1},
   wn3:{dy:1,fa:[3,-11],ba:[-3,8],wa:-90,fl:[2,0],bl:[-2,0],fire:[2,2],happy:1},
 };
-for(const k in AREI){PZ["A_"+k]=AREI[k];if(AREI[k].fire)PZ["A_"+k+"~"]={...AREI[k],fire:[AREI[k].fire[0],3-AREI[k].fire[1]]}}
+for(const k in AREI){const P=AREI[k],v=P.fire?P.fire[1]:1;PZ["A_"+k]=P;if(P.fire)PZ["A_"+k+"~"]={...P,fire:[P.fire[0],3-v]};
+  PZ["A_"+k+"!"]={...P,fire:[2,v]};PZ["A_"+k+"~!"]={...P,fire:[2,3-v]}} // ! = 燃劍狀態，劍火燒旺
 const AREI_ATK={p1:["p1w","p1a","p1r"],p2:["p2w","p2a","p2r"],p3:["p3w","p3a","p3r"],cs:["p3w","p3a","p3r"],k:["kw","ka","kr"],
   cp:["cpw","cpa","cpr"],ck:["ckw","cka","ckr"],jp:["jpw","jpa","jpr"],jk:["jkw","jka","jkr"],
-  sn:["snw","sna","snr"],sf:["sfw","sfa","sfr"],su:["suw","sua","sub"],ss:["ssw","ssa","ssr"]};
+  sn:["igw","iga","igr"],sf:["pcw","pca","pcr"],su:["suw","whA","whB"],ss:["ssw","ssa","ssr"]};
 function poseArei(f){
+  const n=poseArei0(f);
+  return n&&f.burn>0&&PZ[n+"!"]?n+"!":n;
+}
+function poseArei0(f){
   const t=f.t,A=n=>"A_"+n,flick=(n,k)=>PZ[A(n)+"~"]&&((k>>1)&1)?A(n)+"~":A(n);
   const idle=()=>t%150>=144?A("idleB"):A("idle"+((t/10|0)&3));
   switch(f.st){
@@ -991,7 +1052,8 @@ function poseArei(f){
       const K=AREI_ATK[m.k];if(!K)return null;
       const s=m.s||0,a=m.a||0,r=m.r||0,aEnd=s+Math.max(a,10);
       if(mt<s)return m.sp?flick(K[0],mt):A(K[0]);
-      if(m.k==="su")return mt<s+6?A("sua"):mt<s+a?flick("sub",mt):A("jumpDn");
+      if(m.k==="su")return mt<s+a?A((mt>>2)&1?"whB":"whA"):A("jumpDn");
+      if(m.k==="ss"&&f.rush)return f.rush>=44?A("xfin"):A(((f.rush-1)/9|0)&1?"xs2":"xs1");
       if(mt<(a>1?s+a:aEnd))return m.sp?flick(K[1],mt):A(K[1]);
       if(mt<aEnd+r*.5)return A(K[2]);
       return m.air?A("jumpDn"):m.cr?A("c1"):idle();
@@ -1274,6 +1336,8 @@ function drawFighter(c,f,side,flash){
   c.drawImage(spr,-SPX,-SPY);
   c.shadowBlur=0;
   if(flash){c.globalCompositeOperation="lighter";c.globalAlpha=.5;c.drawImage(spr,-SPX,-SPY);c.globalAlpha=1;c.globalCompositeOperation="source-over"}
+  if(f.burnT>0&&pn!=="lie")for(let k=0;k<5;k++){const ph=(G_TIME+k*7)%16,u=-12+k*6+((k*5+(G_TIME>>3))%3)-1,v=-6-ph*2.2-(k%2)*6;
+    c.fillStyle=ph<8?"#FF6A2A":"#C2410C";c.fillRect(u,v,2,3);if(ph<6){c.fillStyle="#FFD54F";c.fillRect(u,v+1,1,1)}}
   c.restore();
 }
 let G_TIME=0;
@@ -1389,6 +1453,10 @@ function spawnFx(e){
     case "smoke":for(let i=0;i<10;i++)FX.push({t:"dust",x:e.x+(Math.random()-.5)*40,y:e.y+(Math.random()-.5)*80,vx:(Math.random()-.5)*2,vy:-Math.random()*2,l:24,m:24,c:"#B8B0C8",s:10+Math.random()*8});break;
     case "thud":case "jump":for(let i=0;i<5;i++)FX.push({t:"dust",x:e.x+(Math.random()-.5)*40,y:GROUND,vx:(Math.random()-.5)*3,vy:-Math.random()*1.5,l:18,m:18,c:"#C8B49A",s:6+Math.random()*6});break;
     case "grab":FX.push({t:"ring",x:e.x,y:e.y,l:12,m:12,c,s:40});break;
+    case "ignite":FX.push({t:"ring",x:e.x,y:e.y,l:14,m:14,c,s:36});for(let i=0;i<10;i++)FX.push({t:"sp",x:e.x+(Math.random()-.5)*16,y:e.y+20,vx:(Math.random()-.5)*2,vy:-2-Math.random()*4,l:20,m:20,c:i%2?c:"#FFD54F",s:4});break;
+    case "burn":for(let i=0;i<6;i++)FX.push({t:"sp",x:e.x+(Math.random()-.5)*30,y:e.y,vx:(Math.random()-.5)*2,vy:-3-Math.random()*3,l:16,m:16,c:i%2?c:"#FFD54F",s:4});break;
+    case "cross":FX.push({t:"x",x:e.x,y:e.y,l:30,m:30,c,s:70});FX.push({t:"ring",x:e.x,y:e.y,l:20,m:20,c:"#FFD54F",s:90});
+      for(let i=0;i<20;i++){const a=Math.random()*7,v=3+Math.random()*8;FX.push({t:"sp",x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:24,m:24,c:i%3?c:"#FFF3C4",s:5})}SHAKE=Math.max(SHAKE,12);break;
   }
 }
 function drawFx(c,mode){
@@ -1397,6 +1465,7 @@ function drawFx(c,mode){
     const k=p.l/p.m;c.globalAlpha=Math.max(0,k);
     if(p.t==="sp"){p.x+=p.vx;p.y+=p.vy;p.vy+=.25;c.fillStyle=p.c;c.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s)}
     else if(p.t==="ring"){c.strokeStyle=p.c;c.lineWidth=4*k+1;c.beginPath();if(p.flat)c.ellipse(p.x,p.y,p.s*(1-k)+10,(p.s*(1-k)+10)*.18,0,0,7);else c.arc(p.x,p.y,p.s*(1-k)+6,0,7);c.stroke()}
+    else if(p.t==="x"){const L=p.s*(1.15-.3*k);c.lineCap="square";[[10*k+5,p.c],[4*k+2,"#FFF3C4"]].forEach(([w,col])=>{c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(p.x-L,p.y-L);c.lineTo(p.x+L,p.y+L);c.moveTo(p.x+L,p.y-L);c.lineTo(p.x-L,p.y+L);c.stroke()})}
     else if(p.t==="dust"){p.x+=p.vx;p.y+=p.vy;c.fillStyle=p.c;c.beginPath();c.arc(p.x,p.y,p.s*(1.4-k*.4),0,7);c.fill()}
     else if(p.t==="num"){p.y-=.8;c.fillStyle=p.c;c.font="900 22px sans-serif";c.textAlign="center";c.strokeStyle="#000";c.lineWidth=4;c.strokeText(p.n,p.x,p.y);c.fillText(p.n,p.x,p.y)}
     else if(p.t==="txt"){p.y-=.6;c.font="900 30px "+FONT;c.textAlign="center";c.strokeStyle="#000";c.lineWidth=5;c.strokeText(p.txt,p.x,p.y);c.fillStyle=p.c;c.fillText(p.txt,p.x,p.y)}
@@ -1937,7 +2006,7 @@ function hostAfterTick(){
     fl:G.flash?[G.flash.side,G.flash.name,G.flash.t]:0,bn:G.banner&&G.banner.t>0?[G.banner.text,G.banner.t,G.banner.col||""]:0,
     cb:G.combo.map(c=>c?c.n:0),
     T:G.teams.map(t=>[t.idx,Math.round(t.meter),t.ko.join("")]),
-    F:G.f.map(f=>[f.cid,Math.round(f.x),Math.round(f.y),f.face,Math.max(0,Math.round(f.hp)),f.maxhp,f.st,f.t,f.mv?f.mv.k:"",f.mt,f.cr?1:0,f.hidden?1:0,f.airhit?1:0,f.rush||0,f.vy<0?1:0]),
+    F:G.f.map(f=>[f.cid,Math.round(f.x),Math.round(f.y),f.face,Math.max(0,Math.round(f.hp)),f.maxhp,f.st,f.t,f.mv?f.mv.k:"",f.mt,f.cr?1:0,f.hidden?1:0,f.airhit?1:0,f.rush||0,f.vy<0?1:0,f.burn||0,f.burnT||0]),
     P:G.projs.map(p=>[p.kind,Math.round(p.x),Math.round(p.y),Math.round(p.vx*10)/10,Math.round(p.vy*10)/10,p.side,p.cid,p.x2?Math.round(p.x2):0,p.h,p.ground]),
     E:E.map(e=>[e.id,e.k,e.x,e.y,e.c||"",e.n||0,e.big||0])});
 }
@@ -2004,7 +2073,7 @@ function applySnap(s){
   s.T.forEach((t,i)=>{V.teams[i].idx=t[0];V.teams[i].meter=t[1];V.teams[i].ko=t[2].split("").map(Number)});
   s.F.forEach((a,i)=>{const f=V.f[i];
     if(f.cid!==a[0])f.dmgShown=null;
-    f.cid=a[0];f.tx=a[1];f.ty=a[2];f.face=a[3];f.hp=a[4];f.maxhp=a[5];f.st=a[6];f.t=a[7];f.mv=a[8]?moves(a[0])[a[8]]:null;f.mt=a[9];f.cr=a[10];f.hidden=a[11];f.airhit=a[12];f.rush=a[13];f.vy=a[14]?-1:1;
+    f.cid=a[0];f.tx=a[1];f.ty=a[2];f.face=a[3];f.hp=a[4];f.maxhp=a[5];f.st=a[6];f.t=a[7];f.mv=a[8]?moves(a[0])[a[8]]:null;f.mt=a[9];f.cr=a[10];f.hidden=a[11];f.airhit=a[12];f.rush=a[13];f.vy=a[14]?-1:1;f.burn=a[15]||0;f.burnT=a[16]||0;
     if(Math.abs(f.tx-f.x)>140||Math.abs(f.ty-f.y)>140){f.x=f.tx;f.y=f.ty}});
   V.projs=s.P.map(p=>({kind:p[0],x:p[1],y:p[2],vx:p[3],vy:p[4],side:p[5],cid:p[6],x2:p[7],h:p[8],ground:p[9],w:0}));
   for(const e of s.E){if(e[0]>V.evSeen){V.evSeen=e[0];const E={id:e[0],k:e[1],x:e[2],y:e[3],c:e[4],n:e[5],big:e[6]};spawnFx(E);evSfx(E)}}
