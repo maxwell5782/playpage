@@ -1063,13 +1063,14 @@ function drawSprite(cid,pn){
   if(has("beard"))part(m,x=>{for(let v=0;v<6;v++)rect(x,hx+7+v,hy+D.hh-2+v,D.hw-14-v*2,1,"#EEEEEE")});
   // ---- 五官（不描邊）----
   part(m,x=>{
-    const ey=fy+(["straight","m","side"].includes(BANG[cid])?2:3),e1=hx+ri(D.hw*.3),e2=hx+ri(D.hw*.7)-2;
+    // 臉轉向前方（+x，畫面上由 f.face 翻轉），不再正對玩家
+    const ey=fy+(["straight","m","side"].includes(BANG[cid])?2:3),e1=hx+ri(D.hw*.42),e2=hx+ri(D.hw*.74)-1;
     if(fullMask){rect(x,e1-1,ey-1,4,5,"#fff");rect(x,e2-1,ey-1,4,5,"#fff")}
     if(P.hurt){[e1,e2].forEach(e=>{for(let k=-1;k<=1;k++){rect(x,e+k,ey+1+k,1,1,PXOL);rect(x,e-k,ey+1+k,1,1,PXOL)}})}
     else if(P.happy){[e1,e2].forEach(e=>{rect(x,e-1,ey+1,1,1,PXOL);rect(x,e,ey,1,1,PXOL);rect(x,e+1,ey+1,1,1,PXOL)})}
     else{[e1,e2].forEach(e=>{rect(x,e,ey-1,2,4,PXOL);if(fem){rect(x,e-1,ey-1,1,1,PXOL);rect(x,e+2,ey-1,1,1,PXOL)}})}
     // 腮紅
-    if(!fullMask&&!has("mask")&&C.h!=="ninja"){rect(x,e1-3,ey+3,2,2,"#F4A0A8");rect(x,e2+3,ey+3,2,2,"#F4A0A8")}
+    if(!fullMask&&!has("mask")&&C.h!=="ninja"){rect(x,e1-2,ey+3,1,2,"#F4A0A8");rect(x,e2+3,ey+3,2,2,"#F4A0A8")}
     // 嘴
     const mx=ri((e1+e2)/2)+1;
     if(has("mask")&&!fullMask){const mc=c3==="#9C27B0"||c3==="#7E57C2"?"#151018":c3;rect(x,hx+4,ey+4,D.hw-8,hy+D.hh-ey-4,mc)}
