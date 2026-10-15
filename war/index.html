@@ -18,6 +18,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 canvas#cv{position:absolute;inset:0;display:block;touch-action:none}
 #hint{position:absolute;left:50%;top:8px;transform:translateX(-50%);background:rgba(0,0,0,.65);padding:5px 14px;border-radius:999px;font-size:14px;pointer-events:none;white-space:nowrap;transition:opacity .3s;max-width:94%;overflow:hidden;text-overflow:ellipsis}
 #zoom{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}
+#sel{position:absolute;right:8px;bottom:8px;display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.72);border:1px solid var(--line);border-radius:12px;padding:6px 8px 6px 12px;font-weight:700;font-size:14px}
+#sel button{background:linear-gradient(180deg,#F05A48,#C42E22);box-shadow:0 3px 0 #7A1810}
 #zoom button{width:38px;height:38px;padding:0;font-size:20px;min-width:0}
 #panel{background:var(--panel);border-top:2px solid var(--line);padding:5px 6px 7px;display:flex;flex-direction:column;gap:5px}
 .prow{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;touch-action:pan-x;align-items:stretch;padding-bottom:3px}
@@ -65,6 +67,7 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
     <canvas id="cv"></canvas>
     <div id="hint"></div>
     <div id="zoom"><button id="zIn" aria-label="放大">＋</button><button id="zOut" aria-label="縮小">－</button><button id="zHome" aria-label="回主堡" style="font-size:16px">🏠</button></div>
+    <div id="sel" hidden><span id="selName"></span><button id="cancelBtn">取消建造<small id="selRefund"></small></button></div>
   </div>
   <div id="panel">
     <div class="prow" id="rowBuild"><span class="lab">建造</span></div>
@@ -85,7 +88,7 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
   <div class="rules">
     <ul>
       <li>工人會自己去挖<b>晶礦</b>；蓋了<b>精煉廠</b>，會自動派 3 個工人去採<b>瓦斯</b>。</li>
-      <li>按「建造」裡的建築，再點地圖放下去，最近的工人會走過去蓋。人口不夠就蓋<b>補給站</b>；礦挖得差不多，就到別的礦區蓋<b>主堡</b>開分基地。</li>
+      <li>按「建造」裡的建築，再點地圖放下去，最近的工人會走過去蓋。蓋到一半可以點建築<b>取消</b>，越早取消退越多資源。人口不夠就蓋<b>補給站</b>；礦挖得差不多，就到別的礦區蓋<b>主堡</b>開分基地。</li>
       <li>科技：兵營 → 研究所（火焰兵、升級）→ 工廠（坦克）→ 星港（戰機）。</li>
       <li>新兵都會到<b>集結旗</b>下排隊待命，<b>不會自己衝出去</b>；敵人靠近旗子才會迎戰。</li>
       <li>按<b>進攻</b>再點地圖，旗下待命的兵一起殺過去，打完會自己找下一棟看過的敵方建築。按<b>撤退</b>，出擊的兵不戀戰跑回旗下。</li>
@@ -179,7 +182,7 @@ const $=id=>document.getElementById(id);
 let G=null,running=false,paused=false,last=0,armed=null,hintT=0,uiT=0,nid=1;
 const cam={x:0,y:0,z:1};let CW=0,CH=0,DPR=1;
 const vis=new Uint8Array(N),expl=new Uint8Array(N);
-let hover=null;
+let hover=null,sel=null;
 
 function rectify(o){o.x0=o.tx*TS;o.y0=o.ty*TS;o.x1=(o.tx+o.w)*TS;o.y1=(o.ty+o.h)*TS;o.x=(o.x0+o.x1)/2;o.y=(o.y0+o.y1)/2;o.r=Math.max(o.w,o.h)*TS/2;return o}
 function tilesOf(o){const a=[];for(let y=o.ty;y<o.ty+o.h;y++)for(let x=o.tx;x<o.tx+o.w;x++)a.push(idx(x,y));return a}
@@ -211,7 +214,7 @@ function start(d){
     for(let k=0;k<6;k++)G.units.push(mkUnit(tm.i,'worker',hq.x+(k-2.5)*16,hq.y+(tm.i===0?-1:1)*70));
     tm.ai.need=G.diff.need;
   }
-  armed=null;running=true;paused=false;
+  armed=null;sel=null;running=true;paused=false;
   $('title').hidden=true;$('endScr').hidden=true;$('pauseScr').hidden=true;
   resize();
   const m=G.teams[0].main;cam.z=clamp(CW/760,.55,1.25);centerCam(m.x+40,m.y-30);
@@ -572,7 +575,7 @@ function step(dt){
   G.units=G.units.filter(u=>u.hp>0);
   let removed=false;
   for(const b of G.blds)if(b.hp<=0){
-    removed=true;G.fx.push({k:'boom',x:b.x,y:b.y,t:.6,r:b.r*1.2,team:b.team});
+    removed=true;if(!b.cancelled)G.fx.push({k:'boom',x:b.x,y:b.y,t:.6,r:b.r*1.2,team:b.team});
     if(b.geyser)b.geyser.ref=null;else for(const i of tilesOf(b))if(occ[i]===b)occ[i]=null;
     if(b.builder){b.builder.st='idle';b.builder.bld=null}
     if(b.team===1)G.teams[0].kills++;
@@ -850,6 +853,7 @@ function draw(){
   fogCtx.putImageData(fogImg,0,0);
   ctx.imageSmoothingEnabled=true;ctx.drawImage(fogCv,0,0,W,H);
   drawFlag(tm);
+  if(sel){ctx.strokeStyle='#FFC93C';ctx.lineWidth=3;ctx.setLineDash([8,5]);ctx.strokeRect(sel.x0-3,sel.y0-3,sel.x1-sel.x0+6,sel.y1-sel.y0+6);ctx.setLineDash([])}
   if(armed&&BLD[armed]&&hover){
     const g=ghostFor(armed,hover.x,hover.y);
     ctx.fillStyle=g.ok?'rgba(110,255,140,.35)':'rgba(255,90,80,.35)';ctx.fillRect(g.tx*TS,g.ty*TS,BLD[armed].w*TS,BLD[armed].h*TS);
@@ -912,8 +916,21 @@ function doCmd(c){
   setArmed(c,'點地圖選擇'+S.name+'的位置');
 }
 function live(){return G&&running&&!paused&&!G.over}
+function refundOf(b){const D=BLD[b.kind],f=Math.max(0,1-b.prog/D.time);return [Math.floor(D.min*f),Math.floor(D.gas*f)]}
+function cancelBuild(b){
+  if(!b||b.done||b.hp<=0||b.team!==0)return;
+  const r=refundOf(b),tm=G.teams[0];tm.min+=r[0];tm.gas+=r[1];
+  b.cancelled=true;b.hp=0;sel=null;
+  hint(`已取消${BLD[b.kind].name}，退回 ${r[0]} 晶礦`+(r[1]?`、${r[1]} 瓦斯`:''));updUI();
+}
 function tapWorld(x,y){
-  const tm=G.teams[0];if(!armed)return;
+  const tm=G.teams[0];
+  if(!armed){
+    const b=G.blds.find(b=>b.team===0&&x>=b.x0&&x<=b.x1&&y>=b.y0&&y<=b.y1);
+    sel=b&&!b.done?b:null;
+    if(b&&b.done)hint(BLD[b.kind].name);
+    updUI();return;
+  }
   if(armed==='flag'){tm.flag={x:clamp(x,20,W-20),y:clamp(y,20,H-20)};for(const u of G.units)if(u.team===0&&u.mode==='hold')u.tgt=null;armed=null;hint('集結旗插好了');return}
   if(armed==='attack'){const n=command(tm,'attack',{x,y});armed=null;hint(n?`${n} 名士兵出擊！`:'改變進攻目標');return}
   if(SKILLS[armed]){if(cast(tm,armed,x,y))armed=null;else hint('能量不夠或還在冷卻');return}
@@ -928,6 +945,9 @@ function updUI(){
   $('hMin').textContent=Math.floor(tm.min);$('hGas').textContent=Math.floor(tm.gas);
   const used=supplyUsed(0),cap=supplyCap(0);$('hSup').textContent=used+'/'+cap;$('hSup').style.color=used>=cap?'#FF8A7A':'';
   $('hEn').textContent=Math.floor(tm.energy);
+  if(sel&&(sel.hp<=0||sel.done))sel=null;
+  $('sel').hidden=!sel;
+  if(sel){const r=refundOf(sel);$('selName').textContent=BLD[sel.kind].name+' '+Math.floor(sel.prog/BLD[sel.kind].time*100)+'%';$('selRefund').innerHTML=`退回 ${r[0]}`+(r[1]?` <span class="g">${r[1]}</span>`:'')}
   $('alert').textContent=G.alert&&G.t-G.alert.t<5?'⚠ 遭受攻擊':'';
   document.querySelectorAll('[data-build]').forEach(b=>{const k=b.dataset.build,D=BLD[k];b.disabled=(D.req&&!hasDone(0,D.req))||!canAfford(tm,[D.min,D.gas]);b.classList.toggle('arm',armed===k)});
   document.querySelectorAll('[data-make]').forEach(b=>{
@@ -989,12 +1009,13 @@ cv.addEventListener('pointerup',e=>{
 cv.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);drag=null;pinch=null});
 cv.addEventListener('wheel',e=>{e.preventDefault();const p=local(e);zoomAt(e.deltaY<0?1.12:1/1.12,p.x,p.y)},{passive:false});
 $('zIn').onclick=()=>zoomAt(1.25,CW/2,CH/2);$('zOut').onclick=()=>zoomAt(.8,CW/2,CH/2);
+$('cancelBtn').onclick=()=>{if(live())cancelBuild(sel)};
 $('zHome').onclick=()=>{if(G)centerCam(G.teams[0].main.x,G.teams[0].main.y)};
 $('alert').onclick=()=>{if(G&&G.alert)centerCam(G.alert.x,G.alert.y)};
 document.addEventListener('keydown',e=>{
   if(e.key.startsWith('Arrow')){keys.add(e.key);e.preventDefault();return}
   if(e.key===' '){e.preventDefault();setPause(!paused);return}
-  if(e.key==='Escape'){armed=null;return}
+  if(e.key==='Escape'){armed=null;sel=null;return}
   const k=e.key.toLowerCase();
   if(k==='f')doCmd('flag');else if(k==='a')doCmd('attack');else if(k==='r')doCmd('retreat');
 });
