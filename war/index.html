@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>旗令戰場</title>
+<style>
+:root{--f:'Microsoft JhengHei','微軟正黑體','PingFang TC','Noto Sans TC',system-ui,sans-serif;--bg:#14201A;--panel:#1E2D24;--line:#36503F;--ink:#F2F7EF;--dim:#A9BDAE;--gold:#FFC93C;--blue:#3F8CFF;--red:#E5483B;--mana:#8E6CFF;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--f);overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+#hud{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--panel);border-bottom:2px solid var(--line);font-weight:700;font-size:15px;flex-wrap:wrap}
+#hud .it{display:flex;align-items:center;gap:4px;white-space:nowrap}
+#hud .grow{flex:1}
+#manaBar{display:inline-block;width:80px;height:10px;background:#0D1511;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+#manaFill{display:block;height:100%;background:var(--mana);width:0}
+#wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
+canvas#cv{display:block;touch-action:none}
+#hint{position:absolute;left:50%;top:8px;transform:translateX(-50%);background:rgba(0,0,0,.6);padding:5px 12px;border-radius:999px;font-size:14px;pointer-events:none;white-space:nowrap;transition:opacity .3s}
+#panel{background:var(--panel);border-top:2px solid var(--line);padding:6px 8px 8px;display:flex;flex-direction:column;gap:6px;align-items:center}
+.prow{display:grid;gap:6px;width:100%;max-width:640px}
+.r4{grid-template-columns:repeat(4,1fr)}
+.r3{grid-template-columns:repeat(3,1fr)}
+button{font-family:var(--f);font-weight:900;font-size:16px;border:0;border-radius:12px;padding:8px 4px;color:#fff;background:#3B5A47;box-shadow:0 3px 0 #22372A;cursor:pointer;position:relative;overflow:hidden;line-height:1.15}
+button small{display:block;font-weight:700;font-size:12px;opacity:.85}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 #22372A}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+button .bar{position:absolute;left:0;bottom:0;height:4px;background:var(--gold);width:0}
+button .q{position:absolute;top:3px;right:5px;background:var(--gold);color:#231A00;border-radius:999px;min-width:18px;height:18px;font-size:12px;line-height:18px;padding:0 4px}
+button .cd{position:absolute;inset:0;background:rgba(0,0,0,.55);transform-origin:bottom;transform:scaleY(0)}
+button.cmd.on{background:linear-gradient(180deg,#FFB13C,#E07B12);box-shadow:0 3px 0 #8A4A06}
+button.atk{background:linear-gradient(180deg,#F05A48,#C42E22);box-shadow:0 3px 0 #7A1810}
+button.skill{background:linear-gradient(180deg,#7C5CF0,#5338C4);box-shadow:0 3px 0 #2E1C7A}
+button.skill.arm{outline:3px solid var(--gold)}
+.scr{position:fixed;inset:0;overflow:auto;touch-action:pan-y;background:radial-gradient(ellipse at 50% 0%,#2F5A3C 0%,#16241B 65%,#0E1712 100%);padding:max(20px,env(safe-area-inset-top)) 16px 24px;display:flex;flex-direction:column;align-items:center;gap:14px;z-index:5}
+.scr.clear{background:rgba(8,14,10,.84)}
+h1{margin:6px 0 0;font-size:clamp(36px,9vw,60px);font-weight:900;letter-spacing:.08em;background:linear-gradient(180deg,#FFF1A8,#FFC93C 55%,#E07B12);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 0 #1B3323);text-align:center}
+h2{margin:4px 0;font-size:clamp(26px,6vw,36px);font-weight:900;text-align:center}
+.sub{color:var(--dim);text-align:center;margin:0}
+.rules{max-width:520px;width:100%;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:14px;padding:12px 16px;font-size:15px;line-height:1.6}
+.rules ul{margin:0;padding-left:20px}
+.rules b{color:var(--gold)}
+.menu{display:flex;flex-direction:column;gap:10px;width:100%;max-width:340px}
+.menu button{font-size:19px;padding:13px}
+a.home{color:var(--dim);font-size:15px;text-decoration:none}
+.stats{font-size:16px;line-height:1.8;text-align:center}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <span class="it" title="金幣">💰 <span id="gold">0</span><small id="inc" style="color:var(--dim)"></small></span>
+    <span class="it" title="工人">⛏️ <span id="wk">0</span></span>
+    <span class="it" title="兵力">🛡️ <span id="pop">0</span></span>
+    <span class="it" title="魔力">✨ <span id="manaBar"><span id="manaFill"></span></span></span>
+    <span class="grow"></span>
+    <span class="it" id="enemyMode" style="color:var(--dim)"></span>
+    <button id="pauseBtn" style="font-size:14px;padding:5px 10px" aria-label="暫停">⏸ 暫停</button>
+  </div>
+  <div id="wrap"><canvas id="cv"></canvas><div id="hint"></div></div>
+  <div id="panel">
+    <div class="prow r4">
+      <button data-make="worker">工人<small>50 金・+收入</small><span class="bar"></span></button>
+      <button data-make="spear">槍兵<small>50 金・剋騎兵</small><span class="bar"></span></button>
+      <button data-make="archer">弓兵<small>60 金・剋槍兵</small><span class="bar"></span></button>
+      <button data-make="cav">騎兵<small>95 金・剋弓兵</small><span class="bar"></span></button>
+    </div>
+    <div class="prow r3">
+      <button class="cmd" data-cmd="hold">⚑ 集結<small id="cHold">待命 0</small></button>
+      <button class="cmd atk" data-cmd="attack">⚔ 進攻<small id="cAtk">出擊 0</small></button>
+      <button class="cmd" data-cmd="retreat">↩ 撤退<small>回城補血</small></button>
+    </div>
+    <div class="prow r3">
+      <button class="skill" data-skill="bolt">⚡ 落雷<small>30 魔力</small><span class="cd"></span></button>
+      <button class="skill" data-skill="heal">✚ 治療<small>25 魔力</small><span class="cd"></span></button>
+      <button class="skill" data-skill="cry">📯 戰吼<small>40 魔力</small><span class="cd"></span></button>
+    </div>
+  </div>
+</div>
+
+<div class="scr" id="title">
+  <h1>旗令戰場</h1>
+  <p class="sub">你是指揮官，不能操控士兵，只能下令</p>
+  <div class="rules">
+    <ul>
+      <li>派<b>工人</b>挖金礦賺錢，用金幣訓練<b>槍兵、弓兵、騎兵</b>。</li>
+      <li>新兵會走到你的<b>集結旗</b>下待命，<b>不會自己衝出去</b>。點地圖可以把旗子插到別的地方。</li>
+      <li>按<b>進攻</b>，旗下所有士兵一起出擊；之後訓練的新兵一樣先在旗下等你下令。</li>
+      <li>按<b>撤退</b>，全軍不戀戰跑回城堡，在城堡旁邊會慢慢回血。</li>
+      <li>士兵會自己找敵人打，你能做的是挑時機、放<b>指揮官技能</b>（先按技能，再點地圖）。</li>
+      <li>相剋：槍兵剋騎兵、騎兵剋弓兵、弓兵剋槍兵。先打爆對方城堡的贏。</li>
+    </ul>
+  </div>
+  <div class="menu">
+    <button data-diff="0">簡單</button>
+    <button data-diff="1" class="atk">普通</button>
+    <button data-diff="2" class="skill">困難</button>
+  </div>
+  <p class="sub" style="font-size:13px">電腦快捷鍵：1–4 訓練，A 進攻、S 集結、R 撤退，Z X C 技能，空白鍵暫停</p>
+  <a class="home" href="../">← 回遊戲屋</a>
+</div>
+
+<div class="scr clear" id="pauseScr" hidden>
+  <h2>暫停</h2>
+  <div class="menu">
+    <button id="resumeBtn" class="atk">繼續</button>
+    <button id="quitBtn">回標題</button>
+  </div>
+</div>
+
+<div class="scr clear" id="endScr" hidden>
+  <h2 id="endTitle"></h2>
+  <div class="stats" id="endStats"></div>
+  <div class="menu">
+    <button id="againBtn" class="atk">再玩一次</button>
+    <button id="titleBtn">回標題</button>
+  </div>
+  <a class="home" href="../">← 回遊戲屋</a>
+</div>
+
+<script>
+'use strict';
+const W=440,H=860;
+const TYPES={
+  spear:{name:'槍兵',ch:'槍',cost:50,time:3,hp:120,dmg:12,range:6,speed:34,cd:.9,r:11,bonus:{cav:2.5},pop:1},
+  archer:{name:'弓兵',ch:'弓',cost:60,time:3.5,hp:70,dmg:11,range:140,speed:34,cd:1.2,r:10,bonus:{spear:1.7},pop:1,ranged:true},
+  cav:{name:'騎兵',ch:'騎',cost:95,time:5,hp:180,dmg:17,range:6,speed:70,cd:1,r:13,bonus:{archer:2.3},pop:2},
+};
+const WORKER={cost:50,time:4,max:10};
+const SKILLS={
+  bolt:{name:'落雷',mana:30,cd:6,r:60,target:true},
+  heal:{name:'治療',mana:25,cd:10,r:80,target:true},
+  cry:{name:'戰吼',mana:40,cd:25,target:false},
+};
+const POP_CAP=40, MANA_MAX=100, BASE_HP=1500;
+const DIFF=[{inc:.7,think:1.2,smart:.3,name:'簡單'},{inc:1,think:.7,smart:.6,name:'普通'},{inc:1.3,think:.4,smart:.9,name:'困難'}];
+const COLORS=[{body:'#3F8CFF',dark:'#1C4FA8',light:'#A9CBFF'},{body:'#E5483B',dark:'#8E1F16',light:'#FFB2A9'}];
+
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+let G=null,running=false,paused=false,last=0,scale=1,armed=null,hintT=0;
+
+function newTeam(i){
+  const dir=i===0?-1:1;
+  const base={x:W/2,y:i===0?H-80:80,r:42,hp:BASE_HP,max:BASE_HP,isBase:true,team:i,cdLeft:0};
+  return {i,dir,base,gold:150,workers:2,mana:30,queue:[],skillCd:{bolt:0,heal:0,cry:0},buff:0,
+    rally:{x:W/2,y:base.y+dir*150},mine:{x:i===0?70:W-70,y:base.y+dir*10},
+    made:0,kills:0,aiT:0,attackVal:0,retreatT:0};
+}
+function start(d){
+  G={diff:DIFF[d],diffIdx:d,t:0,teams:[newTeam(0),newTeam(1)],units:[],shots:[],fx:[],over:false};
+  armed=null;running=true;paused=false;
+  $('title').hidden=true;$('endScr').hidden=true;$('pauseScr').hidden=true;
+  hint('點地圖插集結旗，兵會在旗下待命',4);
+  last=performance.now();
+}
+function hint(s,t){$('hint').textContent=s;$('hint').style.opacity=1;hintT=t||2.5}
+
+// ---------- helpers ----------
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+function income(tm){return (3+tm.workers*1.5)*(tm.i===1?G.diff.inc:1)}
+function popOf(i){let p=0;for(const u of G.units)if(u.team===i)p+=TYPES[u.type].pop;for(const q of G.teams[i].queue)if(q.kind!=='worker')p+=TYPES[q.kind].pop;return p}
+function wkQueued(tm){return tm.queue.filter(q=>q.kind==='worker').length}
+function canMake(tm,kind){
+  if(kind==='worker'){return tm.gold>=WORKER.cost&&tm.workers+wkQueued(tm)<WORKER.max&&tm.queue.length<6}
+  const T=TYPES[kind];return tm.gold>=T.cost&&popOf(tm.i)+T.pop<=POP_CAP&&tm.queue.length<6;
+}
+function make(tm,kind){
+  if(!canMake(tm,kind))return false;
+  const cost=kind==='worker'?WORKER.cost:TYPES[kind].cost, time=kind==='worker'?WORKER.time:TYPES[kind].time;
+  tm.gold-=cost;tm.queue.push({kind,t:time,total:time});return true;
+}
+function spawn(tm,kind){
+  const T=TYPES[kind];
+  G.units.push({team:tm.i,type:kind,x:tm.base.x+(Math.random()-.5)*50,y:tm.base.y+tm.dir*55,hp:T.hp,max:T.hp,r:T.r,cdLeft:0,mode:'hold',flash:0,heal:0});
+  tm.made++;
+}
+function command(tm,cmd){
+  if(cmd==='attack'){let n=0;for(const u of G.units)if(u.team===tm.i&&u.mode==='hold'){u.mode='attack';n++}tm.attackVal=armyVal(tm.i,'attack');return n}
+  if(cmd==='hold'){for(const u of G.units)if(u.team===tm.i)u.mode='hold';return 1}
+  if(cmd==='retreat'){tm.rally={x:W/2,y:tm.base.y+tm.dir*120};for(const u of G.units)if(u.team===tm.i)u.mode='retreat';return 1}
+}
+function armyVal(i,mode){let v=0;for(const u of G.units)if(u.team===i&&(!mode||u.mode===mode))v+=TYPES[u.type].cost*(u.hp/u.max);return v}
+function cast(tm,sk,x,y){
+  const S=SKILLS[sk];
+  if(tm.mana<S.mana||tm.skillCd[sk]>0)return false;
+  tm.mana-=S.mana;tm.skillCd[sk]=S.cd;
+  if(sk==='bolt')G.fx.push({k:'bolt',x,y,t:.7,team:tm.i,r:S.r});
+  else if(sk==='heal')G.fx.push({k:'heal',x,y,t:3,team:tm.i,r:S.r});
+  else{tm.buff=7;G.fx.push({k:'cry',team:tm.i,t:1})}
+  return true;
+}
+
+// ---------- formation ----------
+function slots(i){
+  const tm=G.teams[i],order=['spear','cav','archer'],res=new Map();let row=0;
+  const fwd=tm.dir;
+  for(const ty of order){
+    const list=G.units.filter(u=>u.team===i&&u.type===ty&&u.mode!=='attack');
+    for(let k=0;k<list.length;k+=8){
+      const n=Math.min(8,list.length-k);
+      for(let j=0;j<n;j++){
+        const sx=(j-(n-1)/2)*27, sy=(24-row*27)*fwd;
+        res.set(list[k+j],{x:clamp(tm.rally.x+sx,15,W-15),y:clamp(tm.rally.y+sy,15,H-15)});
+      }
+      row++;
+    }
+  }
+  return res;
+}
+
+// ---------- simulation ----------
+function step(dt){
+  G.t+=dt;
+  for(const tm of G.teams){
+    tm.gold+=income(tm)*dt;
+    tm.mana=Math.min(MANA_MAX,tm.mana+1.5*dt);
+    for(const k in tm.skillCd)tm.skillCd[k]=Math.max(0,tm.skillCd[k]-dt);
+    tm.buff=Math.max(0,tm.buff-dt);
+    const q=tm.queue[0];
+    if(q){q.t-=dt;if(q.t<=0){tm.queue.shift();if(q.kind==='worker')tm.workers++;else spawn(tm,q.kind)}}
+  }
+  const sl=[slots(0),slots(1)];
+  for(const u of G.units)updUnit(u,dt,sl[u.team]);
+  // separation
+  const us=G.units;
+  for(let a=0;a<us.length;a++)for(let b=a+1;b<us.length;b++){
+    const p=us[a],q=us[b],dx=q.x-p.x,dy=q.y-p.y,m=p.r+q.r-2,d2=dx*dx+dy*dy;
+    if(d2<m*m&&d2>0.001){const d=Math.sqrt(d2),o=(m-d)/2,nx=dx/d,ny=dy/d;p.x-=nx*o;p.y-=ny*o;q.x+=nx*o;q.y+=ny*o}
+  }
+  for(const u of us){u.x=clamp(u.x,10,W-10);u.y=clamp(u.y,10,H-10)}
+  // base towers
+  for(const tm of G.teams){
+    const b=tm.base;b.cdLeft-=dt;if(b.cdLeft>0)continue;
+    let best=null,bd=175;for(const e of us)if(e.team!==tm.i){const d=dist(b,e);if(d<bd){bd=d;best=e}}
+    if(best){b.cdLeft=1;G.shots.push({x:b.x,y:b.y,tgt:best,dmg:14,sp:320,team:tm.i,tower:true})}
+  }
+  // projectiles
+  for(const s of G.shots){
+    const tg=s.tgt;if(tg.hp<=0){s.dead=true;continue}
+    const dx=tg.x-s.x,dy=tg.y-s.y,d=Math.hypot(dx,dy),mv=s.sp*dt;
+    if(d<=mv+2){hit(tg,s.dmg,s.team);s.dead=true}else{s.x+=dx/d*mv;s.y+=dy/d*mv;s.a=Math.atan2(dy,dx)}
+  }
+  G.shots=G.shots.filter(s=>!s.dead);
+  // effects
+  for(const f of G.fx){
+    f.t-=dt;
+    if(f.k==='bolt'&&f.t<=0&&!f.done){
+      f.done=true;f.t=.35;
+      for(const e of G.units)if(e.team!==f.team&&dist(e,f)<f.r+e.r)hit(e,60,f.team);
+      const eb=G.teams[1-f.team].base;if(dist(eb,f)<f.r+eb.r)hit(eb,25,f.team);
+    }
+    if(f.k==='heal'&&f.t>0)for(const u of G.units)if(u.team===f.team&&dist(u,f)<f.r+u.r){u.hp=Math.min(u.max,u.hp+25*dt);u.heal=.3}
+  }
+  G.fx=G.fx.filter(f=>f.t>0||(f.k==='bolt'&&!f.done));
+  // deaths
+  for(const u of G.units)if(u.hp<=0){G.teams[1-u.team].kills++;G.fx.push({k:'die',x:u.x,y:u.y,t:.5,team:u.team})}
+  G.units=G.units.filter(u=>u.hp>0);
+  ai(dt);
+  for(const tm of G.teams)if(tm.base.hp<=0&&!G.over){G.over=true;setTimeout(()=>end(tm.i===1),700)}
+}
+function hit(t,dmg,team){t.hp-=dmg;t.flash=.15}
+function updUnit(u,dt,sl){
+  const T=TYPES[u.type],tm=G.teams[u.team],en=G.teams[1-u.team];
+  u.cdLeft-=dt;u.flash=Math.max(0,u.flash-dt);u.heal=Math.max(0,u.heal-dt);
+  const buff=tm.buff>0?1.4:1;
+  let spd=T.speed*buff, target=null, goal=null;
+  if(u.mode==='retreat'){
+    spd*=1.15;goal=sl.get(u)||tm.rally;
+    if(dist(u,goal)<16)u.mode='hold';
+  }else{
+    const aggro=T.ranged?175:150;let bd=1e9;
+    for(const e of G.units){
+      if(e.team===u.team)continue;
+      const d=dist(u,e);
+      if(d<aggro&&d<bd){
+        if(u.mode==='hold'&&dist(e,tm.rally)>250)continue;
+        bd=d;target=e;
+      }
+    }
+    if(!target&&u.mode==='attack'){
+      const b=en.base;
+      if(dist(u,b)<aggro+b.r)target=b;else goal=b;
+    }
+    if(!target&&u.mode==='hold')goal=sl.get(u)||tm.rally;
+  }
+  if(target){
+    const d=dist(u,target)-u.r-target.r;
+    if(d>T.range){moveTo(u,target,spd,dt)}
+    else if(u.cdLeft<=0){
+      u.cdLeft=T.cd/buff;
+      const dmg=T.dmg*(target.isBase?1:(T.bonus[target.type]||1));
+      if(T.ranged)G.shots.push({x:u.x,y:u.y,tgt:target,dmg,sp:300,team:u.team});
+      else{hit(target,dmg,u.team);G.fx.push({k:'slash',x:(u.x+target.x)/2,y:(u.y+target.y)/2,t:.18,team:u.team})}
+    }
+  }else if(goal){
+    if(dist(u,goal)>3)moveTo(u,goal,spd,dt);
+  }
+  // heal near own base
+  if(dist(u,tm.base)<160&&!target){u.hp=Math.min(u.max,u.hp+6*dt)}
+}
+function moveTo(u,g,spd,dt){const dx=g.x-u.x,dy=g.y-u.y,d=Math.hypot(dx,dy);if(d<0.01)return;const m=Math.min(d,spd*dt);u.x+=dx/d*m;u.y+=dy/d*m}
+
+// ---------- enemy AI ----------
+const COUNTER={cav:'spear',archer:'cav',spear:'archer'};
+function ai(dt,me=1){
+  const op=1-me,tm=G.teams[me];
+  tm.aiT-=dt;if(tm.aiT>0)return;tm.aiT=G.diff.think;
+  // economy
+  if(tm.workers+wkQueued(tm)<(G.t<60?6:WORKER.max)&&wkQueued(tm)===0&&canMake(tm,'worker')&&(tm.workers<5||Math.random()<.35))make(tm,'worker');
+  if(tm.queue.length<3){
+    const cnt={spear:0,archer:0,cav:0};let tot=0;
+    for(const u of G.units)if(u.team===op){cnt[u.type]+=TYPES[u.type].pop;tot+=TYPES[u.type].pop}
+    const w={spear:1,archer:1,cav:.8};
+    if(tot>0)for(const k in cnt)w[COUNTER[k]]+=6*G.diff.smart*cnt[k]/tot;
+    let r=Math.random()*(w.spear+w.archer+w.cav),pick='spear';
+    for(const k in w){r-=w[k];if(r<=0){pick=k;break}}
+    make(tm,pick);
+  }
+  // army decisions
+  const holdN=G.units.filter(u=>u.team===me&&u.mode==='hold').length;
+  const myAtk=armyVal(me,'attack'),myAll=armyVal(me),their=armyVal(op);
+  const threat=G.units.some(u=>u.team===op&&dist(u,tm.base)<330);
+  if(myAtk===0&&holdN>0){
+    const need=G.diffIdx===0?9:7;
+    if((holdN>=need&&myAll>their*1.2)||popOf(me)>=POP_CAP-3||(G.t>240&&holdN>=need))command(tm,'attack');
+  }else if(myAtk>0){
+    const near=armyVal(op)+1;
+    if(myAtk<tm.attackVal*.35&&near>myAtk*1.4){command(tm,'retreat')}
+  }
+  if(threat&&myAtk>0&&G.units.filter(u=>u.team===op&&dist(u,tm.base)<330).length>=5&&Math.random()<G.diff.smart*.5)command(tm,'retreat');
+  // skills
+  if(tm.mana>=30&&tm.skillCd.bolt<=0){
+    let best=null,bn=0;
+    for(const u of G.units)if(u.team===op){let n=0;for(const v of G.units)if(v.team===op&&dist(u,v)<55)n++;if(n>bn){bn=n;best=u}}
+    if(best&&G.t>45&&bn>=(G.diffIdx===2?4:G.diffIdx===1?5:6)&&Math.random()<.5+G.diff.smart*.5){
+      const miss=(1-G.diff.smart)*40;
+      cast(tm,'bolt',best.x+(Math.random()-.5)*miss,best.y+(Math.random()-.5)*miss);
+    }
+  }
+  if(tm.mana>=25&&tm.skillCd.heal<=0){
+    let best=null,bn=0;
+    for(const u of G.units)if(u.team===me&&u.hp<u.max*.6){let n=0;for(const v of G.units)if(v.team===me&&v.hp<v.max*.7&&dist(u,v)<70)n++;if(n>bn){bn=n;best=u}}
+    if(best&&bn>=3)cast(tm,'heal',best.x,best.y);
+  }
+  if(tm.mana>=70&&tm.skillCd.cry<=0&&G.units.filter(u=>u.team===me&&u.mode==='attack').length>=8)cast(tm,'cry');
+}
+
+// ---------- drawing ----------
+function resize(){
+  const wr=$('wrap').getBoundingClientRect();
+  scale=Math.min(wr.width/W,wr.height/H);
+  const dpr=window.devicePixelRatio||1;
+  cv.style.width=W*scale+'px';cv.style.height=H*scale+'px';
+  cv.width=Math.round(W*scale*dpr);cv.height=Math.round(H*scale*dpr);
+  ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
+}
+let bgCache=null;
+function drawBg(){
+  if(!bgCache){
+    bgCache=document.createElement('canvas');bgCache.width=W;bgCache.height=H;
+    const b=bgCache.getContext('2d');
+    const g=b.createLinearGradient(0,0,0,H);g.addColorStop(0,'#5E8F4A');g.addColorStop(.5,'#6FA356');g.addColorStop(1,'#5E8F4A');
+    b.fillStyle=g;b.fillRect(0,0,W,H);
+    let s=7;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;
+    for(let k=0;k<500;k++){b.fillStyle=rnd()<.5?'rgba(255,255,255,.06)':'rgba(0,0,0,.07)';b.fillRect(rnd()*W,rnd()*H,2+rnd()*3,2+rnd()*3)}
+    b.fillStyle='rgba(120,90,50,.28)';b.fillRect(W/2-46,0,92,H);
+    b.setLineDash([10,10]);b.strokeStyle='rgba(255,255,255,.25)';b.lineWidth=2;b.beginPath();b.moveTo(0,H/2);b.lineTo(W,H/2);b.stroke();b.setLineDash([]);
+    b.fillStyle='rgba(0,0,0,.12)';b.fillRect(0,0,W,H*.3);
+  }
+  ctx.drawImage(bgCache,0,0);
+}
+function drawMine(tm){
+  const m=tm.mine;
+  ctx.fillStyle='#6B5A3E';ctx.beginPath();ctx.ellipse(m.x,m.y,30,20,0,0,7);ctx.fill();
+  ctx.fillStyle='#FFD34D';for(const [ox,oy,r] of [[-10,-4,7],[6,-7,6],[9,5,5],[-3,6,5]]){ctx.beginPath();ctx.arc(m.x+ox,m.y+oy,r,0,7);ctx.fill()}
+  // workers shuttle
+  const b=tm.base;
+  for(let k=0;k<tm.workers;k++){
+    const ph=((G.t*.35+k/tm.workers)%1),p=ph<.5?ph*2:2-ph*2;
+    const x=b.x+(m.x-b.x)*(.25+.65*p)+((k%3)-1)*5,y=b.y+(m.y-b.y)*(.25+.65*p)+((k%2)?4:-4);
+    ctx.fillStyle=COLORS[tm.i].light;ctx.beginPath();ctx.arc(x,y,4,0,7);ctx.fill();
+    if(ph>=.5){ctx.fillStyle='#FFD34D';ctx.beginPath();ctx.arc(x,y-5,2.5,0,7);ctx.fill()}
+  }
+}
+function drawBase(tm){
+  const b=tm.base,c=COLORS[tm.i];
+  ctx.save();ctx.translate(b.x,b.y);
+  if(b.flash>0)ctx.globalAlpha=.7;
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(0,26,52,14,0,0,7);ctx.fill();
+  ctx.fillStyle='#8C8578';ctx.fillRect(-40,-22,80,48);
+  ctx.fillStyle='#A39B8C';for(let k=-40;k<40;k+=16)ctx.fillRect(k,-30,10,10);
+  ctx.fillStyle='#8C8578';ctx.fillRect(-14,-46,28,30);ctx.fillStyle='#A39B8C';for(let k=-14;k<14;k+=10)ctx.fillRect(k,-53,7,8);
+  ctx.fillStyle='#3A2A1A';ctx.beginPath();ctx.moveTo(-10,26);ctx.lineTo(-10,8);ctx.arc(0,8,10,Math.PI,0);ctx.lineTo(10,26);ctx.fill();
+  ctx.fillStyle=c.body;ctx.fillRect(-1,-76,2,24);ctx.beginPath();ctx.moveTo(1,-76);ctx.lineTo(20,-70);ctx.lineTo(1,-64);ctx.fill();
+  ctx.restore();
+  b.flash=Math.max(0,(b.flash||0)-.016);
+  const w=90,pct=Math.max(0,b.hp/b.max),y=tm.i===0?b.y+38:b.y-70;
+  ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(b.x-w/2-1,y-1,w+2,9);
+  ctx.fillStyle=c.body;ctx.fillRect(b.x-w/2,y,w*pct,7);
+}
+function drawFlag(tm){
+  const r=tm.rally,c=COLORS[tm.i];
+  ctx.globalAlpha=tm.i===0?1:.55;
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(r.x,r.y+2,8,3,0,0,7);ctx.fill();
+  ctx.fillStyle='#5A3E22';ctx.fillRect(r.x-1.5,r.y-34,3,36);
+  ctx.fillStyle=c.body;ctx.beginPath();ctx.moveTo(r.x+1.5,r.y-34);ctx.lineTo(r.x+24,r.y-27);ctx.lineTo(r.x+1.5,r.y-20);ctx.fill();
+  if(tm.i===0){ctx.strokeStyle='rgba(255,255,255,.35)';ctx.setLineDash([4,5]);ctx.beginPath();ctx.arc(r.x,r.y,250,0,7);ctx.stroke();ctx.setLineDash([])}
+  ctx.globalAlpha=1;
+}
+function drawUnit(u){
+  const T=TYPES[u.type],c=COLORS[u.team];
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(u.x,u.y+u.r*.8,u.r,u.r*.4,0,0,7);ctx.fill();
+  if(u.mode==='attack'){ctx.strokeStyle=u.team===0?'#FFD34D':'#FF8A3D';ctx.lineWidth=2;ctx.beginPath();ctx.arc(u.x,u.y,u.r+2.5,0,7);ctx.stroke()}
+  ctx.fillStyle=u.flash>0?'#fff':c.body;ctx.beginPath();ctx.arc(u.x,u.y,u.r,0,7);ctx.fill();
+  ctx.strokeStyle=c.dark;ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font=`900 ${u.r*1.25}px ${getComputedStyle(document.body).fontFamily}`;
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(T.ch,u.x,u.y+1);
+  if(u.hp<u.max){const w=u.r*2;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(u.x-w/2,u.y-u.r-7,w,3);ctx.fillStyle=u.hp/u.max>.5?'#6EE36E':u.hp/u.max>.25?'#FFD34D':'#FF5A4D';ctx.fillRect(u.x-w/2,u.y-u.r-7,w*u.hp/u.max,3)}
+  if(u.heal>0){ctx.fillStyle='#7CFF8A';ctx.font='900 10px sans-serif';ctx.fillText('+',u.x+u.r,u.y-u.r)}
+}
+function drawFx(f){
+  const c=COLORS[f.team];
+  if(f.k==='bolt'){
+    if(!f.done){ctx.strokeStyle='rgba(255,240,120,.9)';ctx.fillStyle='rgba(255,240,120,.15)';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();ctx.arc(f.x,f.y,f.r,0,7);ctx.fill();ctx.stroke();ctx.setLineDash([])}
+    else{ctx.globalAlpha=f.t/.35;ctx.fillStyle='rgba(255,255,200,.45)';ctx.beginPath();ctx.arc(f.x,f.y,f.r,0,7);ctx.fill();
+      ctx.strokeStyle='#FFF7A0';ctx.lineWidth=4;for(let k=0;k<3;k++){ctx.beginPath();let x=f.x+(k-1)*18,y=f.y-160;ctx.moveTo(x,y);while(y<f.y){y+=22;x+=(Math.random()-.5)*22;ctx.lineTo(x,y)}ctx.stroke()}ctx.globalAlpha=1}
+  }else if(f.k==='heal'){
+    ctx.globalAlpha=Math.min(1,f.t);ctx.fillStyle='rgba(110,255,140,.18)';ctx.strokeStyle='rgba(110,255,140,.8)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(f.x,f.y,f.r*(0.9+0.1*Math.sin(G.t*8)),0,7);ctx.fill();ctx.stroke();ctx.globalAlpha=1;
+  }else if(f.k==='slash'){
+    ctx.strokeStyle='rgba(255,255,255,'+(f.t/.18)+')';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(f.x-5,f.y-5);ctx.lineTo(f.x+5,f.y+5);ctx.stroke();
+  }else if(f.k==='die'){
+    ctx.globalAlpha=f.t/.5;ctx.fillStyle=c.dark;ctx.beginPath();ctx.arc(f.x,f.y,10*(1.5-f.t),0,7);ctx.fill();ctx.globalAlpha=1;
+  }else if(f.k==='cry'){
+    for(const u of G.units)if(u.team===f.team){ctx.strokeStyle=`rgba(255,200,60,${f.t})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(u.x,u.y,u.r+8*(1-f.t)+3,0,7);ctx.stroke()}
+  }
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);drawBg();
+  for(const tm of G.teams){drawMine(tm);drawBase(tm)}
+  for(const tm of G.teams)drawFlag(tm);
+  for(const f of G.fx)if(f.k==='heal'||(f.k==='bolt'&&!f.done))drawFx(f);
+  const sorted=G.units.slice().sort((a,b)=>a.y-b.y);
+  for(const u of sorted)drawUnit(u);
+  for(const s of G.shots){
+    ctx.strokeStyle=s.tower?'#FFE38A':'#3A2A1A';ctx.lineWidth=s.tower?3:2;ctx.beginPath();
+    const a=s.a||0;ctx.moveTo(s.x-Math.cos(a)*8,s.y-Math.sin(a)*8);ctx.lineTo(s.x,s.y);ctx.stroke();
+  }
+  for(const f of G.fx)if(!(f.k==='heal'||(f.k==='bolt'&&!f.done)))drawFx(f);
+  if(G.teams[0].buff>0||G.teams[1].buff>0){}
+  if(armed&&SKILLS[armed].target){
+    ctx.fillStyle='rgba(255,201,60,.12)';ctx.fillRect(0,0,W,H);
+  }
+}
+
+// ---------- UI ----------
+function updUI(){
+  const tm=G.teams[0];
+  $('gold').textContent=Math.floor(tm.gold);$('inc').textContent=' +'+income(tm).toFixed(1)+'/秒';
+  $('wk').textContent=tm.workers;$('pop').textContent=popOf(0)+'/'+POP_CAP;
+  $('manaFill').style.width=(tm.mana/MANA_MAX*100)+'%';
+  const em=G.units.some(u=>u.team===1&&u.mode==='attack')?'⚠ 敵軍進攻中':G.units.some(u=>u.team===1&&u.mode==='retreat')?'敵軍撤退中':'敵軍集結中';
+  $('enemyMode').textContent=em;$('enemyMode').style.color=em.startsWith('⚠')?'#FF8A7A':'var(--dim)';
+  let h=0,a=0;for(const u of G.units)if(u.team===0){if(u.mode==='attack')a++;else h++}
+  $('cHold').textContent='待命 '+h;$('cAtk').textContent='出擊 '+a;
+  document.querySelectorAll('[data-make]').forEach(b=>{
+    const k=b.dataset.make;b.disabled=!canMake(tm,k);
+    const n=tm.queue.filter(q=>q.kind===k).length;
+    let qe=b.querySelector('.q');if(n){if(!qe){qe=document.createElement('span');qe.className='q';b.appendChild(qe)}qe.textContent=n}else if(qe)qe.remove();
+    const q0=tm.queue[0];b.querySelector('.bar').style.width=(q0&&q0.kind===k?(1-q0.t/q0.total)*100:0)+'%';
+  });
+  document.querySelectorAll('[data-skill]').forEach(b=>{
+    const k=b.dataset.skill,S=SKILLS[k];
+    b.disabled=tm.mana<S.mana||tm.skillCd[k]>0;
+    b.querySelector('.cd').style.transform=`scaleY(${tm.skillCd[k]/S.cd})`;
+    b.classList.toggle('arm',armed===k);
+  });
+  if(armed&&document.querySelector(`[data-skill="${armed}"]`).disabled&&G.teams[0].skillCd[armed]===0&&tm.mana<SKILLS[armed].mana)armed=null;
+}
+function loop(now){
+  requestAnimationFrame(loop);
+  if(!G)return;
+  let dt=Math.min(.05,(now-last)/1000);last=now;
+  if(running&&!paused&&!G.over)step(dt);
+  if(hintT>0){hintT-=dt;if(hintT<=0)$('hint').style.opacity=0}
+  draw();updUI();
+}
+function end(win){
+  running=false;
+  const tm=G.teams[0],m=Math.floor(G.t/60),s=Math.floor(G.t%60);
+  $('endTitle').textContent=win?'🏆 勝利！':'城堡被攻破了…';
+  $('endStats').innerHTML=`難度：${G.diff.name}<br>時間：${m} 分 ${s} 秒<br>訓練士兵：${tm.made}<br>打倒敵兵：${tm.kills}`;
+  $('endScr').hidden=false;
+}
+
+cv.addEventListener('pointerdown',e=>{
+  if(!G||!running||paused||G.over)return;
+  const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)/scale,y=(e.clientY-r.top)/scale;
+  const tm=G.teams[0];
+  if(armed){
+    if(cast(tm,armed,x,y)){armed=null}else hint('魔力不夠或還在冷卻');
+    return;
+  }
+  if(y<H*.3){hint('旗子不能插到敵方陣地太深的地方');return}
+  tm.rally={x:clamp(x,20,W-20),y:clamp(y,20,H-20)};
+  for(const u of G.units)if(u.team===0&&u.mode==='retreat')u.mode='hold';
+  G.fx.push({k:'die',x:tm.rally.x,y:tm.rally.y,t:.3,team:0});
+});
+function doMake(k){if(G&&running&&!paused&&!make(G.teams[0],k))hint(k!=='worker'&&popOf(0)+TYPES[k].pop>POP_CAP?'兵力已滿':'金幣不夠')}
+function doCmd(c){
+  if(!G||!running||paused)return;
+  const n=command(G.teams[0],c);
+  if(c==='attack')hint(n?`${n} 名士兵出擊！`:'旗下沒有待命的士兵');
+  if(c==='hold')hint('全軍回到集結旗');
+  if(c==='retreat')hint('全軍撤退回城');
+}
+function doSkill(k){
+  if(!G||!running||paused)return;
+  const tm=G.teams[0],S=SKILLS[k];
+  if(tm.mana<S.mana||tm.skillCd[k]>0){hint('魔力不夠或還在冷卻');return}
+  if(!S.target){cast(tm,k);hint('戰吼！全軍加速 7 秒');armed=null;return}
+  armed=armed===k?null:k;if(armed)hint('點地圖選擇'+S.name+'的位置');
+}
+document.querySelectorAll('[data-make]').forEach(b=>b.addEventListener('click',()=>doMake(b.dataset.make)));
+document.querySelectorAll('[data-cmd]').forEach(b=>b.addEventListener('click',()=>doCmd(b.dataset.cmd)));
+document.querySelectorAll('[data-skill]').forEach(b=>b.addEventListener('click',()=>doSkill(b.dataset.skill)));
+document.querySelectorAll('[data-diff]').forEach(b=>b.addEventListener('click',()=>{start(+b.dataset.diff);resize()}));
+function setPause(p){if(!G||G.over||!running)return;paused=p;$('pauseScr').hidden=!p;last=performance.now()}
+$('pauseBtn').onclick=()=>setPause(true);
+$('resumeBtn').onclick=()=>setPause(false);
+$('quitBtn').onclick=()=>{running=false;paused=false;$('pauseScr').hidden=true;$('title').hidden=false};
+$('againBtn').onclick=()=>{start(G.diffIdx);resize()};
+$('titleBtn').onclick=()=>{$('endScr').hidden=true;$('title').hidden=false};
+document.addEventListener('keydown',e=>{
+  if(e.key===' '){e.preventDefault();setPause(!paused);return}
+  const m={'1':'worker','2':'spear','3':'archer','4':'cav'}[e.key];if(m)return doMake(m);
+  const c={a:'attack',s:'hold',r:'retreat'}[e.key.toLowerCase()];if(c)return doCmd(c);
+  const k={z:'bolt',x:'heal',c:'cry'}[e.key.toLowerCase()];if(k)return doSkill(k);
+  if(e.key==='Escape')armed=null;
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&running&&!G.over)setPause(true)});
+window.addEventListener('resize',resize);
+G={diff:DIFF[1],diffIdx:1,t:0,teams:[newTeam(0),newTeam(1)],units:[],shots:[],fx:[],over:false};
+resize();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
