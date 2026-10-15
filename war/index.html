@@ -76,6 +76,7 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
       <button class="sq" data-sq="0">Ⅰ 一軍<small>待命 0</small></button>
       <button class="sq" data-sq="1">Ⅱ 二軍<small>待命 0</small></button>
       <button class="sq" data-sq="2">Ⅲ 三軍<small>待命 0</small></button>
+      <button class="flag" data-cmd="box">⬚ 編成<small id="cBox">框選編入一軍</small></button>
       <button class="atk" data-cmd="all">⚔ 齊攻<small>各軍同時殺到</small></button>
     </div>
     <div class="prow" id="rowCmd"><span class="lab">指揮</span>
@@ -100,6 +101,7 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
       <li>你有<b>一軍、二軍、三軍</b>，各有一面集結旗。在「軍團」選一軍（或直接點地圖上的旗子），新兵就編進那一軍；插旗、進攻、佯攻、撤退也只指揮那一軍。</li>
       <li><b>斥候</b>跑得快但很脆，會自己去最久沒看過的地方探路，被打就逃回來，並記住那裡危險。按<b>偵察</b>再點地圖，可以要它先去那裡看。</li>
       <li>新兵都會到自己軍的<b>集結旗</b>下排隊待命，<b>不會自己衝出去</b>；敵人靠近旗子才會迎戰。按<b>進攻</b>再點地圖，這一軍就殺過去；按<b>撤退</b>就跑回旗下。</li>
+      <li>按<b>編成</b>再在地圖上拖曳框選（電腦也可以按住 Shift 拖曳），框到的士兵會改編進目前選的那一軍。</li>
       <li><b>聲東擊西</b>：讓一軍<b>佯攻</b>，打一陣子就會自己撤回。敵人會先調兵去擋，這時用主力打另一邊。</li>
       <li><b>左右夾擊</b>：把各軍的旗插在不同方向，按<b>齊攻</b>點目標，各軍會算好出發時間同時殺到。敵人同時被兩面攻擊，受到的傷害多 30%。</li>
       <li>相剋：劍士砍弓箭手、投石車砸地面部隊、獅鷲騎士打投石車（投石車和劍士打不到天上）、弓箭手射獅鷲。</li>
@@ -1285,6 +1287,9 @@ function draw(){
   if(--fogTick<=0){fogTick=3;updateFog()}
   ctx.drawImage(fogCv,0,0,W,H);
   for(const S of tm.sq)drawFlag(tm,S,S.i===tm.cur);
+  const br=boxRect();
+  if(br){ctx.fillStyle='rgba(255,220,140,.12)';ctx.fillRect(br[0],br[1],br[2]-br[0],br[3]-br[1]);ctx.strokeStyle='#FFD34D';ctx.lineWidth=2/cam.z;ctx.setLineDash([6/cam.z,4/cam.z]);ctx.strokeRect(br[0],br[1],br[2]-br[0],br[3]-br[1]);ctx.setLineDash([]);
+    ctx.fillStyle='#FFD34D';for(const u of armyOf(tm))if(u.x>=br[0]-10&&u.x<=br[2]+10&&u.y>=br[1]-10&&u.y<=br[3]+10)ctx.fillRect(Math.round(u.x)-6,Math.round(u.y)+10,12,3)}
   if(sel){ctx.strokeStyle='#FFC93C';ctx.lineWidth=4;ctx.setLineDash([8,6]);ctx.strokeRect(sel.x0-4,sel.y0-4,sel.x1-sel.x0+8,sel.y1-sel.y0+8);ctx.setLineDash([])}
   if(armed&&BLD[armed]&&hover){
     const g=ghostFor(armed,hover.x,hover.y),D=BLD[armed];
@@ -1323,8 +1328,19 @@ function buildUI(){
   document.querySelectorAll('[data-cmd]').forEach(b=>b.onclick=()=>doCmd(b.dataset.cmd));
   document.querySelectorAll('[data-sq]').forEach(b=>b.onclick=()=>selSq(+b.dataset.sq));
 }
+// move every soldier inside the world rect into the current squad
+function regroup(tm,x0,y0,x1,y1){
+  const S=tm.sq[tm.cur],active=S.pt&&(S.go||armyOf(tm,S.i).some(u=>u.mode==='attack'));let n=0;
+  for(const u of armyOf(tm))if(u.x>=x0&&u.x<=x1&&u.y>=y0&&u.y<=y1&&u.sq!==S.i){
+    u.sq=S.i;u.tgt=null;n++;
+    if(u.mode==='attack'&&!active)u.mode='retreat';
+  }
+  return n;
+}
+function boxRect(){if(!drag||!drag.box)return null;const a={x:cam.x+drag.sx/cam.z,y:cam.y+drag.sy/cam.z},b={x:cam.x+drag.ex/cam.z,y:cam.y+drag.ey/cam.z};return [Math.min(a.x,b.x),Math.min(a.y,b.y),Math.max(a.x,b.x),Math.max(a.y,b.y)]}
 function selSq(i){
   if(!live())return;const tm=G.teams[0];tm.cur=i;if(armed==='flag'||armed==='attack'||armed==='feint')armed=null;
+  if(armed==='box')hint(`拖曳框選士兵，編入${SQN[i]}`,4);
   hint(`選了${SQN[i]}：新兵編入${SQN[i]}，插旗和進攻都指揮這一軍`,3);updUI();
 }
 function setArmed(a,msg){armed=armed===a?null:a;if(armed&&msg)hint(msg,6);updUI()}
@@ -1351,6 +1367,7 @@ function doCmd(c){
   if(!live())return;const tm=G.teams[0];
   const sn=SQN[tm.cur];
   if(c==='flag')return setArmed('flag',`點地圖插${sn}的集結旗`);
+  if(c==='box')return setArmed('box',`在地圖上拖曳框選士兵，編入${sn}`);
   if(c==='attack'||c==='feint'){if(!armyOf(tm,tm.cur).length)return hint(sn+'還沒有士兵');return setArmed(c,c==='feint'?`點地圖選擇${sn}佯攻的位置`:`點地圖選擇${sn}進攻的位置`)}
   if(c==='all'){if(!armyOf(tm).some(u=>u.mode!=='attack'))return hint('沒有待命的士兵');return setArmed('all','點地圖選擇齊攻目標，各軍會同時殺到')}
   if(c==='retreat'){const n=command(tm,'retreat',null,tm.cur);hint(n?`${sn} ${n} 名士兵撤退回旗下`:sn+'沒有出擊中的士兵');return}
@@ -1411,7 +1428,7 @@ function updUI(){
   const cnt=tm.sq.map(()=>[0,0]);for(const u of G.units)if(u.team===0&&isArmy(u))cnt[u.sq][u.mode==='attack'?1:0]++;
   document.querySelectorAll('[data-sq]').forEach(b=>{const i=+b.dataset.sq,S=tm.sq[i],[h,a]=cnt[i];b.classList.toggle('arm',tm.cur===i);
     b.querySelector('small').textContent=S.go?`${Math.ceil(S.go-G.t)} 秒後出發`:a?`待命 ${h}・出擊 ${a}`:`待命 ${h}`});
-  $('cScout').textContent='斥候 '+G.units.filter(u=>u.team===0&&u.kind==='scout').length;$('cAtk').textContent='待命 '+cnt[tm.cur][0];$('cOut').textContent='出擊 '+cnt[tm.cur][1];$('cFlag').textContent=SQN[tm.cur];
+  $('cScout').textContent='斥候 '+G.units.filter(u=>u.team===0&&u.kind==='scout').length;$('cAtk').textContent='待命 '+cnt[tm.cur][0];$('cOut').textContent='出擊 '+cnt[tm.cur][1];$('cFlag').textContent=SQN[tm.cur];$('cBox').textContent='框選編入'+SQN[tm.cur];
   document.querySelectorAll('[data-cmd]').forEach(b=>{const k=b.dataset.cmd;b.classList.toggle('arm',armed===k)});
 }
 function end(win){
@@ -1440,6 +1457,7 @@ cv.addEventListener('pointerdown',e=>{
   if(!G)return;cv.setPointerCapture(e.pointerId);const p=local(e);ptrs.set(e.pointerId,p);
   if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,z:cam.z};drag=null;return}
   if(inMini(p)){drag={mini:true};miniJump(p);return}
+  if(live()&&(armed==='box'||e.shiftKey)){drag={box:true,sx:p.x,sy:p.y,ex:p.x,ey:p.y};return}
   drag={sx:p.x,sy:p.y,cx:cam.x,cy:cam.y,moved:false};
 });
 cv.addEventListener('pointermove',e=>{
@@ -1449,12 +1467,18 @@ cv.addEventListener('pointermove',e=>{
   if(pinch&&ptrs.size>=2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);zoomAt(pinch.z*d/pinch.d/cam.z,(a.x+b.x)/2,(a.y+b.y)/2);return}
   if(!drag)return;
   if(drag.mini){miniJump(p);return}
+  if(drag.box){drag.ex=p.x;drag.ey=p.y;return}
   if(!drag.moved&&Math.hypot(p.x-drag.sx,p.y-drag.sy)>8)drag.moved=true;
   if(drag.moved){cam.x=drag.cx-(p.x-drag.sx)/cam.z;cam.y=drag.cy-(p.y-drag.sy)/cam.z;clampCam()}
 });
 cv.addEventListener('pointerup',e=>{
   if(!ptrs.has(e.pointerId))return;const p=local(e);ptrs.delete(e.pointerId);
   if(pinch){if(ptrs.size<2)pinch=null;drag=null;return}
+  if(drag&&drag.box){
+    drag.ex=p.x;drag.ey=p.y;const r=boxRect(),tm=G.teams[0];drag=null;
+    if(live()&&r[2]-r[0]+r[3]-r[1]>12/cam.z){const n=regroup(tm,r[0]-10,r[1]-10,r[2]+10,r[3]+10);armed=null;hint(n?`${n} 名士兵編入${SQN[tm.cur]}`:'框裡沒有可以改編的士兵',3);updUI()}
+    return;
+  }
   if(drag&&!drag.mini&&!drag.moved&&live()){hover={x:cam.x+p.x/cam.z,y:cam.y+p.y/cam.z};tapWorld(hover.x,hover.y)}
   drag=null;
 });
