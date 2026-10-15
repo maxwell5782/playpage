@@ -1391,17 +1391,18 @@ function spawnFx(e){
     case "grab":FX.push({t:"ring",x:e.x,y:e.y,l:12,m:12,c,s:40});break;
   }
 }
-function drawFx(c){
+function drawFx(c,mode){
   for(const p of FX){
+    const txt=p.t==="num"||p.t==="txt";if(txt!==(mode==="txt"))continue;
     const k=p.l/p.m;c.globalAlpha=Math.max(0,k);
     if(p.t==="sp"){p.x+=p.vx;p.y+=p.vy;p.vy+=.25;c.fillStyle=p.c;c.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s)}
     else if(p.t==="ring"){c.strokeStyle=p.c;c.lineWidth=4*k+1;c.beginPath();if(p.flat)c.ellipse(p.x,p.y,p.s*(1-k)+10,(p.s*(1-k)+10)*.18,0,0,7);else c.arc(p.x,p.y,p.s*(1-k)+6,0,7);c.stroke()}
     else if(p.t==="dust"){p.x+=p.vx;p.y+=p.vy;c.fillStyle=p.c;c.beginPath();c.arc(p.x,p.y,p.s*(1.4-k*.4),0,7);c.fill()}
     else if(p.t==="num"){p.y-=.8;c.fillStyle=p.c;c.font="900 22px sans-serif";c.textAlign="center";c.strokeStyle="#000";c.lineWidth=4;c.strokeText(p.n,p.x,p.y);c.fillText(p.n,p.x,p.y)}
     else if(p.t==="txt"){p.y-=.6;c.font="900 30px "+FONT;c.textAlign="center";c.strokeStyle="#000";c.lineWidth=5;c.strokeText(p.txt,p.x,p.y);c.fillStyle=p.c;c.fillText(p.txt,p.x,p.y)}
-    p.l--;
+    if(mode==="txt"||!txt)p.l--;
   }
-  c.globalAlpha=1;FX=FX.filter(p=>p.l>0);
+  c.globalAlpha=1;if(mode==="txt")FX=FX.filter(p=>p.l>0);
 }
 const FONT="'Microsoft JhengHei','微軟正黑體','PingFang TC','Noto Sans TC',sans-serif";
 function drawProj(c,p,t){
@@ -1413,7 +1414,6 @@ function drawProj(c,p,t){
     c.fillStyle=g;c.fillRect(x1,p.y-hh/2,x2-x1,hh);c.fillStyle="#fff";c.beginPath();c.arc(p.x,p.y,hh*.55,0,7);c.fill();c.restore();return;
   }
   c.translate(p.x,p.y);const dir=p.vx>=0?1:-1;c.scale(dir,1);
-  c.shadowColor=col;c.shadowBlur=18;
   const k=p.kind;
   if(k==="quake"){c.fillStyle=col;c.globalAlpha=.85;for(let i=0;i<4;i++){c.beginPath();c.moveTo(-20+i*8,26);c.lineTo(-8+i*8,-26-Math.random()*20);c.lineTo(4+i*8,26);c.fill()}}
   else if(k==="dragon"){const sw=Math.sin(t*.3)*8;c.fillStyle=col;c.globalAlpha=.9;
@@ -1471,7 +1471,16 @@ function drawBanner(c,S){
   if(b&&b.t>0&&b.text){const s=1+Math.max(0,(b.t-50)/20);c.save();c.translate(W/2,H/2-30);c.scale(s,s);c.font="900 78px "+FONT;c.textAlign="center";c.strokeStyle="#000";c.lineWidth=10;c.strokeText(b.text,0,0);c.fillStyle=b.col||"#fff";c.fillText(b.text,0,0);c.restore()}
 }
 const LOW=document.createElement("canvas");LOW.width=W/2;LOW.height=H/2;const LX=LOW.getContext("2d");
-const LOW2=document.createElement("canvas");LOW2.width=W/2;LOW2.height=H/2;const LX2=LOW2.getContext("2d");
+/* 招式和特效跟角色用同一種像素：每格 PS 倍、硬邊、招式外圍一圈黑線 */
+const LOW2=document.createElement("canvas");LOW2.width=W/PS;LOW2.height=H/PS;const LX2=LOW2.getContext("2d");
+function pixelize(x,outline){
+  const w=W/PS,h=H/PS,img=x.getImageData(0,0,w,h),d=img.data;
+  for(let i=3;i<d.length;i+=4){const a=d[i];d[i]=a<50?0:outline||a>170?255:a<110?100:170}
+  if(outline){const mark=[],op=i=>d[i*4+3]>0;
+    for(let y=0;y<h;y++)for(let X=0;X<w;X++){const i=y*w+X;if(op(i))continue;if((X>0&&op(i-1))||(X<w-1&&op(i+1))||(y>0&&op(i-w))||(y<h-1&&op(i+w)))mark.push(i)}
+    for(const i of mark){d[i*4]=26;d[i*4+1]=16;d[i*4+2]=32;d[i*4+3]=255}}
+  x.putImageData(img,0,0);
+}
 function render(c,S){
   G_TIME++;
   SHX=SHY=0;
@@ -1484,9 +1493,12 @@ function render(c,S){
   const order=S.f[0].st==="atk"?[1,0]:[0,1];
   for(const i of order){const f=S.f[i];drawFighter(c,f,i,f.st==="hit"&&f.t<3)}
   // 招式和特效（每格 2 倍）
-  const y=LX2;y.setTransform(1,0,0,1,0,0);y.clearRect(0,0,W/2,H/2);y.save();y.setTransform(.5,0,0,.5,0,0);y.translate(SHX*2,SHY*2);
-  for(const p of S.projs)drawProj(y,p,G_TIME);drawFx(y);y.restore();
-  c.drawImage(LOW2,0,0,W,H);c.imageSmoothingEnabled=true;
+  const y=LX2,layer=(fn,outline)=>{y.setTransform(1,0,0,1,0,0);y.clearRect(0,0,W/PS,H/PS);y.save();y.setTransform(1/PS,0,0,1/PS,0,0);y.translate(SHX*2,SHY*2);
+    y.imageSmoothingEnabled=false;fn();y.restore();pixelize(y,outline);c.drawImage(LOW2,0,0,W,H)};
+  layer(()=>{for(const p of S.projs)drawProj(y,p,G_TIME)},1);
+  layer(()=>drawFx(y,"px"),0);
+  c.imageSmoothingEnabled=true;
+  c.save();c.translate(SHX*2,SHY*2);drawFx(c,"txt");c.restore();
   drawHud(c,S);
   drawBanner(c,S);
 }
