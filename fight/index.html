@@ -594,7 +594,7 @@ function updF(G,f,o,inp){
 function physics(G,f){
   f.landed=0;
   if(f.st==="grabbed")return;
-  const air=f.y<GROUND-.5||f.vy<0;
+  const air=f.y<GROUND||f.vy<0; // 不能留 0.5 的誤差：落到 469.5 這種位置會卡在空中受傷狀態、永遠起不來
   if(air){
     f.vy+=GRAV;f.y+=f.vy;f.x+=f.vx;
     if(f.y>=GROUND){
