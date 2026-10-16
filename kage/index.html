@@ -1006,6 +1006,7 @@ function txt(s,x,y,size,col,stroke="#000",align="center",weight=900){
 const FONTF="'Microsoft JhengHei','PingFang TC','Noto Sans TC',system-ui,sans-serif";
 function drawHUDhi(){
   const p=G.p,b=G.b,u=VS;
+  txt(`藥 ×${p.gourd}`,SX(38),SY(21.5),Math.max(11,5.5*u),p.gourd?"#f0c890":"#8a7a70","#000","left",700);
   // names
   txt("赤鬼武者　炎丸"+(b.phase===2?"・業火":""),SX(W/2),SY(8),Math.max(11,5.5*u),"#f3ece0","#000","center",700);
   // peril glyph
