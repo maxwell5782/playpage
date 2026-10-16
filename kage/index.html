@@ -122,8 +122,9 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
 const $=id=>document.getElementById(id);
 const W=320,H=180,GY=156,AL=14,AR=306;
 const cv=$("cv"),cx=cv.getContext("2d");
-const buf=document.createElement("canvas");buf.width=W;buf.height=H;
-const g=buf.getContext("2d");
+// the scene buffer is 2x the game grid: most things draw at 2x2 blocks via setTransform(2,..), the boss draws at full buffer resolution
+const RES=2,buf=document.createElement("canvas");buf.width=W*RES;buf.height=H*RES;
+const g=buf.getContext("2d");g.imageSmoothingEnabled=false;
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const sgn=v=>v<0?-1:1;
@@ -884,58 +885,87 @@ function drawBoss(){
   const b=G.b,q={...curPose(b,BP)};
   const P2=b.phase===2||b.st==="trans";
   const wi=windInfo(b);
-  const tr=wi&&wi.rem<.14?(((G.t*60)|0)%2?1:-1):0;
+  const tr=wi&&wi.rem<.14?(((G.t*60)|0)%2?.5:-.5):0;
   if(wi&&wi.s.pose!=="lpA"){const pr=Math.min(1,wi.el/(wi.el+wi.rem));q.a+=.18*pr*(q.a>1.5?1:-1)*(Math.abs(q.a)<.2?0:1);q.l-=pr;q.c+=pr;if(Math.abs(q.a)<.2)q.hx-=2*pr}
-  const br=(b.pose==="idle"&&Math.sin(G.t*2.4)>.2)||(b.pose==="walk"&&(b.wf||0)%4===2)?1:0;
-  const t=T(b,tr),c=Math.round(q.c)+br,l=Math.round(q.l),hd=Math.round(q.hd||0);
-  const red=P2?"#c22a1c":"#a8282b",rdk=P2?"#7a160e":"#6e1a1d",gold="#d9a441",blk="#1b1013",leg="#4a1416",skin="#c4302f",white="#e8e2d6";
+  const br=(b.pose==="idle"&&Math.sin(G.t*2.4)>.2)||(b.pose==="walk"&&(b.wf||0)%4===2)?.5:0;
+  // the boss is drawn on the 2x buffer at half-pixel precision: positions snap to 0.5
+  const hp=v=>Math.round(v*2)/2;
+  const c=hp(q.c)+br,l=hp(q.l),hd=hp(q.hd||0);
+  const red=P2?"#c22a1c":"#a8282b",rdk=P2?"#7a160e":"#6e1a1d",rhi=P2?"#e4502a":"#cf3f3c",gold="#d9a441",gdk="#946420",blk="#1b1013",blk2="#2e1c20",
+        leg="#4a1416",leg2="#5f1c1e",lace="#2a0a0e",skin="#c4302f",white="#ece6da",white2="#c9c0b0";
   const eye=P2?((G.t*8|0)%2?"#fff27a":"#ffb02a"):"#ffd84a";
+  const f=b.face,X0=hp(b.x+tr),Y0=hp(b.y);
+  g.save();g.setTransform(1,0,0,1,0,0);
+  const P=(dx,dy)=>[Math.round((X0+f*dx)*2),Math.round((Y0-dy)*2)];
+  const r=(dx,dy,w,h,col)=>{const x=f>0?X0+dx:X0-dx-w;g.fillStyle=col;g.fillRect(Math.round(x*2),Math.round((Y0-dy-h)*2),Math.max(1,Math.round(w*2)),Math.max(1,Math.round(h*2)))};
+  const ln=(ax,ay,bx,by,col,t=1)=>{const a=P(ax,ay),z=P(bx,by);line(a[0],a[1],z[0],z[1],col,t)};
+  const done=()=>g.restore();
   if(b.st==="dead"&&b.stT>.5&&b.phase===2||b.st==="dead"&&b.stT>.6&&b.phase===1&&b.stT<1.8){
     // collapsed
-    const k=Math.min(1,(b.stT-.5)/.3);
-    t.r(-18,0,30,8,red);t.r(-18,6,30,2,rdk);t.r(10,0,10,8,blk);t.r(12,7,6,3,gold);t.r(-24,2,8,6,white);t.r(-14,8,8,3,rdk);
-    t.ln(-6,1,26,0,"#c9cfd8",2);return}
-  // flame aura in phase 2
-  const hh=17-c;
-  // mane (behind)
-  const wv=Math.sin(G.t*4)*1.2;
-  t.r(-11+l,hh+16+hd*-1,5,12,white);t.r(-14+l,hh+14+wv,4,10,white);t.r(-16+l,hh+12+wv*1.5,3,8,"#cfc8ba");
-  // back shoulder
-  t.r(-12+l,hh+9,6,8,rdk);
-  // legs
-  const lg=q.lg,LG=(dx,dy,w,h)=>{t.r(dx,dy,w,h,leg);t.r(dx,dy+h-4,w,1,gold)};
-  if(lg==="st"){LG(-7,0,5,hh);LG(2,0,5,hh);t.r(-8,0,7,2,blk);t.r(2,0,7,2,blk)}
-  else if(lg==="wk"){const f=b.wf||0,ang=f/8*6.283,ox=Math.round(Math.sin(ang)*4),c1=Math.cos(ang),u1=c1>.1?Math.round(c1*2):0,u2=c1<-.1?Math.round(-c1*2):0;
-    LG(-7+ox,u1,5,hh-u1);LG(2-ox,u2,5,hh-u2);t.r(-8+ox,u1,7,2,blk);t.r(2-ox,u2,7,2,blk)}
-  else if(lg==="w1"){LG(-9,0,5,hh);LG(4,2,5,hh-2);t.r(-10,0,7,2,blk);t.r(4,2,7,2,blk)}
-  else if(lg==="w2"){LG(-5,2,5,hh-2);LG(1,0,5,hh);t.r(-6,2,7,2,blk);t.r(1,0,7,2,blk)}
-  else if(lg==="wd"){LG(-11,0,5,hh);LG(5,0,5,hh);t.r(-12,0,7,2,blk);t.r(5,0,7,2,blk)}
-  else if(lg==="lg"){LG(-14,0,5,Math.max(4,hh-3));t.r(-12,hh-5,8,5,leg);LG(7,0,5,hh);t.r(-15,0,7,2,blk);t.r(7,0,7,2,blk)}
-  else if(lg==="kn"){t.r(-12,0,12,5,leg);t.r(-12,4,12,1,gold);LG(4,0,5,Math.max(5,hh));t.r(4,0,7,2,blk)}
+    r(-18,0,30,8,red);for(let x=-18;x<12;x+=2.5)r(x,1,.5,6,lace);r(-18,6,30,2,rdk);r(-18,7.5,30,.5,gold);
+    r(10,0,10,8,blk);r(12,7,6,3,gold);r(-25,1,9,6,white);r(-24,2,7,.5,white2);r(-14,8,8,3,rdk);
+    ln(-6,1,26,0,"#c4ccd8",3);ln(-6,1.5,26,.5,"#ffffff",1);done();return}
+  const hh=17-c,hy=hh+16-hd;
+  // mane strands (behind)
+  r(-11+l,hy-4,6,12,white);r(-11+l,hy-4,1.5,12,white2);
+  for(let i=0;i<5;i++){const wv=Math.sin(G.t*4+i*.9)*(.6+i*.35);ln(-6+l,hy+6-i*1.5,-13.5-i*.5+l+wv*.3,hy-1-i*2.2+wv,i%2?white2:white,4)}
+  r(-12+l,hy-6,4,3,white);r(-13+l,hy-8,2.5,2.5,white2);
+  // back shoulder guard (sode)
+  r(-12+l,hh+9,6,8,rdk);for(let k=0;k<4;k++)r(-12+l,hh+10+k*2,6,.5,lace);r(-12+l,hh+16.5,6,.5,gdk);
+  // legs: greave, knee guard, rivets, sandal
+  const lg=q.lg;
+  const LG=(dx,dy,w,h)=>{r(dx,dy,w,h,leg);r(dx+.5,dy+1.5,w-1,h*.42,leg2);r(dx,dy+h*.5,w,1,gold);r(dx,dy+h*.5,w,.5,gdk);r(dx+w/2-.25,dy+2,.5,h*.32,gdk);r(dx-1,dy,w+2,1.5,blk);r(dx-1,dy+1.5,w+2,.5,blk2)};
+  if(lg==="st"){LG(-7,0,5,hh);LG(2,0,5,hh)}
+  else if(lg==="wk"){const fr=b.wf||0,ang=fr/8*6.283,ox=hp(Math.sin(ang)*4),c1=Math.cos(ang),u1=c1>.1?hp(c1*2):0,u2=c1<-.1?hp(-c1*2):0;LG(-7+ox,u1,5,hh-u1);LG(2-ox,u2,5,hh-u2)}
+  else if(lg==="w1"){LG(-9,0,5,hh);LG(4,2,5,hh-2)}
+  else if(lg==="w2"){LG(-5,2,5,hh-2);LG(1,0,5,hh)}
+  else if(lg==="wd"){LG(-11,0,5,hh);LG(5,0,5,hh)}
+  else if(lg==="lg"){LG(-14,0,5,Math.max(4,hh-3));r(-12,hh-5,8,5,leg);r(-12,hh-5,8,.5,leg2);LG(7,0,5,hh)}
+  else if(lg==="kn"){r(-12,0,12,5,leg);r(-12,3.5,12,1,gold);r(-13,0,3,1.5,blk);LG(4,0,5,Math.max(5,hh))}
   else if(lg==="air"){LG(-8,5,5,hh-5);LG(3,8,5,hh-8)}
-  // skirt
-  for(let i=0;i<6;i++){t.r(-9+l+i*3,hh-7+(i%2),3,9,i%2?red:rdk)}t.r(-9+l,hh-7,18,1,gold);
-  // torso
-  t.r(-8+l,hh+1,16,15,red);t.r(-8+l,hh+1,16,2,blk);t.r(-8+l,hh+6,16,1,rdk);t.r(-8+l,hh+10,16,1,rdk);t.r(-8+l,hh+15,16,1,gold);t.r(-1+l,hh+6,2,9,gold);
-  // head
-  const hy=hh+16-hd;
-  t.r(-5+l,hy,10,9,blk);t.r(-1+l,hy,7,7,skin);t.r(1+l,hy+4,2,1,eye);t.r(4+l,hy+4,2,1,eye);t.r(1+l,hy+5,5,1,rdk);
-  t.r(1+l,hy,1,2,white);t.r(4+l,hy,1,2,white);t.r(2+l,hy+1,2,1,"#2a0808");
-  t.r(-6+l,hy+7,12,3,blk);t.r(-7+l,hy+7,14,1,"#2e1c20");
-  t.r(-4+l,hy+10,2,2,gold);t.r(-6+l,hy+12,2,3,gold);t.r(-7+l,hy+15,2,2,gold);
-  t.r(3+l,hy+10,2,2,gold);t.r(5+l,hy+12,2,3,gold);t.r(6+l,hy+15,2,2,gold);t.r(-1+l,hy+10,2,2,gold);
-  // arms
-  const sx=2+l,sy=hh+13,hx=Math.round(q.hx),hy2=Math.round(q.hy-c*.5);
-  t.ln(sx,sy,hx,hy2,rdk,3);t.r(hx-1,hy2-1,3,3,blk);
-  if(q.gx!=null){t.ln(sx-2,sy,Math.round(q.gx),Math.round(q.gy),rdk,3);t.r(Math.round(q.gx)-1,Math.round(q.gy)-2,4,4,blk)}
-  t.r(1+l,hh+9,7,8,red);t.r(1+l,hh+12,7,1,rdk);t.r(1+l,hh+15,7,1,rdk);t.r(1+l,hh+9,7,1,gold);
-  // odachi
+  // skirt plates (kusazuri) with lacing rows
+  for(let i=0;i<6;i++){const px=-9+l+i*3,py=hh-7+(i%2)*.5;r(px,py,3,9,i%2?red:rdk);r(px+2.5,py,.5,9,lace);
+    for(let k=0;k<3;k++){r(px,py+1.5+k*2.5,3,.5,lace);r(px+1.25,py+2+k*2.5,.5,.5,gold)}r(px,py,3,.5,gold)}
+  // torso (do): lamellar rows, front highlight, gold cord
+  r(-8+l,hh+1,16,15,red);r(5.5+l,hh+3,1.5,12,rhi);
+  for(let k=0;k<5;k++){r(-8+l,hh+3.5+k*2.4,16,.5,rdk);for(let x=-7;x<8;x+=2)r(x+l,hh+4+k*2.4,.5,.5,lace)}
+  r(-8+l,hh+1,16,2,blk);r(-8+l,hh+2.5,16,.5,gold);r(-8+l,hh+15,16,1,gold);r(-8+l,hh+15.5,16,.5,gdk);
+  r(-1+l,hh+4,1.5,10,gold);r(-.5+l,hh+4,.5,10,"#f2cf7a");
+  // helmet neck guard (shikoro), bowl, rivets
+  r(-8+l,hy+2,5,5,blk);for(let k=0;k<3;k++)r(-8+l,hy+2.5+k*1.5,5,.5,blk2);r(-8+l,hy+2,5,.5,gold);
+  r(-5+l,hy+3,10,6.5,blk);r(-4+l,hy+9.5,8,1,blk);r(-4+l,hy+8.5,8,.5,blk2);for(let x=-4;x<5;x+=1.5)r(x+l,hy+7.5,.5,.5,gdk);
+  r(-6+l,hy+3,12,1,blk2);r(-6.5+l,hy+3,13,.5,gold);
+  // mask (menpo)
+  r(-1+l,hy-.5,7,7,skin);r(-1+l,hy-.5,1.5,7,rdk);r(5.5+l,hy+1,1,2.5,rdk);
+  ln(.5+l,hy+5.5,3+l,hy+4.6,"#3a0808",2);ln(3.5+l,hy+4.6,5.8+l,hy+5.6,"#3a0808",2);
+  r(1+l,hy+4,2,1,eye);r(4+l,hy+4,1.5,1,eye);r(1.5+l,hy+4,.5,.5,"#fff");
+  r(1+l,hy+.5,4.5,1.5,"#2a0808");r(1.5+l,hy+.5,.5,1.5,white);r(4+l,hy+.5,.5,1.5,white);r(.5+l,hy+2.5,5,.5,white2);
+  // crest (kuwagata): two thin curved golden horns + centre disc
+  ln(-1.5+l,hy+9.5,-4.5+l,hy+13.5,gold,2);ln(-4.5+l,hy+13.5,-5.5+l,hy+18,gold,2);ln(-5.5+l,hy+18,-5+l,hy+19.5,"#f2cf7a",1);
+  ln(1.5+l,hy+9.5,4.5+l,hy+13.5,gold,2);ln(4.5+l,hy+13.5,5.5+l,hy+18,gold,2);ln(5.5+l,hy+18,5+l,hy+19.5,"#f2cf7a",1);
+  r(-1+l,hy+9.5,2,2,gold);r(-.5+l,hy+10,1,1,"#c22a1c");
+  // arms with gauntlet near the hand
+  const sx=2+l,sy=hh+13,hx=hp(q.hx),hy2=hp(q.hy-c*.5);
+  const mx=lerp(sx,hx,.55),my=lerp(sy,hy2,.55);
+  ln(sx,sy,mx,my,rdk,6);ln(mx,my,hx,hy2,blk,5);ln(mx,my,hx,hy2,blk2,1);r(hx-1.25,hy2-1.25,2.5,2.5,blk);r(hx-1.25,hy2-1.25,2.5,.5,gdk);
+  if(q.gx!=null){const gx=hp(q.gx),gy=hp(q.gy),m2x=lerp(sx-2,gx,.55),m2y=lerp(sy,gy,.55);ln(sx-2,sy,m2x,m2y,rdk,6);ln(m2x,m2y,gx,gy,blk,5);
+    r(gx-1.5,gy-2,3.5,3.5,blk);for(let k=0;k<3;k++)ln(gx+1,gy+1-k*1.2,gx+2.5,gy+1.5-k*1.2,blk,2)}
+  // front shoulder guard
+  r(1+l,hh+9,7,8,red);for(let k=0;k<4;k++)r(1+l,hh+10.5+k*1.8,7,.5,lace);r(7+l,hh+9,1,8,rhi);r(1+l,hh+9,7,1,gold);r(1+l,hh+16.5,7,.5,gdk);
+  // odachi: wrapped handle, tsuba, blade with spine shade and bright edge
   const ca=Math.cos(q.a),sa=Math.sin(q.a);
   const tip=[hx+ca*32,hy2+sa*32],bt=[hx-ca*7,hy2-sa*7],gd=[hx+ca*2,hy2+sa*2];
-  t.ln(bt[0],bt[1],hx,hy2,"#3a0e14",2);
-  const gp=t.p(Math.round(gd[0]),Math.round(gd[1]));R(gp[0]-1,gp[1]-1,3,3,gold);
-  t.ln(gd[0],gd[1],tip[0],tip[1],"#cfd6e0",2);t.ln(gd[0]+sa*.8,gd[1]-ca*.8,tip[0],tip[1],"#ffffff",1);
-  if(P2){for(let i=0;i<5;i++){const k=rnd(.2,1),fx=gd[0]+(tip[0]-gd[0])*k,fy=gd[1]+(tip[1]-gd[1])*k+rnd(1,4);const pp=t.p(Math.round(fx),Math.round(fy));R(pp[0],pp[1],1,Math.random()<.5?2:1,Math.random()<.5?"#ff8a2a":"#ffd34a")}}
+  ln(bt[0],bt[1],hx,hy2,"#2a0f12",4);
+  for(let k=1;k<7;k+=1.5)r(hx-ca*k-.25,hy2-sa*k-.25,.5,.5,"#8a6a44");
+  r(gd[0]-1.5,gd[1]-1.5,3,3,gold);r(gd[0]-.5,gd[1]-.5,1,1,gdk);
+  const nx=-sa,ny=ca; // edge side = "down" of the blade
+  ln(gd[0],gd[1],tip[0]-ca*2,tip[1]-sa*2,"#c4ccd8",4);ln(tip[0]-ca*2,tip[1]-sa*2,tip[0],tip[1],"#dfe5ee",2);
+  ln(gd[0]+nx*.6,gd[1]+ny*.6,tip[0]-ca*2+nx*.6,tip[1]-sa*2+ny*.6,"#8890a0",1);
+  ln(gd[0]-nx*.6,gd[1]-ny*.6,tip[0],tip[1],"#ffffff",1);
+  if(P2){for(let i=0;i<9;i++){const k=rnd(.15,1),fx=gd[0]+(tip[0]-gd[0])*k,fy=gd[1]+(tip[1]-gd[1])*k+rnd(.5,4);r(fx,fy,.5,Math.random()<.5?1.5:1,Math.random()<.5?"#ff8a2a":"#ffd34a")}}
+  done();
+  // tells (drawn on the normal pixel grid)
+  const t=T(b,tr);
   if(wi){
     const col=TELL[wi.k],gx=q.gx!=null&&wi.k==="gr";
     const tp=gx?t.p(Math.round(q.gx),Math.round(q.gy)):t.p(Math.round(tip[0]),Math.round(tip[1]));
@@ -951,7 +981,8 @@ function drawBoss(){
   }
   const s=seg(b);
   const pv=b.mv&&b.si>0?b.mv[b.si-1]:null;
-  if(b.st==="move"&&s&&(s.hit&&b.segT<s.d*.95||!s.hit&&pv&&pv.hit&&b.segT<.05))trailSample(t.p(hx,hy2),t.p(tip[0],tip[1]),P2?"#ffb070":"#ffe0e0")
+  const W2=(dx,dy)=>[X0+f*dx,Y0-dy];
+  if(b.st==="move"&&s&&(s.hit&&b.segT<s.d*.95||!s.hit&&pv&&pv.hit&&b.segT<.05))trailSample(W2(hx,hy2),W2(tip[0],tip[1]),P2?"#ffb070":"#ffe0e0")
 }
 function drawTrails(){
   const LIFE=.11;
@@ -1007,6 +1038,7 @@ function drawHUDpix(){
 function draw(){
   const ph=G.b.phase===2||G.b.st==="trans"&&G.b.stT>.4?2:1;
   if(!BG[ph])BG[ph]=makeBG(ph);
+  g.setTransform(RES,0,0,RES,0,0);g.imageSmoothingEnabled=false;
   g.drawImage(BG[ph],0,0);
   // petals / embers bg
   for(const q of G.petals)R(q.x,q.y,ph===1?2:1,1,ph===1?"#f0a8c0":"#ff7a3a");
