@@ -48,7 +48,7 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud" hidden><button id="bSnd">🔊</button><button id="bPause">❚❚</button></div>
+<div id="hud" hidden><button id="bPad" aria-label="顯示或隱藏手機按鈕">🎮</button><button id="bSnd">🔊</button><button id="bPause">❚❚</button></div>
 <div id="pad" hidden>
   <div class="k" id="kL" data-k="L">◀</div><div class="k" id="kR" data-k="R">▶</div>
   <div class="k" id="kH" data-k="heal">藥</div>
@@ -84,6 +84,7 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
       <tr><td>閃</td><td>L 或 Shift，可以搭配方向</td></tr>
       <tr><td>藥</td><td>E，喝傷藥葫蘆回血（每場 3 口）</td></tr>
       <tr><td>暫停</td><td>Esc 或 P</td></tr>
+      <tr><td>手機按鈕</td><td>手機和平板會自動出現 ◀ ▶ 和 斬／擋／跳／閃／藥；沒出現的話按右上角 🎮 叫出來，再按一次收起來</td></tr>
     </table>
     <h3>怎麼打倒王</h3>
     <table>
@@ -234,6 +235,10 @@ const PP={
   air:{c:0,l:0,hx:5,hy:13,a:.9,lg:"j"},
   aWA:{c:0,l:-1,hx:-1,hy:19,a:2.4,lg:"j"},
   aSA:{c:0,l:2,hx:9,hy:10,a:-.7,lg:"j"},
+  aM0:{c:0,l:1,hx:6,hy:18,a:.9,lg:"lg"},aF0:{c:2,l:2,hx:7,hy:7,a:-.95,lg:"lg"},
+  aM1:{c:1,l:1,hx:9,hy:12,a:.3,lg:"lg"},aF1:{c:0,l:0,hx:3,hy:21,a:2.25,lg:"st"},
+  aM2:{c:1,l:1,hx:4,hy:18,a:1.5,lg:"lg"},aF2:{c:3,l:3,hx:9,hy:7,a:-.65,lg:"lg"},
+  aMA:{c:0,l:1,hx:6,hy:16,a:.8,lg:"j"},aFA:{c:0,l:1,hx:6,hy:6,a:-1.25,lg:"j"},
   dodge:{c:4,l:2,hx:2,hy:8,a:-2.7,lg:"wd"},
   hurt:{c:1,l:-3,hx:1,hy:9,a:-1.9,lg:"wd"},
   stag:{c:4,l:-3,hx:3,hy:6,a:-1.6,lg:"wd"},
@@ -254,7 +259,12 @@ const BP={
   bk:{c:3,l:-3,hx:9,hy:24,a:.7,lg:"wd"},
   hiW:{c:1,l:-3,hx:2,hy:46,a:2.35,lg:"st"},
   hiS:{c:3,l:4,hx:18,hy:22,a:-.6,lg:"lg"},
-  hiE:{c:4,l:3,hx:16,hy:14,a:-1.0,lg:"lg"},
+  hiE:{c:4,l:3,hx:16,hy:17,a:-.8,lg:"lg"},
+  hiM:{c:2,l:1,hx:12,hy:40,a:1.0,lg:"lg"},hiF:{c:5,l:4,hx:16,hy:17,a:-.95,lg:"lg"},
+  sdM:{c:3,l:1,hx:6,hy:31,a:1.6,lg:"lg"},sdF:{c:3,l:4,hx:10,hy:31,a:.85,lg:"lg"},
+  swM:{c:10,l:1,hx:4,hy:8,a:1.5,lg:"wd"},swF:{c:9,l:4,hx:13,hy:8,a:-.5,lg:"wd"},
+  thF:{c:5,l:7,hx:21,hy:23,a:-.05,lg:"lg"},
+  walk:{c:0,l:1,hx:12,hy:26,a:.55,lg:"wk"},
   sdW:{c:2,l:-3,hx:-6,hy:28,a:3.05,lg:"wd"},
   sdS:{c:3,l:4,hx:18,hy:28,a:.08,lg:"lg"},
   sdE:{c:3,l:3,hx:12,hy:30,a:.35,lg:"lg"},
@@ -344,8 +354,12 @@ document.querySelectorAll("#pad .k").forEach(el=>{
   const up=e=>{el.classList.remove("on");if(k==="L"||k==="R")K[k]=0;if(k==="guard")K.G=0};
   el.addEventListener("pointerdown",down);el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up);el.addEventListener("lostpointercapture",up);
 });
-let touchDev=matchMedia("(pointer:coarse)").matches;
-addEventListener("touchstart",()=>{if(!touchDev){touchDev=true;if(G&&!G.over)$("pad").hidden=false}},{passive:true});
+let touchDev=matchMedia("(pointer:coarse)").matches||matchMedia("(hover:none)").matches||navigator.maxTouchPoints>0;
+let padPref=null;try{const v=localStorage.getItem("kage-pad");if(v!=null)padPref=v==="1"}catch(e){}
+const padOn=()=>padPref==null?touchDev:padPref;
+function syncPad(){$("pad").hidden=!(G&&!G.over&&!G.paused&&padOn());$("bPad").style.opacity=padOn()?1:.55}
+addEventListener("touchstart",()=>{if(!touchDev){touchDev=true;syncPad()}},{passive:true});
+addEventListener("pointerdown",e=>{if(e.pointerType==="touch"&&!touchDev){touchDev=true;syncPad()}},{passive:true});
 
 /* ---------- FX ---------- */
 function spark(x,y,n,col){for(let i=0;i<n;i++){const a=rnd(0,6.28),s=rnd(40,160);G.fx.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-30,g:300,life:rnd(.15,.35),t:0,c:col||(Math.random()<.5?"#fff6c8":"#ffc23a"),k:"s"})}}
@@ -407,7 +421,10 @@ function enterSeg(){
   if(s.leap){const tx=clamp(p.x-b.face*26,AL+10,AR-10),d=s.d/bossSpd();b.vx=(tx-b.x)/d;b.vy=-500*d;b.gnd=false}
   if(s.fire&&!s.hit){spawnWave()}
   if(s.fire&&s.hit){b.fireHit=true}
-  setPose(b,s.pose,BP,s.hit?Math.min(.06,s.d*.6/bossSpd()):.08);
+  const pre=s.pose[0]+s.pose[1];b.fT=0;
+  if(s.hit&&BP[pre+"M"])setPose(b,pre+"M",BP,Math.min(.04,s.d*.4/bossSpd()));
+  else if(!s.hit&&s.pose[2]==="E"&&BP[pre+"F"]){setPose(b,pre+"F",BP,.04);b.fT=.09}
+  else setPose(b,s.pose,BP,s.hit?Math.min(.06,s.d*.6/bossSpd()):.08);
 }
 function spawnWave(){
   const b=G.b;sfx("fire");
@@ -543,7 +560,7 @@ function updPlayer(dt){
       if(!p.air)p.vx=lerp(p.vx,(p.stT>=A.w&&p.stT<A.w+A.a+.04)?p.face*55:0,Math.min(1,dt*16));
       else p.vx=lerp(p.vx,dir*60,Math.min(1,dt*6));
       const k=p.air?"A":p.ai;
-      pose=p.stT<A.w?"aW"+k:"aS"+k;
+      pose=p.stT<A.w?"aW"+k:p.stT<A.w+A.a*.45?"aM"+k:p.stT<A.w+A.a+.05?"aS"+k:"aF"+k;
       if(atkActive(p))checkPlayerHit(A);
       const end=A.w+A.a+A.r;
       if(p.stT>A.w+A.a){
@@ -636,7 +653,7 @@ function updBoss(dt){
       b.think-=dt;
       if(b.walking){
         b.vx=b.face*48*sp;
-        setPose(b,["w1","wm","w2","wm"][((G.t*7)|0)%4],BP,.1);
+        b.wf=((G.t*11)|0)%8;setPose(b,"walk",BP,.1);
         if(dist<56||b.stT>2.2){b.walking=false;b.vx=0;b.think=Math.min(b.think,.15)}
       }else{b.vx=lerp(b.vx,0,Math.min(1,dt*8));setPose(b,"idle",BP,.12)}
       if(b.think<=0&&!b.walking&&p.st!=="dead"){
@@ -650,6 +667,8 @@ function updBoss(dt){
     case"stag":{b.vx=lerp(b.vx,0,Math.min(1,dt*6));if(b.stT>=b.stD){b.st="n";b.think=.15;setPose(b,"idle",BP,.12)}break}
     case"move":{
       const s=seg(b);b.segT+=dt*sp;
+      if(s.hit&&BP[s.pose[0]+s.pose[1]+"M"]&&b.segT>=s.d*.4&&b.pose!==s.pose)setPose(b,s.pose,BP,.03);
+      if(b.fT>0){b.fT-=dt;if(b.fT<=0)setPose(b,s.pose,BP,.14)}
       if(!s.leap){
         let v=(s.vx||0)*b.face;
         if(v*b.face>0&&dist<22&&sgn(dx)===b.face)v=0;
@@ -858,7 +877,7 @@ function drawBoss(){
   const wi=windInfo(b);
   const tr=wi&&wi.rem<.14?(((G.t*60)|0)%2?1:-1):0;
   if(wi&&wi.s.pose!=="lpA"){const pr=Math.min(1,wi.el/(wi.el+wi.rem));q.a+=.18*pr*(q.a>1.5?1:-1)*(Math.abs(q.a)<.2?0:1);q.l-=pr;q.c+=pr;if(Math.abs(q.a)<.2)q.hx-=2*pr}
-  const br=b.pose==="idle"&&Math.sin(G.t*2.4)>.2?1:0;
+  const br=(b.pose==="idle"&&Math.sin(G.t*2.4)>.2)||(b.pose==="walk"&&(b.wf||0)%4===2)?1:0;
   const t=T(b,tr),c=Math.round(q.c)+br,l=Math.round(q.l),hd=Math.round(q.hd||0);
   const red=P2?"#c22a1c":"#a8282b",rdk=P2?"#7a160e":"#6e1a1d",gold="#d9a441",blk="#1b1013",leg="#4a1416",skin="#c4302f",white="#e8e2d6";
   const eye=P2?((G.t*8|0)%2?"#fff27a":"#ffb02a"):"#ffd84a";
@@ -877,6 +896,8 @@ function drawBoss(){
   // legs
   const lg=q.lg,LG=(dx,dy,w,h)=>{t.r(dx,dy,w,h,leg);t.r(dx,dy+h-4,w,1,gold)};
   if(lg==="st"){LG(-7,0,5,hh);LG(2,0,5,hh);t.r(-8,0,7,2,blk);t.r(2,0,7,2,blk)}
+  else if(lg==="wk"){const f=b.wf||0,ang=f/8*6.283,ox=Math.round(Math.sin(ang)*4),c1=Math.cos(ang),u1=c1>.1?Math.round(c1*2):0,u2=c1<-.1?Math.round(-c1*2):0;
+    LG(-7+ox,u1,5,hh-u1);LG(2-ox,u2,5,hh-u2);t.r(-8+ox,u1,7,2,blk);t.r(2-ox,u2,7,2,blk)}
   else if(lg==="w1"){LG(-9,0,5,hh);LG(4,2,5,hh-2);t.r(-10,0,7,2,blk);t.r(4,2,7,2,blk)}
   else if(lg==="w2"){LG(-5,2,5,hh-2);LG(1,0,5,hh);t.r(-6,2,7,2,blk);t.r(1,0,7,2,blk)}
   else if(lg==="wd"){LG(-11,0,5,hh);LG(5,0,5,hh);t.r(-12,0,7,2,blk);t.r(5,0,7,2,blk)}
@@ -1055,12 +1076,12 @@ function frame(ts){
 }
 requestAnimationFrame(frame);
 function show(id){["sTitle","sHelp","sPause","sEnd"].forEach(s=>$(s).hidden=s!==id)}
-function playing(on){$("hud").hidden=!on;$("pad").hidden=!(on&&touchDev)}
+function playing(on){$("hud").hidden=!on;syncPad()}
 function start(){
   audio();newGame();show(null);playing(true);acc=0;K.L=K.R=K.G=0;for(const k in BUF)BUF[k]=null;
 }
 function togglePause(){
-  if(!G||G.over)return;G.paused=!G.paused;
+  if(!G||G.over)return;G.paused=!G.paused;setTimeout(syncPad);
   if(G.paused){show("sPause");K.L=K.R=K.G=0}else{show(null)}
 }
 function gameOver(win){
@@ -1093,6 +1114,7 @@ $("pTitle").onclick=()=>toTitle();
 $("eRetry").onclick=()=>start();
 $("eTitleBtn").onclick=()=>toTitle();
 $("bSnd").onclick=()=>{audio();setMute(!muted)};
+$("bPad").onclick=()=>{padPref=!padOn();try{localStorage.setItem("kage-pad",padPref?"1":"0")}catch(e){}syncPad()};
 $("bPause").onclick=()=>togglePause();
 function toTitle(){G=null;playing(false);show("sTitle");refreshTitle();cx.setTransform(1,0,0,1,0,0);cx.fillStyle="#07060c";cx.fillRect(0,0,cv.width,cv.height)}
 setMute(muted);refreshTitle();
