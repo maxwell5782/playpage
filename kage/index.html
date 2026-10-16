@@ -299,6 +299,14 @@ function curPose(e,tbl){
   for(const n of PKEYS){const a=e.pFrom[n],b=to[n];if(a==null&&b==null)continue;
     const av=a==null?(b||0):a,bv=b==null?av:b;
     if(n==="a"){let d=bv-av;o[n]=av+d*k}else o[n]=lerp(av,bv,k)}
+  // move the hand along an arc around the shoulder (not a straight line) so swings read round
+  const sh=tbl===PP?[1,15]:[2,30],f=e.pFrom;
+  if(f.hx!=null&&to.hx!=null){
+    const ax=f.hx-sh[0],ay=f.hy-sh[1],bx=to.hx-sh[0],by=to.hy-sh[1];
+    const ra=Math.hypot(ax,ay),rb=Math.hypot(bx,by);
+    if(ra>2&&rb>2){let a0=Math.atan2(ay,ax),d=Math.atan2(by,bx)-a0;d=Math.atan2(Math.sin(d),Math.cos(d));
+      const an=a0+d*k,rr=lerp(ra,rb,k);o.hx=sh[0]+Math.cos(an)*rr;o.hy=sh[1]+Math.sin(an)*rr}
+  }
   return o;
 }
 
@@ -450,6 +458,7 @@ function chooseMove(){
 /* ---------- player helpers ---------- */
 const ATK=[{w:.09,a:.07,r:.24,dmg:6,pose:0},{w:.08,a:.07,r:.24,dmg:6,pose:1},{w:.12,a:.08,r:.32,dmg:9,pose:2}];
 function atkActive(p){if(p.st!=="atk")return false;const A=p.air?{w:.08,a:.08}:ATK[p.ai];return p.stT>=A.w&&p.stT<A.w+A.a}
+function atkTrail(p){if(p.st!=="atk")return false;const A=p.air?{w:.08,a:.08}:ATK[p.ai];return p.stT>=A.w-.025&&p.stT<A.w+A.a+.03}
 function toN(p){p.st=p.gnd?"n":"air";p.stT=0}
 function hgt(e){return GY-e.y}
 function startAtk(p,i){p.st="atk";p.stT=0;p.ai=i;p.air=!p.gnd;p.hitId=++HID;sfx("swing");if(!p.air)p.face=sgn(G.b.x-p.x)}
@@ -860,7 +869,7 @@ function drawPlayer(){
   t.ln(bt[0],bt[1],hx,hyy,"#4a2e1c",1);
   t.ln(gd[0],gd[1],tip[0],tip[1],"#e6ecf3",1);
   const gp=t.p(Math.round(gd[0]),Math.round(gd[1]));R(gp[0],gp[1],1,1,"#d4a640");
-  if(p.st==="atk"&&atkActive(p)||p.st==="db"&&p.stT>.2&&p.stT<.36){const tp=t.p(tip[0],tip[1]),hp=t.p(hx,hyy);G.trail.push({x0:hp[0],y0:hp[1],x1:tp[0],y1:tp[1],t:G.t,c:p.st==="db"?"#ff4050":"#e8f2ff"})}
+  if(atkTrail(p)||p.st==="db"&&p.stT>.2&&p.stT<.36)trailSample(t.p(hx,hyy),t.p(tip[0],tip[1]),p.st==="db"?"#ff4050":"#e8f2ff")
   if(p.st==="heal"&&p.stT<.7){t.r(4+l,hy+1,3,4,"#c88a3a");t.r(5+l,hy+5,1,1,"#c88a3a")}
 }
 function windInfo(b){
@@ -941,16 +950,40 @@ function drawBoss(){
     }
   }
   const s=seg(b);
-  if(b.st==="move"&&s&&s.hit&&b.segT<s.d*.95){const tp=t.p(tip[0],tip[1]),hp=t.p(hx,hy2);G.trail.push({x0:hp[0],y0:hp[1],x1:tp[0],y1:tp[1],t:G.t,c:P2?"#ffb070":"#ffe0e0"})}
+  const pv=b.mv&&b.si>0?b.mv[b.si-1]:null;
+  if(b.st==="move"&&s&&(s.hit&&b.segT<s.d*.95||!s.hit&&pv&&pv.hit&&b.segT<.05))trailSample(t.p(hx,hy2),t.p(tip[0],tip[1]),P2?"#ffb070":"#ffe0e0")
 }
 function drawTrails(){
-  G.trail=G.trail.filter(s=>G.t-s.t<.09);
-  for(let i=1;i<G.trail.length;i++){const a=G.trail[i-1],b2=G.trail[i];if(b2.t-a.t>.04||a.c!==b2.c)continue;
-    const k=1-(G.t-b2.t)/.09;g.globalAlpha=.55*k;g.fillStyle=b2.c;g.beginPath();
-    const mx0=(a.x0+a.x1*2)/3,my0=(a.y0+a.y1*2)/3,mx1=(b2.x0+b2.x1*2)/3,my1=(b2.y0+b2.y1*2)/3;
-    g.moveTo(mx0,my0);g.lineTo(a.x1,a.y1);g.lineTo(b2.x1,b2.y1);g.lineTo(mx1,my1);g.fill();}
+  const LIFE=.11;
+  G.trail=G.trail.filter(s=>G.t-s.t<LIFE);
+  // split samples into continuous runs, then fill each run as a curved crescent
+  let run=[];const runs=[];
+  for(const s of G.trail){const prev=run[run.length-1];if(prev&&(s.t-prev.t>.04||s.c!==prev.c)){runs.push(run);run=[]}run.push(s)}
+  if(run.length)runs.push(run);
+  for(const r of runs){
+    if(r.length<2)continue;
+    // densify: between samples, turn the blade angle and slide the hand in small steps so the edge is an arc
+    const pts=[];
+    for(let i=1;i<r.length;i++){const a=r[i-1],b2=r[i];let d=b2.ang-a.ang;d=Math.atan2(Math.sin(d),Math.cos(d));
+      const n=Math.max(2,Math.ceil(Math.abs(d)/.12));
+      for(let j=i===1?0:1;j<=n;j++){const u=j/n;pts.push({x:lerp(a.hx,b2.hx,u),y:lerp(a.hy,b2.hy,u),ang:a.ang+d*u,len:lerp(a.len,b2.len,u),t:lerp(a.t,b2.t,u)})}}
+    const N=pts.length,c=r[r.length-1].c;
+    for(let i=1;i<N;i++){
+      const p0=pts[i-1],p1=pts[i],age=(G.t-p1.t)/LIFE,w0=.35+.5*(1-(i-1)/(N-1)),w1=.35+.5*(1-i/(N-1));
+      // outer edge = blade tip; inner edge creeps toward the tip at the old end, so the trail tapers
+      const o0=[p0.x+Math.cos(p0.ang)*p0.len,p0.y+Math.sin(p0.ang)*p0.len],o1=[p1.x+Math.cos(p1.ang)*p1.len,p1.y+Math.sin(p1.ang)*p1.len];
+      const i0=[p0.x+Math.cos(p0.ang)*p0.len*w0,p0.y+Math.sin(p0.ang)*p0.len*w0],i1=[p1.x+Math.cos(p1.ang)*p1.len*w1,p1.y+Math.sin(p1.ang)*p1.len*w1];
+      g.globalAlpha=Math.max(0,.6*(1-age)*(.35+.65*i/(N-1)));g.fillStyle=c;g.beginPath();
+      g.moveTo(i0[0],i0[1]);g.lineTo(o0[0],o0[1]);g.lineTo(o1[0],o1[1]);g.lineTo(i1[0],i1[1]);g.closePath();g.fill();
+    }
+    // bright rim along the tip path
+    g.globalAlpha=.8;g.strokeStyle="#ffffff";g.lineWidth=1;g.beginPath();
+    for(let i=Math.floor(N*.4);i<N;i++){const p=pts[i],x=p.x+Math.cos(p.ang)*p.len,y=p.y+Math.sin(p.ang)*p.len;i===Math.floor(N*.4)?g.moveTo(x,y):g.lineTo(x,y)}
+    g.stroke();
+  }
   g.globalAlpha=1;
 }
+function trailSample(hp,tp,c){G.trail.push({hx:hp[0],hy:hp[1],ang:Math.atan2(tp[1]-hp[1],tp[0]-hp[0]),len:Math.hypot(tp[0]-hp[0],tp[1]-hp[1]),t:G.t,c})}
 function drawWaves(){
   for(const w of G.proj){
     for(let i=0;i<10;i++){const hgt2=Math.max(1,10-Math.abs(i-4)*2+((G.t*30+i)|0)%3);R(w.x-w.dir*i*1.2-1,GY-hgt2,2,hgt2,i<3?"#ffd34a":i<6?"#ff8a2a":"#c2361c")}
