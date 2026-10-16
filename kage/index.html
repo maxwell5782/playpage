@@ -918,12 +918,36 @@ function drawBoss(){
     r(10,0,10,8,blk);r(12,7,6,3,gold);r(-25,1,9,6,white);r(-24,2,7,.5,white2);r(-14,8,8,3,rdk);
     ln(-6,1,26,0,"#c4ccd8",3);ln(-6,1.5,26,.5,"#ffffff",1);done();return}
   const hh=17-c,hy=hh+16-hd;
-  // mane strands (behind)
-  r(-11+l,hy-4,6,12,white);r(-11+l,hy-4,1.5,12,white2);
-  for(let i=0;i<5;i++){const wv=Math.sin(G.t*4+i*.9)*(.6+i*.35);ln(-6+l,hy+6-i*1.5,-13.5-i*.5+l+wv*.3,hy-1-i*2.2+wv,i%2?white2:white,4)}
-  r(-12+l,hy-6,4,3,white);r(-13+l,hy-8,2.5,2.5,white2);
-  // back shoulder guard (sode)
-  r(-12+l,hh+9,6,8,rdk);for(let k=0;k<4;k++)r(-12+l,hh+10+k*2,6,.5,lace);r(-12+l,hh+16.5,6,.5,gdk);
+  // secondary motion: damped springs driven by how fast the body travels/leans and the hand moves
+  const sp=b.sp||(b.sp={t:G.t,x:b.x,l:q.l,hy:q.hy,s:0,v:0,a:0,av:0});
+  const dtd=Math.min(.05,G.t-sp.t);
+  if(dtd>0){const vb=(b.x-sp.x)/dtd*f,vl=(q.l-sp.l)/dtd,vh=(q.hy-sp.hy)/dtd;
+    const tg=clamp(-vb*.035-vl*.12,-3,3);sp.v+=((tg-sp.s)*140-sp.v*9)*dtd;sp.s+=sp.v*dtd;
+    const ta=clamp(-vh*.03,-2.5,2.5);sp.av+=((ta-sp.a)*160-sp.av*10)*dtd;sp.a+=sp.av*dtd}
+  else if(dtd<0){sp.s=sp.v=sp.a=sp.av=0}
+  sp.t=G.t;sp.x=b.x;sp.l=q.l;sp.hy=q.hy;
+  const sw=sp.s,sa2=sp.a;
+  // spine: the lean grows from the waist up, the head goes a little further and lags behind
+  const TB=j=>hp(lerp(l*.3,l,j/5)),lh=hp(l*1.15+sw*.3),ls=hp(l*.25);
+  // two-bone solver: elbow/knee on the side of (pdx,pdy); stretches straight when out of reach
+  const IK=(ax,ay,bx,by,L1,L2,pdx,pdy)=>{const dx=bx-ax,dy=by-ay,d=Math.max(.01,Math.hypot(dx,dy)),k=d>L1+L2-.01?d/(L1+L2-.01):1,
+    l1=L1*k,l2=L2*k,u=(l1*l1-l2*l2+d*d)/(2*d),h=Math.sqrt(Math.max(0,l1*l1-u*u)),ux=dx/d,uy=dy/d;let px=-uy,py=ux;
+    if(px*pdx+py*pdy<0){px=-px;py=-py}return[ax+ux*u+px*h,ay+uy*u+py*h]};
+  const ca=Math.cos(q.a),sa=Math.sin(q.a);
+  const sx=2+l,sy=hh+13,hx=hp(q.hx),hy2=hp(q.hy-c*.5);
+  const rsx=-3+l,rsy=hh+12.5,grab=q.gx!=null;
+  const rh=grab?[hp(q.gx),hp(q.gy)]:[hx-ca*4.5,hy2-sa*4.5];      // rear hand: grabbing, or lower on the grip
+  const [ex,ey]=IK(sx,sy,hx,hy2,9,10,.6,-1),[rex,rey]=IK(rsx,rsy,rh[0],rh[1],9,10,.6,-1);
+  const ARM=(ax,ay,mx,my,zx,zy,up,lo,back)=>{ln(ax,ay,mx,my,blk,8);ln(ax,ay,mx,my,up,6);ln(mx,my,zx,zy,lo,5);ln(mx,my,zx,zy,blk2,1);r(mx-1,my-1,2,2,back?blk2:gdk)};
+  // mane strands (behind), trailing with the sway
+  r(-11+lh,hy-4,6,12,white);r(-11+lh,hy-4,1.5,12,white2);
+  for(let i=0;i<5;i++){const wv=Math.sin(G.t*4+i*.9)*(.6+i*.35);ln(-6+lh,hy+6-i*1.5,-13.5-i*.5+lh+wv*.3+sw*(1+i*.3),hy-1-i*2.2+wv-Math.abs(sw)*.3,i%2?white2:white,4)}
+  r(-12+lh+sw*.5,hy-6,4,3,white);r(-13+lh+sw*.8,hy-8,2.5,2.5,white2);
+  // rear arm reaching to the grip (behind the body)
+  if(!grab)ARM(rsx,rsy,rex,rey,rh[0],rh[1],"#4a1012",blk,1);
+  // back shoulder guard (sode) hangs off the rear shoulder and swings with the upper arm
+  {const ox=hp(clamp((rex-rsx)*.25+sw*.5,-2,2)),oy=hp(clamp((rey-rsy+8)*.25,0,2.5));
+   r(-12+l+ox,hh+9+oy,6,8,rdk);for(let k=0;k<4;k++)r(-12+l+ox,hh+10+k*2+oy,6,.5,lace);r(-12+l+ox,hh+16.5+oy,6,.5,gdk)}
   // legs: hip -> knee -> ankle solved with two-bone IK, knees always bend toward the facing side
   const ft=q.ft||bossFeet(q.lg,b),hipY=hh+1,L1=9.5,L2=9;
   const LEG=(hx,fx,fy,front)=>{
@@ -938,37 +962,35 @@ function drawBoss(){
     r(kx-2,ky-1,4,2.5,front?gold:gdk);r(kx-1.5,ky,1,1,blk2);  // knee guard
   };
   LEG(-2.5,ft[0],ft[1],0);LEG(2.5,ft[2],ft[3],1);
-  // skirt plates (kusazuri) with lacing rows
-  for(let i=0;i<6;i++){const px=-9+l+i*3,py=hh-7+(i%2)*.5;r(px,py,3,9,i%2?red:rdk);r(px+2.5,py,.5,9,lace);
-    for(let k=0;k<3;k++){r(px,py+1.5+k*2.5,3,.5,lace);r(px+1.25,py+2+k*2.5,.5,.5,gold)}r(px,py,3,.5,gold)}
-  // torso (do): lamellar rows, front highlight, gold cord
-  r(-8+l,hh+1,16,15,red);r(5.5+l,hh+3,1.5,12,rhi);
-  for(let k=0;k<5;k++){r(-8+l,hh+3.5+k*2.4,16,.5,rdk);for(let x=-7;x<8;x+=2)r(x+l,hh+4+k*2.4,.5,.5,lace)}
-  r(-8+l,hh+1,16,2,blk);r(-8+l,hh+2.5,16,.5,gold);r(-8+l,hh+15,16,1,gold);r(-8+l,hh+15.5,16,.5,gdk);
-  r(-1+l,hh+4,1.5,10,gold);r(-.5+l,hh+4,.5,10,"#f2cf7a");
+  // skirt plates (kusazuri): rows shear with the sway; front plates are pushed by the front thigh
+  const spr=(ft[2]-ft[0])-9,sk=sw*.6;
+  for(let i=0;i<6;i++){const px=-9+ls+i*3,py=hh-7+(i%2)*.5,col=i%2?red:rdk,s=clamp(sk+(i>=3?spr*.12:-spr*.08),-3,3);
+    for(let rw=0;rw<3;rw++){const o=hp(s*(2-rw)/2),y=py+rw*3;r(px+o,y,3,3,col);r(px+o+2.5,y,.5,3,lace);r(px+o,y+1.5,3,.5,lace);r(px+o+1.25,y+2,.5,.5,gold);if(rw===0)r(px+o,y,3,.5,gold)}}
+  // torso (do): six lamellar bands, each shifted a bit more than the one below so the back bends
+  for(let j=0;j<6;j++){const o=TB(j),y=hh+1+j*2.5;r(-8+o,y,16,2.5,red);r(-8+o,y+2,16,.5,rdk);for(let x=-7;x<8;x+=2)r(x+o,y+1,.5,.5,lace);
+    if(j>0&&j<5){r(5.5+o,y,1.5,2.5,rhi);r(-1+o,y,1.5,2.5,gold);r(-.5+o,y,.5,2.5,"#f2cf7a")}}
+  r(-8+TB(0),hh+1,16,2,blk);r(-8+TB(0),hh+2.5,16,.5,gold);r(-8+TB(5),hh+15,16,1,gold);r(-8+TB(5),hh+15.5,16,.5,gdk);
   // helmet neck guard (shikoro), bowl, rivets
-  r(-8+l,hy+2,5,5,blk);for(let k=0;k<3;k++)r(-8+l,hy+2.5+k*1.5,5,.5,blk2);r(-8+l,hy+2,5,.5,gold);
-  r(-5+l,hy+3,10,6.5,blk);r(-4+l,hy+9.5,8,1,blk);r(-4+l,hy+8.5,8,.5,blk2);for(let x=-4;x<5;x+=1.5)r(x+l,hy+7.5,.5,.5,gdk);
-  r(-6+l,hy+3,12,1,blk2);r(-6.5+l,hy+3,13,.5,gold);
+  r(-8+lh,hy+2,5,5,blk);for(let k=0;k<3;k++)r(-8+lh,hy+2.5+k*1.5,5,.5,blk2);r(-8+lh,hy+2,5,.5,gold);
+  r(-5+lh,hy+3,10,6.5,blk);r(-4+lh,hy+9.5,8,1,blk);r(-4+lh,hy+8.5,8,.5,blk2);for(let x=-4;x<5;x+=1.5)r(x+lh,hy+7.5,.5,.5,gdk);
+  r(-6+lh,hy+3,12,1,blk2);r(-6.5+lh,hy+3,13,.5,gold);
   // mask (menpo)
-  r(-1+l,hy-.5,7,7,skin);r(-1+l,hy-.5,1.5,7,rdk);r(5.5+l,hy+1,1,2.5,rdk);
-  ln(.5+l,hy+5.5,3+l,hy+4.6,"#3a0808",2);ln(3.5+l,hy+4.6,5.8+l,hy+5.6,"#3a0808",2);
-  r(1+l,hy+4,2,1,eye);r(4+l,hy+4,1.5,1,eye);r(1.5+l,hy+4,.5,.5,"#fff");
-  r(1+l,hy+.5,4.5,1.5,"#2a0808");r(1.5+l,hy+.5,.5,1.5,white);r(4+l,hy+.5,.5,1.5,white);r(.5+l,hy+2.5,5,.5,white2);
+  r(-1+lh,hy-.5,7,7,skin);r(-1+lh,hy-.5,1.5,7,rdk);r(5.5+lh,hy+1,1,2.5,rdk);
+  ln(.5+lh,hy+5.5,3+lh,hy+4.6,"#3a0808",2);ln(3.5+lh,hy+4.6,5.8+lh,hy+5.6,"#3a0808",2);
+  r(1+lh,hy+4,2,1,eye);r(4+lh,hy+4,1.5,1,eye);r(1.5+lh,hy+4,.5,.5,"#fff");
+  r(1+lh,hy+.5,4.5,1.5,"#2a0808");r(1.5+lh,hy+.5,.5,1.5,white);r(4+lh,hy+.5,.5,1.5,white);r(.5+lh,hy+2.5,5,.5,white2);
   // crest (kuwagata): two thin curved golden horns + centre disc
-  ln(-1.5+l,hy+9.5,-4.5+l,hy+13.5,gold,2);ln(-4.5+l,hy+13.5,-5.5+l,hy+18,gold,2);ln(-5.5+l,hy+18,-5+l,hy+19.5,"#f2cf7a",1);
-  ln(1.5+l,hy+9.5,4.5+l,hy+13.5,gold,2);ln(4.5+l,hy+13.5,5.5+l,hy+18,gold,2);ln(5.5+l,hy+18,5+l,hy+19.5,"#f2cf7a",1);
-  r(-1+l,hy+9.5,2,2,gold);r(-.5+l,hy+10,1,1,"#c22a1c");
-  // arms with gauntlet near the hand
-  const sx=2+l,sy=hh+13,hx=hp(q.hx),hy2=hp(q.hy-c*.5);
-  const mx=lerp(sx,hx,.55),my=lerp(sy,hy2,.55);
-  ln(sx,sy,mx,my,rdk,6);ln(mx,my,hx,hy2,blk,5);ln(mx,my,hx,hy2,blk2,1);r(hx-1.25,hy2-1.25,2.5,2.5,blk);r(hx-1.25,hy2-1.25,2.5,.5,gdk);
-  if(q.gx!=null){const gx=hp(q.gx),gy=hp(q.gy),m2x=lerp(sx-2,gx,.55),m2y=lerp(sy,gy,.55);ln(sx-2,sy,m2x,m2y,rdk,6);ln(m2x,m2y,gx,gy,blk,5);
+  ln(-1.5+lh,hy+9.5,-4.5+lh,hy+13.5,gold,2);ln(-4.5+lh,hy+13.5,-5.5+lh,hy+18,gold,2);ln(-5.5+lh,hy+18,-5+lh,hy+19.5,"#f2cf7a",1);
+  ln(1.5+lh,hy+9.5,4.5+lh,hy+13.5,gold,2);ln(4.5+lh,hy+13.5,5.5+lh,hy+18,gold,2);ln(5.5+lh,hy+18,5+lh,hy+19.5,"#f2cf7a",1);
+  r(-1+lh,hy+9.5,2,2,gold);r(-.5+lh,hy+10,1,1,"#c22a1c");
+  // front arm: shoulder -> elbow -> gauntlet
+  ARM(sx,sy,ex,ey,hx,hy2,rdk,blk,0);r(hx-1.25,hy2-1.25,2.5,2.5,blk);r(hx-1.25,hy2-1.25,2.5,.5,gdk);
+  if(grab){const gx=rh[0],gy=rh[1];ARM(rsx,rsy,rex,rey,gx,gy,rdk,blk,0);
     r(gx-1.5,gy-2,3.5,3.5,blk);for(let k=0;k<3;k++)ln(gx+1,gy+1-k*1.2,gx+2.5,gy+1.5-k*1.2,blk,2)}
-  // front shoulder guard
-  r(1+l,hh+9,7,8,red);for(let k=0;k<4;k++)r(1+l,hh+10.5+k*1.8,7,.5,lace);r(7+l,hh+9,1,8,rhi);r(1+l,hh+9,7,1,gold);r(1+l,hh+16.5,7,.5,gdk);
+  // front shoulder guard follows the upper arm, lags when the arm whips
+  {const ox=hp(clamp((ex-sx)*.25,-1.5,2)),oy=hp(clamp((ey-sy+8)*.25-sa2*.6,-1,2.5));
+   r(1+l+ox,hh+9+oy,7,8,red);for(let k=0;k<4;k++)r(1+l+ox,hh+10.5+k*1.8+oy,7,.5,lace);r(7+l+ox,hh+9+oy,1,8,rhi);r(1+l+ox,hh+9+oy,7,1,gold);r(1+l+ox,hh+16.5+oy,7,.5,gdk)}
   // odachi: wrapped handle, tsuba, blade with spine shade and bright edge
-  const ca=Math.cos(q.a),sa=Math.sin(q.a);
   const tip=[hx+ca*32,hy2+sa*32],bt=[hx-ca*7,hy2-sa*7],gd=[hx+ca*2,hy2+sa*2];
   ln(bt[0],bt[1],hx,hy2,"#2a0f12",4);
   for(let k=1;k<7;k+=1.5)r(hx-ca*k-.25,hy2-sa*k-.25,.5,.5,"#8a6a44");
@@ -977,6 +999,7 @@ function drawBoss(){
   ln(gd[0],gd[1],tip[0]-ca*2,tip[1]-sa*2,"#c4ccd8",4);ln(tip[0]-ca*2,tip[1]-sa*2,tip[0],tip[1],"#dfe5ee",2);
   ln(gd[0]+nx*.6,gd[1]+ny*.6,tip[0]-ca*2+nx*.6,tip[1]-sa*2+ny*.6,"#8890a0",1);
   ln(gd[0]-nx*.6,gd[1]-ny*.6,tip[0],tip[1],"#ffffff",1);
+  if(!grab){r(rh[0]-1.25,rh[1]-1.25,2.5,2.5,blk);r(rh[0]-1.25,rh[1]-1.25,2.5,.5,blk2)}  // rear hand on the grip
   if(P2){for(let i=0;i<9;i++){const k=rnd(.15,1),fx=gd[0]+(tip[0]-gd[0])*k,fy=gd[1]+(tip[1]-gd[1])*k+rnd(.5,4);r(fx,fy,.5,Math.random()<.5?1.5:1,Math.random()<.5?"#ff8a2a":"#ffd34a")}}
   done();
   // tells (drawn on the normal pixel grid)
