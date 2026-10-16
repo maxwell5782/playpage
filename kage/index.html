@@ -89,7 +89,8 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
     <table>
       <tr><td>架勢</td><td>王和你都有一條黃色的架勢條。彈刀會讓王的架勢上升；架勢滿了王就會崩潰跪地，這時靠近按「斬」就能<b>忍殺</b>。</td></tr>
       <tr><td>血量</td><td>砍掉王的血，他的架勢就退得比較慢；血砍光也能直接忍殺。</td></tr>
-      <tr><td>危</td><td>王頭上出現紅色「危」字是擋不住的招：<br>・低掃 → <b>跳</b>起來，還能在空中踩他的頭<br>・突刺 → <b>朝他按閃</b>就是「看破」，能大削架勢<br>・抓取 → <b>往後閃</b>或跳開</td></tr>
+      <tr><td>看起手</td><td>王起手時刀尖會閃光：<b>白光</b>是普通斬、<b>橘光</b>是重斬，都可以彈；<b>紅光</b>就是危。快出手前他會抖一下、刀尖再閃一次，這時按擋剛好。</td></tr>
+      <tr><td>危</td><td>王頭上出現紅色「危」字是擋不住的招，看姿勢分辨：<br>・<b>蹲低、刀拖在地上</b>，地上有紅線 → 低掃，<b>跳</b>起來，還能在空中踩他的頭<br>・<b>刀收到身後平舉</b>，胸口高度有紅線 → 突刺，<b>朝他按閃</b>就是「看破」，能大削架勢<br>・<b>空手舉高</b>，手上紅光 → 抓取，<b>往後閃</b>或跳開</td></tr>
       <tr><td>回生</td><td>每場可以死而復生一次，倒下時按「斬」。</td></tr>
       <tr><td>二階段</td><td>赤鬼武者要忍殺兩次。第二階段他會帶著業火，揮出地上的火浪，要跳過去。</td></tr>
     </table>
@@ -254,13 +255,13 @@ const BP={
   sdW:{c:2,l:-3,hx:-6,hy:28,a:3.05,lg:"wd"},
   sdS:{c:3,l:4,hx:18,hy:28,a:.08,lg:"lg"},
   sdE:{c:3,l:3,hx:12,hy:30,a:.35,lg:"lg"},
-  thW:{c:3,l:-4,hx:-4,hy:24,a:0,lg:"wd"},
+  thW:{c:6,l:-6,hx:-12,hy:22,a:0,lg:"wd"},
   thS:{c:4,l:6,hx:20,hy:24,a:0,lg:"lg"},
   thE:{c:4,l:5,hx:18,hy:22,a:-.1,lg:"lg"},
   swW:{c:9,l:-2,hx:-8,hy:10,a:3.1,lg:"wd"},
   swS:{c:10,l:3,hx:18,hy:7,a:-.02,lg:"wd"},
   swE:{c:8,l:3,hx:16,hy:8,a:-.2,lg:"wd"},
-  grW:{c:2,l:-4,hx:-2,hy:24,a:2.7,lg:"wd",gx:-8,gy:30},
+  grW:{c:1,l:-3,hx:-6,hy:14,a:-2.4,lg:"wd",gx:8,gy:46},
   grS:{c:3,l:6,hx:0,hy:24,a:2.6,lg:"lg",gx:26,gy:24},
   grE:{c:3,l:5,hx:0,hy:24,a:2.6,lg:"lg",gx:20,gy:22},
   lpW:{c:8,l:-1,hx:2,hy:36,a:2.1,lg:"wd"},
@@ -392,7 +393,7 @@ const PERIL_HINT={sw:"跳！",th:"朝他閃！",gr:"往後閃！",fire:"跳！"}
 function bossSpd(){return G.D.spd*(G.b.phase===2?1.13:1)}
 function seg(b){return b.mv?b.mv[b.si]:null}
 function startMove(name){
-  const b=G.b;b.st="move";b.mv=MOVES[name];b.mn=name;b.si=0;b.segT=0;b.last2=b.last;b.last=name;enterSeg();
+  const b=G.b;b.st="move";b.peril=null;b.mv=MOVES[name];b.mn=name;b.si=0;b.segT=0;b.last2=b.last;b.last=name;enterSeg();
 }
 function enterSeg(){
   const b=G.b,p=G.p,s=seg(b);
@@ -837,10 +838,20 @@ function drawPlayer(){
   if(p.st==="atk"&&atkActive(p)||p.st==="db"&&p.stT>.2&&p.stT<.36){const tp=t.p(tip[0],tip[1]),hp=t.p(hx,hyy);G.trail.push({x0:hp[0],y0:hp[1],x1:tp[0],y1:tp[1],t:G.t,c:p.st==="db"?"#ff4050":"#e8f2ff"})}
   if(p.st==="heal"&&p.stT<.7){t.r(4+l,hy+1,3,4,"#c88a3a");t.r(5+l,hy+5,1,1,"#c88a3a")}
 }
+function windInfo(b){
+  const s=seg(b),nx=b.mv&&b.mv[b.si+1];
+  if(b.st!=="move"||!s||s.hit||!nx||!(nx.hit||nx.fire))return null;
+  const sp=bossSpd();
+  return{s,nx,k:nx.hit?nx.hit.k:"fire",el:b.segT/sp,rem:(s.d-b.segT)/sp};
+}
+const TELL={n:"#ffffff",h:"#ffa030",sw:"#ff2a3a",th:"#ff2a3a",gr:"#ff2a3a",fire:"#ff2a3a"};
+function star(x,y,r,c){R(x-r,y,r*2+1,1,c);R(x,y-r,1,r*2+1,c);R(x-1,y-1,3,3,c);R(x,y,1,1,"#fff")}
 function drawBoss(){
   const b=G.b,q=curPose(b,BP);
   const P2=b.phase===2||b.st==="trans";
-  const t=T(b),c=Math.round(q.c),l=Math.round(q.l),hd=Math.round(q.hd||0);
+  const wi=windInfo(b);
+  const tr=wi&&wi.rem<.14?(((G.t*60)|0)%2?1:-1):0;
+  const t=T(b,tr),c=Math.round(q.c),l=Math.round(q.l),hd=Math.round(q.hd||0);
   const red=P2?"#c22a1c":"#a8282b",rdk=P2?"#7a160e":"#6e1a1d",gold="#d9a441",blk="#1b1013",leg="#4a1416",skin="#c4302f",white="#e8e2d6";
   const eye=P2?((G.t*8|0)%2?"#fff27a":"#ffb02a"):"#ffd84a";
   if(b.st==="dead"&&b.stT>.5&&b.phase===2||b.st==="dead"&&b.stT>.6&&b.phase===1&&b.stT<1.8){
@@ -887,6 +898,19 @@ function drawBoss(){
   const gp=t.p(Math.round(gd[0]),Math.round(gd[1]));R(gp[0]-1,gp[1]-1,3,3,gold);
   t.ln(gd[0],gd[1],tip[0],tip[1],"#cfd6e0",2);t.ln(gd[0]+sa*.8,gd[1]-ca*.8,tip[0],tip[1],"#ffffff",1);
   if(P2){for(let i=0;i<5;i++){const k=rnd(.2,1),fx=gd[0]+(tip[0]-gd[0])*k,fy=gd[1]+(tip[1]-gd[1])*k+rnd(1,4);const pp=t.p(Math.round(fx),Math.round(fy));R(pp[0],pp[1],1,Math.random()<.5?2:1,Math.random()<.5?"#ff8a2a":"#ffd34a")}}
+  if(wi){
+    const col=TELL[wi.k],gx=q.gx!=null&&wi.k==="gr";
+    const tp=gx?t.p(Math.round(q.gx),Math.round(q.gy)):t.p(Math.round(tip[0]),Math.round(tip[1]));
+    if(wi.el<.18)star(tp[0],tp[1],2+Math.round((.18-wi.el)*12),col);
+    if(wi.rem<.14)star(tp[0],tp[1],4,col);
+    if(wi.s.peril){
+      const on=((G.t*10)|0)%2===0;g.globalAlpha=on?.85:.45;
+      if(wi.k==="sw"||wi.k==="fire"){const len=wi.k==="fire"?140:48;for(let i=8;i<len;i+=6)t.r(i,0,4,1,col)}
+      else if(wi.k==="th"){for(let i=24;i<58;i+=6)t.r(i,18,4,1,col);t.r(56,17,2,3,col)}
+      else if(wi.k==="gr"){g.globalAlpha=on?.5:.3;g.fillStyle=col;g.beginPath();g.arc(tp[0],tp[1],6,0,7);g.fill()}
+      g.globalAlpha=1;
+    }
+  }
   const s=seg(b);
   if(b.st==="move"&&s&&s.hit&&b.segT<s.d*.95){const tp=t.p(tip[0],tip[1]),hp=t.p(hx,hy2);G.trail.push({x0:hp[0],y0:hp[1],x1:tp[0],y1:tp[1],t:G.t,c:P2?"#ffb070":"#ffe0e0"})}
 }
