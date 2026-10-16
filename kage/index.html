@@ -122,8 +122,9 @@ a.home{color:var(--dim);font-size:15px;text-decoration:none}
 const $=id=>document.getElementById(id);
 const W=320,H=180,GY=156,AL=14,AR=306;
 const cv=$("cv"),cx=cv.getContext("2d");
-const buf=document.createElement("canvas");buf.width=W;buf.height=H;
-const g=buf.getContext("2d");
+// the scene buffer is 2x the game grid: most things draw at 2x2 blocks via setTransform(2,..), the boss draws at full buffer resolution
+const RES=2,buf=document.createElement("canvas");buf.width=W*RES;buf.height=H*RES;
+const g=buf.getContext("2d");g.imageSmoothingEnabled=false;
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const sgn=v=>v<0?-1:1;
@@ -287,6 +288,17 @@ const BP={
   roar:{c:0,l:-4,hx:6,hy:40,a:1.9,lg:"wd"}
 };
 const PKEYS=["c","l","hx","hy","a","gx","gy","hd"];
+// boss foot targets per stance [backX,backLift,frontX,frontLift]; knees are solved from these
+const BSTEP=6;
+function bossFeet(lg,e){
+  if(lg==="wk"){
+    // planted foot slides back exactly as fast as the body moves forward, so it never skates
+    const ft=[];for(const o of [0,.5]){const u=((e.wp||0)+o)%1;let x,y;
+      if(u<.5){x=BSTEP-u*4*BSTEP;y=0}else{const s=(u-.5)*2,k=s*s*(3-2*s);x=-BSTEP+k*2*BSTEP;y=Math.sin(Math.PI*s)*3}
+      ft.push(x+(o?3:-3),y)}
+    return ft}
+  return {st:[-5,0,4,0],wd:[-9,0,8,0],lg:[-13,0,9,0],kn:[-14,0,7,0],air:[-6,6,4,8]}[lg]||[-5,0,4,0];
+}
 function setPose(e,name,tbl,blend=.07){
   if(e.pose===name)return;
   const cur=curPose(e,tbl);
@@ -299,6 +311,15 @@ function curPose(e,tbl){
   for(const n of PKEYS){const a=e.pFrom[n],b=to[n];if(a==null&&b==null)continue;
     const av=a==null?(b||0):a,bv=b==null?av:b;
     if(n==="a"){let d=bv-av;o[n]=av+d*k}else o[n]=lerp(av,bv,k)}
+  // move the hand along an arc around the shoulder (not a straight line) so swings read round
+  const sh=tbl===PP?[1,15]:[2,30],f=e.pFrom;
+  if(f.hx!=null&&to.hx!=null){
+    const ax=f.hx-sh[0],ay=f.hy-sh[1],bx=to.hx-sh[0],by=to.hy-sh[1];
+    const ra=Math.hypot(ax,ay),rb=Math.hypot(bx,by);
+    if(ra>2&&rb>2){let a0=Math.atan2(ay,ax),d=Math.atan2(by,bx)-a0;d=Math.atan2(Math.sin(d),Math.cos(d));
+      const an=a0+d*k,rr=lerp(ra,rb,k);o.hx=sh[0]+Math.cos(an)*rr;o.hy=sh[1]+Math.sin(an)*rr}
+  }
+  if(tbl===BP){const fa=f.ft||bossFeet(f.lg,e),fb=bossFeet(to.lg,e);o.ft=fa.map((v,i)=>lerp(v,fb[i],k))}
   return o;
 }
 
@@ -450,6 +471,7 @@ function chooseMove(){
 /* ---------- player helpers ---------- */
 const ATK=[{w:.09,a:.07,r:.24,dmg:6,pose:0},{w:.08,a:.07,r:.24,dmg:6,pose:1},{w:.12,a:.08,r:.32,dmg:9,pose:2}];
 function atkActive(p){if(p.st!=="atk")return false;const A=p.air?{w:.08,a:.08}:ATK[p.ai];return p.stT>=A.w&&p.stT<A.w+A.a}
+function atkTrail(p){if(p.st!=="atk")return false;const A=p.air?{w:.08,a:.08}:ATK[p.ai];return p.stT>=A.w-.025&&p.stT<A.w+A.a+.03}
 function toN(p){p.st=p.gnd?"n":"air";p.stT=0}
 function hgt(e){return GY-e.y}
 function startAtk(p,i){p.st="atk";p.stT=0;p.ai=i;p.air=!p.gnd;p.hitId=++HID;sfx("swing");if(!p.air)p.face=sgn(G.b.x-p.x)}
@@ -653,7 +675,7 @@ function updBoss(dt){
       b.think-=dt;
       if(b.walking){
         b.vx=b.face*48*sp;
-        b.wf=((G.t*11)|0)%8;setPose(b,"walk",BP,.1);
+        b.wp=((b.wp||0)+Math.abs(b.vx)*dt/(4*BSTEP))%1;setPose(b,"walk",BP,.1);
         if(dist<56||b.stT>2.2){b.walking=false;b.vx=0;b.think=Math.min(b.think,.15)}
       }else{b.vx=lerp(b.vx,0,Math.min(1,dt*8));setPose(b,"idle",BP,.12)}
       if(b.think<=0&&!b.walking&&p.st!=="dead"){
@@ -860,7 +882,7 @@ function drawPlayer(){
   t.ln(bt[0],bt[1],hx,hyy,"#4a2e1c",1);
   t.ln(gd[0],gd[1],tip[0],tip[1],"#e6ecf3",1);
   const gp=t.p(Math.round(gd[0]),Math.round(gd[1]));R(gp[0],gp[1],1,1,"#d4a640");
-  if(p.st==="atk"&&atkActive(p)||p.st==="db"&&p.stT>.2&&p.stT<.36){const tp=t.p(tip[0],tip[1]),hp=t.p(hx,hyy);G.trail.push({x0:hp[0],y0:hp[1],x1:tp[0],y1:tp[1],t:G.t,c:p.st==="db"?"#ff4050":"#e8f2ff"})}
+  if(atkTrail(p)||p.st==="db"&&p.stT>.2&&p.stT<.36)trailSample(t.p(hx,hyy),t.p(tip[0],tip[1]),p.st==="db"?"#ff4050":"#e8f2ff")
   if(p.st==="heal"&&p.stT<.7){t.r(4+l,hy+1,3,4,"#c88a3a");t.r(5+l,hy+5,1,1,"#c88a3a")}
 }
 function windInfo(b){
@@ -875,58 +897,113 @@ function drawBoss(){
   const b=G.b,q={...curPose(b,BP)};
   const P2=b.phase===2||b.st==="trans";
   const wi=windInfo(b);
-  const tr=wi&&wi.rem<.14?(((G.t*60)|0)%2?1:-1):0;
+  const tr=wi&&wi.rem<.14?(((G.t*60)|0)%2?.5:-.5):0;
   if(wi&&wi.s.pose!=="lpA"){const pr=Math.min(1,wi.el/(wi.el+wi.rem));q.a+=.18*pr*(q.a>1.5?1:-1)*(Math.abs(q.a)<.2?0:1);q.l-=pr;q.c+=pr;if(Math.abs(q.a)<.2)q.hx-=2*pr}
-  const br=(b.pose==="idle"&&Math.sin(G.t*2.4)>.2)||(b.pose==="walk"&&(b.wf||0)%4===2)?1:0;
-  const t=T(b,tr),c=Math.round(q.c)+br,l=Math.round(q.l),hd=Math.round(q.hd||0);
-  const red=P2?"#c22a1c":"#a8282b",rdk=P2?"#7a160e":"#6e1a1d",gold="#d9a441",blk="#1b1013",leg="#4a1416",skin="#c4302f",white="#e8e2d6";
+  const br=(b.pose==="idle"&&Math.sin(G.t*2.4)>.2)||(b.pose==="walk"&&((b.wp||0)*2)%1<.3)?.5:0;
+  // the boss is drawn on the 2x buffer at half-pixel precision: positions snap to 0.5
+  const hp=v=>Math.round(v*2)/2;
+  const c=hp(q.c)+br,l=hp(q.l),hd=hp(q.hd||0);
+  const red=P2?"#c22a1c":"#a8282b",rdk=P2?"#7a160e":"#6e1a1d",rhi=P2?"#e4502a":"#cf3f3c",gold="#d9a441",gdk="#946420",blk="#1b1013",blk2="#2e1c20",
+        leg="#4a1416",leg2="#5f1c1e",lace="#2a0a0e",skin="#c4302f",white="#ece6da",white2="#c9c0b0";
   const eye=P2?((G.t*8|0)%2?"#fff27a":"#ffb02a"):"#ffd84a";
+  const f=b.face,X0=hp(b.x+tr),Y0=hp(b.y);
+  g.save();g.setTransform(1,0,0,1,0,0);
+  const P=(dx,dy)=>[Math.round((X0+f*dx)*2),Math.round((Y0-dy)*2)];
+  const r=(dx,dy,w,h,col)=>{const x=f>0?X0+dx:X0-dx-w;g.fillStyle=col;g.fillRect(Math.round(x*2),Math.round((Y0-dy-h)*2),Math.max(1,Math.round(w*2)),Math.max(1,Math.round(h*2)))};
+  const ln=(ax,ay,bx,by,col,t=1)=>{const a=P(ax,ay),z=P(bx,by);line(a[0],a[1],z[0],z[1],col,t)};
+  const done=()=>g.restore();
   if(b.st==="dead"&&b.stT>.5&&b.phase===2||b.st==="dead"&&b.stT>.6&&b.phase===1&&b.stT<1.8){
     // collapsed
-    const k=Math.min(1,(b.stT-.5)/.3);
-    t.r(-18,0,30,8,red);t.r(-18,6,30,2,rdk);t.r(10,0,10,8,blk);t.r(12,7,6,3,gold);t.r(-24,2,8,6,white);t.r(-14,8,8,3,rdk);
-    t.ln(-6,1,26,0,"#c9cfd8",2);return}
-  // flame aura in phase 2
-  const hh=17-c;
-  // mane (behind)
-  const wv=Math.sin(G.t*4)*1.2;
-  t.r(-11+l,hh+16+hd*-1,5,12,white);t.r(-14+l,hh+14+wv,4,10,white);t.r(-16+l,hh+12+wv*1.5,3,8,"#cfc8ba");
-  // back shoulder
-  t.r(-12+l,hh+9,6,8,rdk);
-  // legs
-  const lg=q.lg,LG=(dx,dy,w,h)=>{t.r(dx,dy,w,h,leg);t.r(dx,dy+h-4,w,1,gold)};
-  if(lg==="st"){LG(-7,0,5,hh);LG(2,0,5,hh);t.r(-8,0,7,2,blk);t.r(2,0,7,2,blk)}
-  else if(lg==="wk"){const f=b.wf||0,ang=f/8*6.283,ox=Math.round(Math.sin(ang)*4),c1=Math.cos(ang),u1=c1>.1?Math.round(c1*2):0,u2=c1<-.1?Math.round(-c1*2):0;
-    LG(-7+ox,u1,5,hh-u1);LG(2-ox,u2,5,hh-u2);t.r(-8+ox,u1,7,2,blk);t.r(2-ox,u2,7,2,blk)}
-  else if(lg==="w1"){LG(-9,0,5,hh);LG(4,2,5,hh-2);t.r(-10,0,7,2,blk);t.r(4,2,7,2,blk)}
-  else if(lg==="w2"){LG(-5,2,5,hh-2);LG(1,0,5,hh);t.r(-6,2,7,2,blk);t.r(1,0,7,2,blk)}
-  else if(lg==="wd"){LG(-11,0,5,hh);LG(5,0,5,hh);t.r(-12,0,7,2,blk);t.r(5,0,7,2,blk)}
-  else if(lg==="lg"){LG(-14,0,5,Math.max(4,hh-3));t.r(-12,hh-5,8,5,leg);LG(7,0,5,hh);t.r(-15,0,7,2,blk);t.r(7,0,7,2,blk)}
-  else if(lg==="kn"){t.r(-12,0,12,5,leg);t.r(-12,4,12,1,gold);LG(4,0,5,Math.max(5,hh));t.r(4,0,7,2,blk)}
-  else if(lg==="air"){LG(-8,5,5,hh-5);LG(3,8,5,hh-8)}
-  // skirt
-  for(let i=0;i<6;i++){t.r(-9+l+i*3,hh-7+(i%2),3,9,i%2?red:rdk)}t.r(-9+l,hh-7,18,1,gold);
-  // torso
-  t.r(-8+l,hh+1,16,15,red);t.r(-8+l,hh+1,16,2,blk);t.r(-8+l,hh+6,16,1,rdk);t.r(-8+l,hh+10,16,1,rdk);t.r(-8+l,hh+15,16,1,gold);t.r(-1+l,hh+6,2,9,gold);
-  // head
-  const hy=hh+16-hd;
-  t.r(-5+l,hy,10,9,blk);t.r(-1+l,hy,7,7,skin);t.r(1+l,hy+4,2,1,eye);t.r(4+l,hy+4,2,1,eye);t.r(1+l,hy+5,5,1,rdk);
-  t.r(1+l,hy,1,2,white);t.r(4+l,hy,1,2,white);t.r(2+l,hy+1,2,1,"#2a0808");
-  t.r(-6+l,hy+7,12,3,blk);t.r(-7+l,hy+7,14,1,"#2e1c20");
-  t.r(-4+l,hy+10,2,2,gold);t.r(-6+l,hy+12,2,3,gold);t.r(-7+l,hy+15,2,2,gold);
-  t.r(3+l,hy+10,2,2,gold);t.r(5+l,hy+12,2,3,gold);t.r(6+l,hy+15,2,2,gold);t.r(-1+l,hy+10,2,2,gold);
-  // arms
-  const sx=2+l,sy=hh+13,hx=Math.round(q.hx),hy2=Math.round(q.hy-c*.5);
-  t.ln(sx,sy,hx,hy2,rdk,3);t.r(hx-1,hy2-1,3,3,blk);
-  if(q.gx!=null){t.ln(sx-2,sy,Math.round(q.gx),Math.round(q.gy),rdk,3);t.r(Math.round(q.gx)-1,Math.round(q.gy)-2,4,4,blk)}
-  t.r(1+l,hh+9,7,8,red);t.r(1+l,hh+12,7,1,rdk);t.r(1+l,hh+15,7,1,rdk);t.r(1+l,hh+9,7,1,gold);
-  // odachi
+    r(-18,0,30,8,red);for(let x=-18;x<12;x+=2.5)r(x,1,.5,6,lace);r(-18,6,30,2,rdk);r(-18,7.5,30,.5,gold);
+    r(10,0,10,8,blk);r(12,7,6,3,gold);r(-25,1,9,6,white);r(-24,2,7,.5,white2);r(-14,8,8,3,rdk);
+    ln(-6,1,26,0,"#c4ccd8",3);ln(-6,1.5,26,.5,"#ffffff",1);done();return}
+  const hh=17-c,hy=hh+16-hd;
+  // secondary motion: damped springs driven by how fast the body travels/leans and the hand moves
+  const sp=b.sp||(b.sp={t:G.t,x:b.x,l:q.l,hy:q.hy,s:0,v:0,a:0,av:0});
+  const dtd=Math.min(.05,G.t-sp.t);
+  if(dtd>0){const vb=(b.x-sp.x)/dtd*f,vl=(q.l-sp.l)/dtd,vh=(q.hy-sp.hy)/dtd;
+    const tg=clamp(-vb*.035-vl*.12,-3,3);sp.v+=((tg-sp.s)*140-sp.v*9)*dtd;sp.s+=sp.v*dtd;
+    const ta=clamp(-vh*.03,-2.5,2.5);sp.av+=((ta-sp.a)*160-sp.av*10)*dtd;sp.a+=sp.av*dtd}
+  else if(dtd<0){sp.s=sp.v=sp.a=sp.av=0}
+  sp.t=G.t;sp.x=b.x;sp.l=q.l;sp.hy=q.hy;
+  const sw=sp.s,sa2=sp.a;
+  // spine: the lean grows from the waist up, the head goes a little further and lags behind
+  const TB=j=>hp(lerp(l*.3,l,j/5)),lh=hp(l*1.15+sw*.3),ls=hp(l*.25);
+  // two-bone solver: elbow/knee on the side of (pdx,pdy); stretches straight when out of reach
+  const IK=(ax,ay,bx,by,L1,L2,pdx,pdy)=>{const dx=bx-ax,dy=by-ay,d=Math.max(.01,Math.hypot(dx,dy)),k=d>L1+L2-.01?d/(L1+L2-.01):1,
+    l1=L1*k,l2=L2*k,u=(l1*l1-l2*l2+d*d)/(2*d),h=Math.sqrt(Math.max(0,l1*l1-u*u)),ux=dx/d,uy=dy/d;let px=-uy,py=ux;
+    if(px*pdx+py*pdy<0){px=-px;py=-py}return[ax+ux*u+px*h,ay+uy*u+py*h]};
   const ca=Math.cos(q.a),sa=Math.sin(q.a);
+  const sx=2+l,sy=hh+13,hx=hp(q.hx),hy2=hp(q.hy-c*.5);
+  const rsx=-3+l,rsy=hh+12.5,grab=q.gx!=null;
+  const rh=grab?[hp(q.gx),hp(q.gy)]:[hx-ca*4.5,hy2-sa*4.5];      // rear hand: grabbing, or lower on the grip
+  const [ex,ey]=IK(sx,sy,hx,hy2,9,10,.6,-1),[rex,rey]=IK(rsx,rsy,rh[0],rh[1],9,10,.6,-1);
+  const ARM=(ax,ay,mx,my,zx,zy,up,lo,back)=>{ln(ax,ay,mx,my,blk,8);ln(ax,ay,mx,my,up,6);ln(mx,my,zx,zy,lo,5);ln(mx,my,zx,zy,blk2,1);r(mx-1,my-1,2,2,back?blk2:gdk)};
+  // mane strands (behind), trailing with the sway
+  r(-11+lh,hy-4,6,12,white);r(-11+lh,hy-4,1.5,12,white2);
+  for(let i=0;i<5;i++){const wv=Math.sin(G.t*4+i*.9)*(.6+i*.35);ln(-6+lh,hy+6-i*1.5,-13.5-i*.5+lh+wv*.3+sw*(1+i*.3),hy-1-i*2.2+wv-Math.abs(sw)*.3,i%2?white2:white,4)}
+  r(-12+lh+sw*.5,hy-6,4,3,white);r(-13+lh+sw*.8,hy-8,2.5,2.5,white2);
+  // rear arm reaching to the grip (behind the body)
+  if(!grab)ARM(rsx,rsy,rex,rey,rh[0],rh[1],"#4a1012",blk,1);
+  // back shoulder guard (sode) hangs off the rear shoulder and swings with the upper arm
+  {const ox=hp(clamp((rex-rsx)*.25+sw*.5,-2,2)),oy=hp(clamp((rey-rsy+8)*.25,0,2.5));
+   r(-12+l+ox,hh+9+oy,6,8,rdk);for(let k=0;k<4;k++)r(-12+l+ox,hh+10+k*2+oy,6,.5,lace);r(-12+l+ox,hh+16.5+oy,6,.5,gdk)}
+  // legs: hip -> knee -> ankle solved with two-bone IK, knees always bend toward the facing side
+  const ft=q.ft||bossFeet(q.lg,b),hipY=hh+1,L1=9.5,L2=9;
+  const LEG=(hx,fx,fy,front)=>{
+    const ax=fx,ay=fy+1.5;let dx=ax-hx,dy=ay-hipY,d=Math.hypot(dx,dy);
+    const dd=Math.min(d,L1+L2-.01),a=(L1*L1-L2*L2+dd*dd)/(2*dd),h=Math.sqrt(Math.max(0,L1*L1-a*a));
+    const ux=dx/d,uy=dy/d;let px=-uy,py=ux;if(px<0){px=-px;py=-py}
+    const kx=hx+ux*a+px*h,ky=Math.max(1,hipY+uy*a+py*h);
+    const lc=front?leg2:leg,sc=front?"#74262a":"#5a1a1d";
+    ln(hx,hipY,kx,ky,lc,9);                                   // thigh (mostly under the skirt)
+    ln(kx,ky,ax,ay,sc,7);ln(kx+.5,ky-1,ax+.5,ay+.5,gdk,1);    // shin greave with a seam
+    r(ax-2.5,fy,6.5,1.5,blk);r(ax-2.5,fy+1,6.5,.5,blk2);      // sandal pointing forward
+    r(kx-2,ky-1,4,2.5,front?gold:gdk);r(kx-1.5,ky,1,1,blk2);  // knee guard
+  };
+  LEG(-2.5,ft[0],ft[1],0);LEG(2.5,ft[2],ft[3],1);
+  // skirt plates (kusazuri): rows shear with the sway; front plates are pushed by the front thigh
+  const spr=(ft[2]-ft[0])-9,sk=sw*.6;
+  for(let i=0;i<6;i++){const px=-9+ls+i*3,py=hh-7+(i%2)*.5,col=i%2?red:rdk,s=clamp(sk+(i>=3?spr*.12:-spr*.08),-3,3);
+    for(let rw=0;rw<3;rw++){const o=hp(s*(2-rw)/2),y=py+rw*3;r(px+o,y,3,3,col);r(px+o+2.5,y,.5,3,lace);r(px+o,y+1.5,3,.5,lace);r(px+o+1.25,y+2,.5,.5,gold);if(rw===0)r(px+o,y,3,.5,gold)}}
+  // torso (do): six lamellar bands, each shifted a bit more than the one below so the back bends
+  for(let j=0;j<6;j++){const o=TB(j),y=hh+1+j*2.5;r(-8+o,y,16,2.5,red);r(-8+o,y+2,16,.5,rdk);for(let x=-7;x<8;x+=2)r(x+o,y+1,.5,.5,lace);
+    if(j>0&&j<5){r(5.5+o,y,1.5,2.5,rhi);r(-1+o,y,1.5,2.5,gold);r(-.5+o,y,.5,2.5,"#f2cf7a")}}
+  r(-8+TB(0),hh+1,16,2,blk);r(-8+TB(0),hh+2.5,16,.5,gold);r(-8+TB(5),hh+15,16,1,gold);r(-8+TB(5),hh+15.5,16,.5,gdk);
+  // helmet neck guard (shikoro), bowl, rivets
+  r(-8+lh,hy+2,5,5,blk);for(let k=0;k<3;k++)r(-8+lh,hy+2.5+k*1.5,5,.5,blk2);r(-8+lh,hy+2,5,.5,gold);
+  r(-5+lh,hy+3,10,6.5,blk);r(-4+lh,hy+9.5,8,1,blk);r(-4+lh,hy+8.5,8,.5,blk2);for(let x=-4;x<5;x+=1.5)r(x+lh,hy+7.5,.5,.5,gdk);
+  r(-6+lh,hy+3,12,1,blk2);r(-6.5+lh,hy+3,13,.5,gold);
+  // mask (menpo)
+  r(-1+lh,hy-.5,7,7,skin);r(-1+lh,hy-.5,1.5,7,rdk);r(5.5+lh,hy+1,1,2.5,rdk);
+  ln(.5+lh,hy+5.5,3+lh,hy+4.6,"#3a0808",2);ln(3.5+lh,hy+4.6,5.8+lh,hy+5.6,"#3a0808",2);
+  r(1+lh,hy+4,2,1,eye);r(4+lh,hy+4,1.5,1,eye);r(1.5+lh,hy+4,.5,.5,"#fff");
+  r(1+lh,hy+.5,4.5,1.5,"#2a0808");r(1.5+lh,hy+.5,.5,1.5,white);r(4+lh,hy+.5,.5,1.5,white);r(.5+lh,hy+2.5,5,.5,white2);
+  // crest (kuwagata): two thin curved golden horns + centre disc
+  ln(-1.5+lh,hy+9.5,-4.5+lh,hy+13.5,gold,2);ln(-4.5+lh,hy+13.5,-5.5+lh,hy+18,gold,2);ln(-5.5+lh,hy+18,-5+lh,hy+19.5,"#f2cf7a",1);
+  ln(1.5+lh,hy+9.5,4.5+lh,hy+13.5,gold,2);ln(4.5+lh,hy+13.5,5.5+lh,hy+18,gold,2);ln(5.5+lh,hy+18,5+lh,hy+19.5,"#f2cf7a",1);
+  r(-1+lh,hy+9.5,2,2,gold);r(-.5+lh,hy+10,1,1,"#c22a1c");
+  // front arm: shoulder -> elbow -> gauntlet
+  ARM(sx,sy,ex,ey,hx,hy2,rdk,blk,0);r(hx-1.25,hy2-1.25,2.5,2.5,blk);r(hx-1.25,hy2-1.25,2.5,.5,gdk);
+  if(grab){const gx=rh[0],gy=rh[1];ARM(rsx,rsy,rex,rey,gx,gy,rdk,blk,0);
+    r(gx-1.5,gy-2,3.5,3.5,blk);for(let k=0;k<3;k++)ln(gx+1,gy+1-k*1.2,gx+2.5,gy+1.5-k*1.2,blk,2)}
+  // front shoulder guard follows the upper arm, lags when the arm whips
+  {const ox=hp(clamp((ex-sx)*.25,-1.5,2)),oy=hp(clamp((ey-sy+8)*.25-sa2*.6,-1,2.5));
+   r(1+l+ox,hh+9+oy,7,8,red);for(let k=0;k<4;k++)r(1+l+ox,hh+10.5+k*1.8+oy,7,.5,lace);r(7+l+ox,hh+9+oy,1,8,rhi);r(1+l+ox,hh+9+oy,7,1,gold);r(1+l+ox,hh+16.5+oy,7,.5,gdk)}
+  // odachi: wrapped handle, tsuba, blade with spine shade and bright edge
   const tip=[hx+ca*32,hy2+sa*32],bt=[hx-ca*7,hy2-sa*7],gd=[hx+ca*2,hy2+sa*2];
-  t.ln(bt[0],bt[1],hx,hy2,"#3a0e14",2);
-  const gp=t.p(Math.round(gd[0]),Math.round(gd[1]));R(gp[0]-1,gp[1]-1,3,3,gold);
-  t.ln(gd[0],gd[1],tip[0],tip[1],"#cfd6e0",2);t.ln(gd[0]+sa*.8,gd[1]-ca*.8,tip[0],tip[1],"#ffffff",1);
-  if(P2){for(let i=0;i<5;i++){const k=rnd(.2,1),fx=gd[0]+(tip[0]-gd[0])*k,fy=gd[1]+(tip[1]-gd[1])*k+rnd(1,4);const pp=t.p(Math.round(fx),Math.round(fy));R(pp[0],pp[1],1,Math.random()<.5?2:1,Math.random()<.5?"#ff8a2a":"#ffd34a")}}
+  ln(bt[0],bt[1],hx,hy2,"#2a0f12",4);
+  for(let k=1;k<7;k+=1.5)r(hx-ca*k-.25,hy2-sa*k-.25,.5,.5,"#8a6a44");
+  r(gd[0]-1.5,gd[1]-1.5,3,3,gold);r(gd[0]-.5,gd[1]-.5,1,1,gdk);
+  const nx=-sa,ny=ca; // edge side = "down" of the blade
+  ln(gd[0],gd[1],tip[0]-ca*2,tip[1]-sa*2,"#c4ccd8",4);ln(tip[0]-ca*2,tip[1]-sa*2,tip[0],tip[1],"#dfe5ee",2);
+  ln(gd[0]+nx*.6,gd[1]+ny*.6,tip[0]-ca*2+nx*.6,tip[1]-sa*2+ny*.6,"#8890a0",1);
+  ln(gd[0]-nx*.6,gd[1]-ny*.6,tip[0],tip[1],"#ffffff",1);
+  if(!grab){r(rh[0]-1.25,rh[1]-1.25,2.5,2.5,blk);r(rh[0]-1.25,rh[1]-1.25,2.5,.5,blk2)}  // rear hand on the grip
+  if(P2){for(let i=0;i<9;i++){const k=rnd(.15,1),fx=gd[0]+(tip[0]-gd[0])*k,fy=gd[1]+(tip[1]-gd[1])*k+rnd(.5,4);r(fx,fy,.5,Math.random()<.5?1.5:1,Math.random()<.5?"#ff8a2a":"#ffd34a")}}
+  done();
+  // tells (drawn on the normal pixel grid)
+  const t=T(b,tr);
   if(wi){
     const col=TELL[wi.k],gx=q.gx!=null&&wi.k==="gr";
     const tp=gx?t.p(Math.round(q.gx),Math.round(q.gy)):t.p(Math.round(tip[0]),Math.round(tip[1]));
@@ -941,16 +1018,41 @@ function drawBoss(){
     }
   }
   const s=seg(b);
-  if(b.st==="move"&&s&&s.hit&&b.segT<s.d*.95){const tp=t.p(tip[0],tip[1]),hp=t.p(hx,hy2);G.trail.push({x0:hp[0],y0:hp[1],x1:tp[0],y1:tp[1],t:G.t,c:P2?"#ffb070":"#ffe0e0"})}
+  const pv=b.mv&&b.si>0?b.mv[b.si-1]:null;
+  const W2=(dx,dy)=>[X0+f*dx,Y0-dy];
+  if(b.st==="move"&&s&&(s.hit&&b.segT<s.d*.95||!s.hit&&pv&&pv.hit&&b.segT<.05))trailSample(W2(hx,hy2),W2(tip[0],tip[1]),P2?"#ffb070":"#ffe0e0")
 }
 function drawTrails(){
-  G.trail=G.trail.filter(s=>G.t-s.t<.09);
-  for(let i=1;i<G.trail.length;i++){const a=G.trail[i-1],b2=G.trail[i];if(b2.t-a.t>.04||a.c!==b2.c)continue;
-    const k=1-(G.t-b2.t)/.09;g.globalAlpha=.55*k;g.fillStyle=b2.c;g.beginPath();
-    const mx0=(a.x0+a.x1*2)/3,my0=(a.y0+a.y1*2)/3,mx1=(b2.x0+b2.x1*2)/3,my1=(b2.y0+b2.y1*2)/3;
-    g.moveTo(mx0,my0);g.lineTo(a.x1,a.y1);g.lineTo(b2.x1,b2.y1);g.lineTo(mx1,my1);g.fill();}
+  const LIFE=.11;
+  G.trail=G.trail.filter(s=>G.t-s.t<LIFE);
+  // split samples into continuous runs, then fill each run as a curved crescent
+  let run=[];const runs=[];
+  for(const s of G.trail){const prev=run[run.length-1];if(prev&&(s.t-prev.t>.04||s.c!==prev.c)){runs.push(run);run=[]}run.push(s)}
+  if(run.length)runs.push(run);
+  for(const r of runs){
+    if(r.length<2)continue;
+    // densify: between samples, turn the blade angle and slide the hand in small steps so the edge is an arc
+    const pts=[];
+    for(let i=1;i<r.length;i++){const a=r[i-1],b2=r[i];let d=b2.ang-a.ang;d=Math.atan2(Math.sin(d),Math.cos(d));
+      const n=Math.max(2,Math.ceil(Math.abs(d)/.12));
+      for(let j=i===1?0:1;j<=n;j++){const u=j/n;pts.push({x:lerp(a.hx,b2.hx,u),y:lerp(a.hy,b2.hy,u),ang:a.ang+d*u,len:lerp(a.len,b2.len,u),t:lerp(a.t,b2.t,u)})}}
+    const N=pts.length,c=r[r.length-1].c;
+    for(let i=1;i<N;i++){
+      const p0=pts[i-1],p1=pts[i],age=(G.t-p1.t)/LIFE,w0=.35+.5*(1-(i-1)/(N-1)),w1=.35+.5*(1-i/(N-1));
+      // outer edge = blade tip; inner edge creeps toward the tip at the old end, so the trail tapers
+      const o0=[p0.x+Math.cos(p0.ang)*p0.len,p0.y+Math.sin(p0.ang)*p0.len],o1=[p1.x+Math.cos(p1.ang)*p1.len,p1.y+Math.sin(p1.ang)*p1.len];
+      const i0=[p0.x+Math.cos(p0.ang)*p0.len*w0,p0.y+Math.sin(p0.ang)*p0.len*w0],i1=[p1.x+Math.cos(p1.ang)*p1.len*w1,p1.y+Math.sin(p1.ang)*p1.len*w1];
+      g.globalAlpha=Math.max(0,.6*(1-age)*(.35+.65*i/(N-1)));g.fillStyle=c;g.beginPath();
+      g.moveTo(i0[0],i0[1]);g.lineTo(o0[0],o0[1]);g.lineTo(o1[0],o1[1]);g.lineTo(i1[0],i1[1]);g.closePath();g.fill();
+    }
+    // bright rim along the tip path
+    g.globalAlpha=.8;g.strokeStyle="#ffffff";g.lineWidth=1;g.beginPath();
+    for(let i=Math.floor(N*.4);i<N;i++){const p=pts[i],x=p.x+Math.cos(p.ang)*p.len,y=p.y+Math.sin(p.ang)*p.len;i===Math.floor(N*.4)?g.moveTo(x,y):g.lineTo(x,y)}
+    g.stroke();
+  }
   g.globalAlpha=1;
 }
+function trailSample(hp,tp,c){G.trail.push({hx:hp[0],hy:hp[1],ang:Math.atan2(tp[1]-hp[1],tp[0]-hp[0]),len:Math.hypot(tp[0]-hp[0],tp[1]-hp[1]),t:G.t,c})}
 function drawWaves(){
   for(const w of G.proj){
     for(let i=0;i<10;i++){const hgt2=Math.max(1,10-Math.abs(i-4)*2+((G.t*30+i)|0)%3);R(w.x-w.dir*i*1.2-1,GY-hgt2,2,hgt2,i<3?"#ffd34a":i<6?"#ff8a2a":"#c2361c")}
@@ -974,6 +1076,7 @@ function drawHUDpix(){
 function draw(){
   const ph=G.b.phase===2||G.b.st==="trans"&&G.b.stT>.4?2:1;
   if(!BG[ph])BG[ph]=makeBG(ph);
+  g.setTransform(RES,0,0,RES,0,0);g.imageSmoothingEnabled=false;
   g.drawImage(BG[ph],0,0);
   // petals / embers bg
   for(const q of G.petals)R(q.x,q.y,ph===1?2:1,1,ph===1?"#f0a8c0":"#ff7a3a");
