@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>小熊方塊島</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
+<style>
+/* Layout: full-screen 3D world, wooden HUD floating at the four corners, clear of the safe areas */
+:root{
+  --sky:#8fcbef;
+  --panel:rgba(48,34,22,.82);
+  --panel-edge:#7a5532;
+  --cream:#fff3d6;
+  --honey:#f4b43c;
+  --leaf:#6aab3c;
+  --ink:#2b1d10;
+  --font-ui:"Zen Maru Gothic","PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--sky);color:var(--cream);font-family:var(--font-ui);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+#game{position:fixed;inset:0;display:block;width:100%;height:100%;touch-action:none}
+.hud{position:fixed;pointer-events:none}
+#cross{left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px}
+#cross::before,#cross::after{content:"";position:absolute;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+#cross::before{left:10px;top:2px;width:2px;height:18px}
+#cross::after{top:10px;left:2px;height:2px;width:18px}
+
+#top{top:calc(env(safe-area-inset-top,0px) + 10px);left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#bar{pointer-events:auto;display:flex;gap:4px;padding:5px;background:var(--panel);border:2px solid var(--panel-edge);border-radius:10px;max-width:100%;overflow-x:auto}
+.slot{width:36px;height:36px;flex:0 0 auto;border:2px solid transparent;border-radius:6px;padding:0;background:none;cursor:pointer;position:relative}
+.slot canvas{width:100%;height:100%;image-rendering:pixelated;border-radius:3px;display:block}
+.slot.on{border-color:var(--honey);box-shadow:0 0 0 2px var(--ink) inset}
+.slot span{position:absolute;right:1px;bottom:-1px;font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px #000}
+#row{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#gyro{display:none}.touch #gyro{display:inline-block}
+#gyro.on{background:var(--leaf);color:var(--ink);border-color:#3f7420}
+#reset,#gyro{pointer-events:auto;font:inherit;font-size:12px;color:var(--cream);background:var(--panel);border:1.5px solid var(--panel-edge);border-radius:999px;padding:3px 10px;cursor:pointer}
+#reset.warn{background:#a8402c;border-color:#e07a5f}
+
+#joy{left:max(20px,calc(env(safe-area-inset-left,0px) + 16px));bottom:calc(env(safe-area-inset-bottom,0px) + 24px);width:120px;height:120px;border-radius:50%;
+  background:rgba(48,34,22,.45);border:2px solid rgba(255,243,214,.5);pointer-events:auto}
+#knob{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:rgba(255,243,214,.85);box-shadow:0 2px 6px rgba(0,0,0,.4)}
+#btns{right:max(20px,calc(env(safe-area-inset-right,0px) + 16px));bottom:calc(env(safe-area-inset-bottom,0px) + 24px);display:flex;gap:10px;align-items:flex-end}
+.stack{display:flex;flex-direction:column;gap:10px}
+.round{pointer-events:auto;width:60px;height:60px;border-radius:50%;border:3px solid var(--panel-edge);background:var(--panel);color:var(--cream);
+  font:900 17px var(--font-ui);display:grid;place-items:center;cursor:pointer}
+.round:active{transform:scale(.94)}
+#dig{background:#a8402c;border-color:#e07a5f}
+#place{background:var(--honey);color:var(--ink);border-color:#a8701c}
+#toast{left:50%;top:58%;transform:translateX(-50%);background:var(--panel);border:1.5px solid var(--panel-edge);border-radius:999px;padding:5px 14px;font-size:13px;font-weight:700;white-space:nowrap;opacity:0;transition:opacity .25s}
+#toast.show{opacity:1}
+#keys{left:max(16px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 14px);font-size:12px;line-height:1.6;
+  background:var(--panel);padding:6px 10px;border-radius:8px;border:1.5px solid var(--panel-edge)}
+body:not(.touch) #joy,body:not(.touch) #btns{display:none}
+body.touch #keys{display:none}
+
+#start{position:fixed;inset:0;display:grid;place-items:center;background:rgba(30,58,80,.55);z-index:5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.card{background:var(--panel);border:3px solid var(--panel-edge);border-radius:16px;padding:22px 22px 18px;max-width:340px;width:100%;box-sizing:border-box;text-align:center}
+.card h1{margin:0;font-size:32px;font-weight:900;letter-spacing:.06em;color:var(--honey);text-wrap:balance;text-shadow:0 3px 0 var(--ink)}
+.card p{margin:8px 0 14px;font-size:14px;line-height:1.6;color:var(--cream)}
+.card ul{list-style:none;margin:0 0 16px;padding:10px 12px;text-align:left;font-size:13px;line-height:1.75;background:rgba(0,0,0,.22);border-radius:10px}
+.card b{color:var(--honey)}
+#go{font:900 18px var(--font-ui);color:var(--ink);background:var(--leaf);border:3px solid #3f7420;border-radius:12px;padding:10px 34px;cursor:pointer;box-shadow:0 4px 0 #3f7420}
+#go:focus-visible,.round:focus-visible,#reset:focus-visible,#gyro:focus-visible,.slot:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.only-touch{display:none}.touch .only-touch{display:block}.touch .only-desk{display:none}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="hud" id="cross"></div>
+<div class="hud" id="top">
+  <div id="bar"></div>
+  <div id="row"><span id="sel">手上：草地</span><button id="gyro" type="button">陀螺儀：關</button><button id="reset" type="button">重來</button></div>
+</div>
+<div class="hud" id="joy"><div id="knob"></div></div>
+<div class="hud" id="btns">
+  <div class="stack">
+    <button class="round" id="place" type="button">放</button>
+    <button class="round" id="dig" type="button">挖</button>
+  </div>
+  <button class="round" id="jump" type="button">跳</button>
+</div>
+<div class="hud" id="toast"></div>
+<div class="hud" id="keys">WASD 走 · 空白鍵 跳 · 左鍵 挖 · 右鍵 放 · 1–8 換方塊</div>
+
+<div id="start">
+  <div class="card">
+    <h1>小熊方塊島</h1>
+    <p>一座漂在天上的小島。挖開地面、砍下樹木，用方塊蓋出你的家。</p>
+    <ul class="only-touch">
+      <li><b>左下圓圈</b>：走路</li>
+      <li><b>右半邊拖曳</b>：轉頭看</li>
+      <li><b>準心對準方塊</b>（出現黑框），按右下 <b>挖</b> 或 <b>放</b></li>
+      <li><b>點一下畫面</b>：也可以挖</li>
+      <li><b>上方方塊列</b>：換手上的方塊</li>
+    </ul>
+    <ul class="only-desk">
+      <li><b>WASD</b>：走路　<b>空白鍵</b>：跳</li>
+      <li><b>滑鼠</b>：轉頭看（按 Esc 放開滑鼠）</li>
+      <li><b>左鍵</b>：挖掘　<b>右鍵</b>：放置</li>
+      <li><b>1–8 或滾輪</b>：換方塊</li>
+    </ul>
+    <button id="go" type="button">開始玩</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+if(isTouch) document.body.classList.add('touch');
+
+// ---------- World data ----------
+const W=64, H=40, CS=16, NC=W/CS, SEED=7, SAVE_KEY='bear-block-island-v1';
+const blocks=new Uint8Array(W*H*W);
+const idx=(x,y,z)=>(y*W+z)*W+x;
+function get(x,y,z){ if(x<0||z<0||x>=W||z>=W||y>=H) return 0; if(y<0) return 3; return blocks[idx(x,y,z)]; }
+function setB(x,y,z,v){ blocks[idx(x,y,z)]=v; }
+
+const BLOCKS=[null,
+  {name:'草地',tiles:[0,2,1]},{name:'泥土',tiles:[2,2,2]},{name:'石頭',tiles:[3,3,3]},{name:'木頭',tiles:[5,5,4]},
+  {name:'樹葉',tiles:[6,6,6]},{name:'沙子',tiles:[7,7,7]},{name:'紅磚',tiles:[8,8,8]},{name:'木板',tiles:[9,9,9]}];
+const NT=10, TS=16;
+
+// ---------- Procedural textures (original pixel art) ----------
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const atlas=document.createElement('canvas'); atlas.width=TS*NT; atlas.height=TS;
+(function paint(){
+  const g=atlas.getContext('2d'), r=mulberry(42);
+  const px=(t,x,y,c)=>{g.fillStyle=`rgb(${c[0]|0},${c[1]|0},${c[2]|0})`;g.fillRect(t*TS+x,y,1,1);};
+  const vary=(c,a)=>{const k=(r()-.5)*a;return[c[0]+k,c[1]+k,c[2]+k];};
+  for(let y=0;y<TS;y++)for(let x=0;x<TS;x++){
+    px(0,x,y,vary([96,160,55],34));                                   // grass top
+    const edge=3+((x*7)%3===0?1:0);
+    px(1,x,y,y<edge?vary([96,160,55],30):vary([134,96,66],30));       // grass side
+    px(2,x,y,vary([134,96,66],30));                                   // dirt
+    px(3,x,y,r()<.12?vary([92,92,96],14):vary([128,128,132],22));     // stone
+    const bark=(x%4===0)?[78,60,36]:[110,86,52]; px(4,x,y,vary(bark,16)); // log side
+    const d=Math.max(Math.abs(x-7.5),Math.abs(y-7.5));
+    px(5,x,y,vary((Math.floor(d)%2)?[176,140,86]:[150,116,68],12));   // log top
+    px(6,x,y,r()<.25?vary([40,96,32],14):vary([62,128,44],26));       // leaves
+    px(7,x,y,vary([222,208,160],18));                                 // sand
+    const row=Math.floor(y/4), off=row%2?4:0, mortar=(y%4===3)||((x+off)%8===7);
+    px(8,x,y,mortar?vary([196,186,170],10):vary([168,70,52],22));     // brick
+    px(9,x,y,(y%4===3)?vary([120,92,52],8):vary([176,140,86],16));    // planks
+  }
+})();
+const tex=new THREE.CanvasTexture(atlas);
+tex.magFilter=THREE.NearestFilter; tex.minFilter=THREE.NearestFilter; tex.generateMipmaps=false;
+
+// ---------- Terrain ----------
+function hash(x,z,s){let h=(Math.imul(x,374761393)+Math.imul(z,668265263)+Math.imul(s,982451653))|0;h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return (h>>>0)/4294967296;}
+function vnoise(x,z){const xi=Math.floor(x),zi=Math.floor(z),xf=x-xi,zf=z-zi,sx=xf*xf*(3-2*xf),sz=zf*zf*(3-2*zf);
+  const a=hash(xi,zi,SEED),b=hash(xi+1,zi,SEED),c=hash(xi,zi+1,SEED),d=hash(xi+1,zi+1,SEED);
+  return (a+(b-a)*sx)+((c+(d-c)*sx)-(a+(b-a)*sx))*sz;}
+function heightAt(x,z){
+  const n=(vnoise(x/22,z/22)+vnoise(x/11,z/11)*.5+vnoise(x/5,z/5)*.22)/1.72;
+  const d=Math.hypot(x-W/2,z-W/2)/(W/2);
+  return Math.max(1,Math.floor(6+n*15-Math.max(0,d-.55)*26));
+}
+function generate(){
+  blocks.fill(0);
+  const hm=[];
+  for(let z=0;z<W;z++)for(let x=0;x<W;x++){
+    const h=heightAt(x,z); hm[z*W+x]=h;
+    for(let y=0;y<=h;y++) setB(x,y,z, y<h-3?3 : y<h?2 : (h<=8?6:1));
+    if(h<=8) for(let y=Math.max(0,h-2);y<h;y++) setB(x,y,z,6);
+  }
+  for(let z=3;z<W-3;z++)for(let x=3;x<W-3;x++){
+    const h=hm[z*W+x];
+    if(get(x,h,z)!==1||hash(x+999,z,SEED)>.022) continue;
+    if(Math.abs(x-W/2)<3&&Math.abs(z-W/2)<3) continue;
+    const t=4+Math.floor(hash(x,z+77,SEED)*2);
+    if(h+t+3>=H) continue;
+    for(let dy=-2;dy<=2;dy++)for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
+      if(dx*dx+dz*dz+dy*dy*1.4>5.5) continue;
+      const yy=h+t+dy; if(!get(x+dx,yy,z+dz)) setB(x+dx,yy,z+dz,5);
+    }
+    for(let i=1;i<=t;i++) setB(x,h+i,z,4);
+  }
+}
+
+// ---------- Save / load ----------
+let edits={};
+let saveTimer=0;
+function load(){ try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)||'null'); if(s&&s.edits) return s; }catch(e){} return null; }
+function save(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>{ try{ localStorage.setItem(SAVE_KEY,JSON.stringify({edits,pos:[player.x,player.y,player.z],yaw,pitch})); }catch(e){} },400); }
+
+// ---------- Three.js scene ----------
+const canvas=document.getElementById('game');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+const scene=new THREE.Scene();
+const SKY=0x8fcbef;
+scene.background=new THREE.Color(SKY);
+scene.fog=new THREE.Fog(SKY,24,70);
+const camera=new THREE.PerspectiveCamera(72,1,.05,200);
+camera.rotation.order='YXZ';
+const mat=new THREE.MeshBasicMaterial({map:tex,vertexColors:true});
+
+// Face table: [dir, brightness, tileKind(0 top,1 bottom,2 side), corners [x,y,z,u,v]]
+const FACES=[
+  {d:[-1,0,0],b:.8,k:2,c:[[0,1,0,0,1],[0,0,0,0,0],[0,1,1,1,1],[0,0,1,1,0]]},
+  {d:[1,0,0], b:.8,k:2,c:[[1,1,1,0,1],[1,0,1,0,0],[1,1,0,1,1],[1,0,0,1,0]]},
+  {d:[0,-1,0],b:.5,k:1,c:[[1,0,1,1,0],[0,0,1,0,0],[1,0,0,1,1],[0,0,0,0,1]]},
+  {d:[0,1,0], b:1, k:0,c:[[0,1,1,1,1],[1,1,1,0,1],[0,1,0,1,0],[1,1,0,0,0]]},
+  {d:[0,0,-1],b:.68,k:2,c:[[1,0,0,0,0],[0,0,0,1,0],[1,1,0,0,1],[0,1,0,1,1]]},
+  {d:[0,0,1], b:.68,k:2,c:[[0,0,1,0,0],[1,0,1,1,0],[0,1,1,0,1],[1,1,1,1,1]]}];
+const meshes=new Array(NC*NC).fill(null);
+function buildChunk(cx,cz){
+  const pos=[],uv=[],col=[],ind=[];
+  for(let y=0;y<H;y++)for(let z=cz*CS;z<cz*CS+CS;z++)for(let x=cx*CS;x<cx*CS+CS;x++){
+    const id=blocks[idx(x,y,z)]; if(!id) continue;
+    for(const f of FACES){
+      if(get(x+f.d[0],y+f.d[1],z+f.d[2])) continue;
+      const n=pos.length/3, tile=BLOCKS[id].tiles[f.k];
+      // simple height tint so lower layers read darker
+      const shade=f.b*(.82+.18*Math.min(1,y/14));
+      for(const c of f.c){
+        pos.push(x+c[0],y+c[1],z+c[2]);
+        uv.push((tile+.02+c[3]*.96)/NT,.02+c[4]*.96);
+        col.push(shade,shade,shade);
+      }
+      ind.push(n,n+1,n+2,n+2,n+1,n+3);
+    }
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+  geo.setIndex(ind);
+  const i=cz*NC+cx;
+  if(meshes[i]){ scene.remove(meshes[i]); meshes[i].geometry.dispose(); }
+  meshes[i]=new THREE.Mesh(geo,mat); scene.add(meshes[i]);
+}
+function buildAll(){ for(let cz=0;cz<NC;cz++)for(let cx=0;cx<NC;cx++) buildChunk(cx,cz); }
+function rebuildAround(x,z){
+  const set=new Set();
+  const add=(a,b)=>{ if(a>=0&&b>=0&&a<NC&&b<NC) set.add(b*NC+a); };
+  const cx=Math.floor(x/CS), cz=Math.floor(z/CS);
+  add(cx,cz);
+  if(x%CS===0) add(cx-1,cz); if(x%CS===CS-1) add(cx+1,cz);
+  if(z%CS===0) add(cx,cz-1); if(z%CS===CS-1) add(cx,cz+1);
+  set.forEach(i=>buildChunk(i%NC,Math.floor(i/NC)));
+}
+
+// clouds for atmosphere
+(function clouds(){
+  const cm=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.85,fog:false});
+  const r=mulberry(9);
+  for(let i=0;i<18;i++){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(6+r()*10,1.2,4+r()*8),cm);
+    m.position.set(-40+r()*(W+80),H+6+r()*6,-40+r()*(W+80)); scene.add(m);
+  }
+})();
+
+const hl=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.004,1.004,1.004)),new THREE.LineBasicMaterial({color:0x2b1d10}));
+hl.visible=false; scene.add(hl);
+
+// ---------- Player ----------
+const player={x:W/2+.5,y:H,z:W/2+.5,vy:0,ground:false};
+let yaw=Math.PI*.25, pitch=-.55;
+function spawn(){
+  player.x=W/2+.5; player.z=W/2+.5; player.vy=0;
+  let y=H-1; while(y>0&&!get(Math.floor(player.x),y,Math.floor(player.z))) y--;
+  player.y=y+1.01;
+}
+const PW=.3, PH=1.7, EYE=1.55;
+function collides(px,py,pz){
+  for(let y=Math.floor(py);y<=Math.floor(py+PH-1e-4);y++)
+    for(let z=Math.floor(pz-PW);z<=Math.floor(pz+PW-1e-4);z++)
+      for(let x=Math.floor(px-PW);x<=Math.floor(px+PW-1e-4);x++)
+        if(get(x,y,z)) return true;
+  return false;
+}
+function moveAxis(axis,d){
+  const steps=Math.max(1,Math.ceil(Math.abs(d)/.25)), s=d/steps;
+  for(let i=0;i<steps;i++){
+    player[axis]+=s;
+    if(collides(player.x,player.y,player.z)){
+      player[axis]-=s;
+      if(axis==='y'){ if(s<0) player.ground=true; player.vy=0; }
+      return;
+    }
+  }
+}
+
+// ---------- Raycast (voxel DDA) ----------
+function raycast(maxD){
+  const o=camera.position, d=new THREE.Vector3(); camera.getWorldDirection(d);
+  let x=Math.floor(o.x),y=Math.floor(o.y),z=Math.floor(o.z);
+  const sx=Math.sign(d.x),sy=Math.sign(d.y),sz=Math.sign(d.z);
+  const tdx=Math.abs(1/d.x),tdy=Math.abs(1/d.y),tdz=Math.abs(1/d.z);
+  let tx=d.x>0?(x+1-o.x)*tdx:d.x<0?(o.x-x)*tdx:Infinity;
+  let ty=d.y>0?(y+1-o.y)*tdy:d.y<0?(o.y-y)*tdy:Infinity;
+  let tz=d.z>0?(z+1-o.z)*tdz:d.z<0?(o.z-z)*tdz:Infinity;
+  let px=x,py=y,pz=z,t=0;
+  while(t<=maxD){
+    if(y>=0&&x>=0&&z>=0&&x<W&&z<W&&y<H&&blocks[idx(x,y,z)]) return {x,y,z,px,py,pz};
+    px=x;py=y;pz=z;
+    if(tx<ty&&tx<tz){x+=sx;t=tx;tx+=tdx;} else if(ty<tz){y+=sy;t=ty;ty+=tdy;} else {z+=sz;t=tz;tz+=tdz;}
+  }
+  return null;
+}
+const REACH=8;
+const toastEl=document.getElementById('toast'); let toastT=0;
+function toast(msg){ toastEl.textContent=msg; toastEl.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>toastEl.classList.remove('show'),1400); }
+function breakBlock(){
+  const h=raycast(REACH);
+  if(!h){ toast('太遠了，走近一點或往下看'); return; }
+  if(h.y===0){ toast('最底層挖不動'); return; }
+  setB(h.x,h.y,h.z,0); edits[h.x+','+h.y+','+h.z]=0; rebuildAround(h.x,h.z); save();
+}
+function placeBlock(){
+  const h=raycast(REACH); if(!h){ toast('太遠了，走近一點或往下看'); return; }
+  const {px,py,pz}=h;
+  if(px<0||pz<0||px>=W||pz>=W||py<0||py>=H||get(px,py,pz)) return;
+  if(px+1>player.x-PW&&px<player.x+PW&&pz+1>player.z-PW&&pz<player.z+PW&&py+1>player.y&&py<player.y+PH){ toast('不能放在自己身上'); return; }
+  setB(px,py,pz,current); edits[px+','+py+','+pz]=current; rebuildAround(px,pz); save();
+}
+
+// ---------- Hotbar ----------
+let current=1;
+const bar=document.getElementById('bar'), selLabel=document.getElementById('sel');
+const slots=[];
+for(let id=1;id<BLOCKS.length;id++){
+  const b=document.createElement('button'); b.className='slot'; b.type='button'; b.id='slot'+id; b.setAttribute('aria-label',BLOCKS[id].name);
+  const c=document.createElement('canvas'); c.width=TS; c.height=TS;
+  c.getContext('2d').drawImage(atlas,BLOCKS[id].tiles[2]*TS,0,TS,TS,0,0,TS,TS);
+  const n=document.createElement('span'); n.textContent=id;
+  b.append(c,n); b.addEventListener('click',e=>{e.stopPropagation();choose(id);});
+  bar.appendChild(b); slots.push(b);
+}
+function choose(id){ current=id; slots.forEach((s,i)=>s.classList.toggle('on',i+1===id)); selLabel.textContent='手上：'+BLOCKS[id].name; }
+choose(1);
+
+// ---------- Input ----------
+const keys={};
+let started=false, mode='break';
+addEventListener('keydown',e=>{ keys[e.code]=true; if(/^Digit[1-8]$/.test(e.code)) choose(+e.code.slice(5)); if(e.code==='Space') e.preventDefault(); });
+addEventListener('keyup',e=>{ keys[e.code]=false; });
+addEventListener('wheel',e=>{ if(!started) return; choose(((current-1+(e.deltaY>0?1:-1)+8)%8)+1); },{passive:true});
+
+const locked=()=>document.pointerLockElement===canvas;
+function tryLock(){ if(isTouch) return; try{ const p=canvas.requestPointerLock(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} }
+function look(dx,dy,k){ yaw-=dx*k; pitch=Math.max(-1.55,Math.min(1.55,pitch-dy*k)); }
+
+let mdown=null;
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('mousedown',e=>{
+  if(!started||isTouch) return;
+  if(locked()){ e.button===2?placeBlock():breakBlock(); return; }
+  mdown={x:e.clientX,y:e.clientY,b:e.button,moved:0};
+});
+addEventListener('mousemove',e=>{
+  if(!started||isTouch) return;
+  if(locked()) look(e.movementX,e.movementY,.0024);
+  else if(mdown){ look(e.movementX,e.movementY,.005); mdown.moved+=Math.abs(e.movementX)+Math.abs(e.movementY); }
+});
+addEventListener('mouseup',()=>{
+  if(mdown&&mdown.moved<6){ mdown.b===2?placeBlock():breakBlock(); if(mdown.b===0) tryLock(); }
+  mdown=null;
+});
+
+// touch: joystick
+const joy=document.getElementById('joy'), knob=document.getElementById('knob');
+let joyId=null, jx=0, jy=0;
+function joyMove(t){
+  const r=joy.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
+  let dx=t.clientX-cx, dy=t.clientY-cy; const m=Math.hypot(dx,dy), max=42;
+  if(m>max){dx*=max/m;dy*=max/m;}
+  jx=dx/max; jy=dy/max; knob.style.transform=`translate(${dx}px,${dy}px)`;
+}
+joy.addEventListener('touchstart',e=>{ e.preventDefault(); const t=e.changedTouches[0]; joyId=t.identifier; joyMove(t); },{passive:false});
+// touch: look + tap
+let lookT=null;
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault(); if(!started) return;
+  for(const t of e.changedTouches) if(lookT===null) lookT={id:t.identifier,x:t.clientX,y:t.clientY,sx:t.clientX,sy:t.clientY,time:performance.now()};
+},{passive:false});
+addEventListener('touchmove',e=>{
+  for(const t of e.changedTouches){
+    if(t.identifier===joyId) joyMove(t);
+    else if(lookT&&t.identifier===lookT.id){ look(t.clientX-lookT.x,t.clientY-lookT.y,.006); lookT.x=t.clientX; lookT.y=t.clientY; }
+  }
+  e.preventDefault();
+},{passive:false});
+function touchEnd(e){
+  for(const t of e.changedTouches){
+    if(t.identifier===joyId){ joyId=null; jx=jy=0; knob.style.transform=''; }
+    else if(lookT&&t.identifier===lookT.id){
+      const short=performance.now()-lookT.time<350&&Math.hypot(t.clientX-lookT.sx,t.clientY-lookT.sy)<20;
+      if(short) breakBlock();
+      lookT=null;
+    }
+  }
+}
+addEventListener('touchend',touchEnd); addEventListener('touchcancel',touchEnd);
+
+function tapBtn(el,fn){ el.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();fn();},{passive:false}); el.addEventListener('click',fn); }
+tapBtn(document.getElementById('dig'),breakBlock);
+tapBtn(document.getElementById('place'),placeBlock);
+let jumpHeld=false;
+const jumpBtn=document.getElementById('jump');
+jumpBtn.addEventListener('touchstart',e=>{e.preventDefault();jumpHeld=true;},{passive:false});
+jumpBtn.addEventListener('touchend',()=>{jumpHeld=false;});
+jumpBtn.addEventListener('mousedown',()=>{jumpHeld=true;}); addEventListener('mouseup',()=>{jumpHeld=false;});
+
+const resetBtn=document.getElementById('reset'); let resetArm=0;
+resetBtn.addEventListener('click',e=>{
+  e.stopPropagation();
+  if(!resetArm){ resetBtn.textContent='確定重來？'; resetBtn.classList.add('warn'); resetArm=setTimeout(()=>{resetArm=0;resetBtn.textContent='重來';resetBtn.classList.remove('warn');},3000); return; }
+  clearTimeout(resetArm); resetArm=0; resetBtn.textContent='重來'; resetBtn.classList.remove('warn');
+  edits={}; generate(); buildAll(); spawn(); save();
+});
+
+// gyroscope look (works where the page is allowed to read motion sensors)
+const gyroBtn=document.getElementById('gyro');
+let gyroOn=false, gyroSeen=false, gyroCheck=0;
+function onMotion(e){
+  const r=e.rotationRate; if(!r||r.beta==null||r.gamma==null) return;
+  gyroSeen=true; if(!gyroOn||!started) return;
+  const dt=(e.interval>1?e.interval/1000:e.interval)||0.016, k=Math.PI/180*dt;
+  const ang=((screen.orientation&&screen.orientation.angle)!=null?screen.orientation.angle:(window.orientation||0)+360)%360;
+  let yr,pr;
+  if(ang===90){ yr=r.beta; pr=-r.gamma; }
+  else if(ang===270){ yr=-r.beta; pr=r.gamma; }
+  else { yr=r.gamma; pr=r.beta; }
+  yaw+=yr*k; pitch=Math.max(-1.55,Math.min(1.55,pitch+pr*k));
+}
+function setGyro(on){ gyroOn=on; gyroBtn.textContent='陀螺儀：'+(on?'開':'關'); gyroBtn.classList.toggle('on',on); }
+gyroBtn.addEventListener('click',async e=>{
+  e.stopPropagation();
+  if(gyroOn){ setGyro(false); return; }
+  try{
+    if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function'){
+      const res=await DeviceMotionEvent.requestPermission();
+      if(res!=='granted'){ toast('沒有拿到陀螺儀權限'); return; }
+    }
+  }catch(err){ toast('這裡讀不到陀螺儀'); return; }
+  if(typeof DeviceMotionEvent==='undefined'){ toast('這台裝置沒有陀螺儀'); return; }
+  addEventListener('devicemotion',onMotion);
+  setGyro(true); toast('轉動手機就能轉頭看');
+  clearTimeout(gyroCheck);
+  gyroCheck=setTimeout(()=>{ if(!gyroSeen){ setGyro(false); toast('這個頁面讀不到陀螺儀'); } },1500);
+});
+
+document.getElementById('go').addEventListener('click',()=>{ document.getElementById('start').hidden=true; started=true; tryLock(); });
+
+// ---------- Boot ----------
+generate();
+const saved=load();
+if(saved){ edits=saved.edits; for(const k in edits){ const [x,y,z]=k.split(',').map(Number); if(x>=0&&z>=0&&x<W&&z<W&&y>=0&&y<H) setB(x,y,z,edits[k]); } }
+buildAll();
+spawn();
+if(saved&&saved.pos&&!collides(saved.pos[0],saved.pos[1],saved.pos[2])){ [player.x,player.y,player.z]=saved.pos; yaw=saved.yaw||yaw; pitch=saved.pitch||pitch; }
+
+function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+addEventListener('resize',resize); resize();
+
+let last=performance.now(), saveClock=0;
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now;
+  if(started){
+    let f=0,s=0;
+    if(keys.KeyW||keys.ArrowUp) f+=1; if(keys.KeyS||keys.ArrowDown) f-=1;
+    if(keys.KeyD||keys.ArrowRight) s+=1; if(keys.KeyA||keys.ArrowLeft) s-=1;
+    f-=jy; s+=jx;
+    const m=Math.hypot(f,s); if(m>1){f/=m;s/=m;}
+    const sp=4.4*dt, sin=Math.sin(yaw), cos=Math.cos(yaw);
+    moveAxis('x',(-sin*f+cos*s)*sp);
+    moveAxis('z',(-cos*f-sin*s)*sp);
+    if((keys.Space||jumpHeld)&&player.ground){ player.vy=8.2; }
+    player.vy=Math.max(-20,player.vy-25*dt);
+    player.ground=false;
+    moveAxis('y',player.vy*dt);
+    player.x=Math.max(PW+.01,Math.min(W-PW-.01,player.x));
+    player.z=Math.max(PW+.01,Math.min(W-PW-.01,player.z));
+    if(player.y<-12) spawn();
+    saveClock+=dt; if(saveClock>3){ saveClock=0; save(); }
+  }
+  camera.position.set(player.x,player.y+EYE,player.z);
+  camera.rotation.y=yaw; camera.rotation.x=pitch;
+  const h=started?raycast(REACH):null;
+  if(h){ hl.visible=true; hl.position.set(h.x+.5,h.y+.5,h.z+.5); } else hl.visible=false;
+  renderer.render(scene,camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
