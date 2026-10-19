@@ -24,12 +24,34 @@ a.kage{background:#A3242E;box-shadow:0 6px 0 #5E1118}
 a.pet{background:#E0457B;box-shadow:0 6px 0 #A82457}
 a.card:active{transform:translateY(3px)}
 a.card:focus-visible{outline:3px solid #3B2D52;outline-offset:3px}
+.stage{background:#2B2440;box-shadow:0 6px 0 #17122A;border-radius:24px;padding:14px 14px 16px;color:#fff;display:flex;flex-direction:column;gap:10px}
+.stage h2{margin:0;font-size:20px;font-weight:900}
+.stage h2 small{font-weight:400;font-size:14px;opacity:.85;margin-left:6px}
+#hero{display:block;width:100%;height:240px;border-radius:14px;background:linear-gradient(#3C3360,#58507F 78%,#3A3156 78%);touch-action:none}
+.stage p.keys{color:#D9D2F0;font-size:14px}
+.pad{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.pad button{font:900 18px var(--f);color:#2B2440;background:#FFE36E;border:0;border-radius:14px;min-width:64px;height:48px;box-shadow:0 4px 0 #C9A92C;touch-action:none;user-select:none;-webkit-user-select:none}
+.pad button.go{background:#C9C2E6;box-shadow:0 4px 0 #8C84B0}
+.pad button:active,.pad button.on{transform:translateY(2px);box-shadow:0 2px 0 #C9A92C}
+.pad button.go:active,.pad button.go.on{box-shadow:0 2px 0 #8C84B0}
+.pad button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 </style>
 </head>
 <body>
 <main>
   <h1>遊戲屋</h1>
   <p>背單字、拼小路、搶蜂蜜、打格鬥、帶兵打仗、單挑魔王、養寵物，挑一個來玩！</p>
+  <section class="stage" id="stage" aria-label="試玩角色">
+    <h2>紅巾拳士<small>先動一動手腳</small></h2>
+    <canvas id="hero"></canvas>
+    <p class="keys">A D 或 ← → 移動・J 出拳・K 踢腿</p>
+    <div class="pad">
+      <button class="go" data-k="L" aria-label="往左">◀</button>
+      <button class="go" data-k="R" aria-label="往右">▶</button>
+      <button data-k="P">拳</button>
+      <button data-k="K">腳</button>
+    </div>
+  </section>
   <div class="pick">
     <a class="card girl" href="girl/">女孩版<small>收集星星女孩的衣服和髮型</small></a>
     <a class="card boy" href="boy/">可愛怪獸大富翁<small>男孩版・孵蛋收集原創怪獸</small></a>
@@ -41,5 +63,80 @@ a.card:focus-visible{outline:3px solid #3B2D52;outline-offset:3px}
     <a class="card pet" href="pet/">點點電子雞<small>20 隻寵物任你養・上課上班可電腦託管</small></a>
   </div>
 </main>
+<script>
+// 首頁試玩：紅巾拳士。圖集 img/hero.webp，每格記錄在圖集的位置與相對腳尖的偏移
+(() => {
+const F = {"idle":[{"x":0,"y":0,"w":194,"h":356,"ox":-193,"oy":-356},{"x":196,"y":0,"w":194,"h":358,"ox":-193,"oy":-357},{"x":392,"y":0,"w":194,"h":358,"ox":-193,"oy":-358},{"x":588,"y":0,"w":194,"h":358,"ox":-193,"oy":-357}],"punch":[{"x":784,"y":0,"w":194,"h":356,"ox":-193,"oy":-356},{"x":980,"y":0,"w":276,"h":356,"ox":-213,"oy":-356},{"x":1258,"y":0,"w":198,"h":356,"ox":-192,"oy":-356}],"kick":[{"x":1458,"y":0,"w":169,"h":360,"ox":-168,"oy":-359},{"x":1629,"y":0,"w":166,"h":358,"ox":-112,"oy":-358},{"x":1797,"y":0,"w":328,"h":356,"ox":-152,"oy":-356},{"x":2127,"y":0,"w":176,"h":358,"ox":-120,"oy":-357},{"x":2305,"y":0,"w":172,"h":359,"ox":-171,"oy":-358}]};
+const MS = {idle: [220, 180, 260, 180], punch: [50, 130, 110], kick: [60, 80, 170, 90, 80]};
+const SCALE = 0.5, CENTER = 97, SPEED = 170, GROUND = 24;   // 圖集 → 畫面縮放、腳尖到身體中心、每秒移動 px、地面離底部 px
+const stage = document.getElementById('stage'), cv = document.getElementById('hero'), ctx = cv.getContext('2d');
+const img = new Image();
+img.onerror = () => stage.hidden = true;
+img.src = 'img/hero.webp';
+const hold = {L: false, R: false};
+let w = 0, h = 0, x = 120, dir = 1, act = 'idle', t = 0, idleT = 0, walkT = 0, queued = null, last = 0;
+
+function resize() {
+  const r = devicePixelRatio || 1; w = cv.clientWidth; h = cv.clientHeight;
+  cv.width = Math.round(w * r); cv.height = Math.round(h * r); ctx.setTransform(r, 0, 0, r, 0, 0);
+  x = Math.min(Math.max(x, 70), w - 70);
+}
+function attack(a) {
+  if (act === 'idle') { act = a; t = 0; } else queued = a;   // 出招中再按就排到下一招
+}
+function frameAt(list, ms, time) {
+  for (let i = 0, s = 0; i < list.length; i++) { s += ms[i]; if (time < s) return list[i]; }
+  return list[list.length - 1];
+}
+function step(dt) {
+  if (act !== 'idle') {
+    t += dt;
+    if (t >= MS[act].reduce((a, b) => a + b)) { act = 'idle'; t = 0; if (queued) { act = queued; queued = null; } }
+    return;
+  }
+  const mv = (hold.R ? 1 : 0) - (hold.L ? 1 : 0);
+  if (mv) { dir = mv; x = Math.min(Math.max(x + mv * SPEED * dt / 1000, 70), w - 70); walkT += dt; } else walkT = 0;
+  idleT += mv ? dt * 2 : dt;
+}
+function draw() {
+  ctx.clearRect(0, 0, w, h);
+  const gy = h - GROUND, idleLen = MS.idle.reduce((a, b) => a + b);
+  const f = act === 'idle' ? frameAt(F.idle, MS.idle, idleT % idleLen) : frameAt(F[act], MS[act], t);
+  const bob = walkT ? Math.abs(Math.sin(walkT / 90)) * -4 : 0;   // 還沒有走路動畫，先用上下晃動代替
+  ctx.fillStyle = 'rgba(0,0,0,.28)';
+  ctx.beginPath(); ctx.ellipse(x, gy, 58, 7, 0, 0, Math.PI * 2); ctx.fill();
+  if (!img.complete || !img.naturalWidth) return;
+  ctx.save(); ctx.translate(x, gy + bob); ctx.scale(dir * SCALE, SCALE);
+  ctx.drawImage(img, f.x, f.y, f.w, f.h, f.ox + CENTER, f.oy, f.w, f.h);
+  ctx.restore();
+}
+function loop(now) {
+  const dt = Math.min(now - (last || now), 50); last = now;
+  step(dt); draw(); requestAnimationFrame(loop);
+}
+const KEYS = {KeyA: 'L', ArrowLeft: 'L', KeyD: 'R', ArrowRight: 'R', KeyJ: 'P', KeyK: 'K'};
+function press(k, down) {
+  if (k === 'L' || k === 'R') hold[k] = down;
+  else if (down) attack(k === 'P' ? 'punch' : 'kick');
+}
+addEventListener('keydown', e => {
+  const k = KEYS[e.code]; if (!k || e.ctrlKey || e.metaKey || e.altKey) return;
+  e.preventDefault(); if (!e.repeat) press(k, true);
+});
+addEventListener('keyup', e => { const k = KEYS[e.code]; if (k) press(k, false); });
+addEventListener('blur', () => { hold.L = hold.R = false; });
+for (const b of stage.querySelectorAll('.pad button')) {
+  const k = b.dataset.k;
+  const up = () => { b.classList.remove('on'); press(k, false); };
+  b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add('on'); press(k, true); });
+  b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
+  b.addEventListener('contextmenu', e => e.preventDefault());
+  b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) press(k, true); } });
+  b.addEventListener('keyup', e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); press(k, false); } });
+}
+addEventListener('resize', resize);
+resize(); requestAnimationFrame(loop);
+})();
+</script>
 </body>
 </html>
