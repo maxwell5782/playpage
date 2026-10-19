@@ -74,7 +74,7 @@ const img = new Image();
 img.onerror = () => stage.hidden = true;
 img.src = 'img/hero.webp';
 const hold = {L: false, R: false};
-let w = 0, h = 0, x = 120, dir = 1, act = 'idle', t = 0, idleT = 0, walkT = 0, queued = null, last = 0;
+let w = 0, h = 0, x = 120, dir = 1, act = 'idle', t = 0, idleT = 0, queued = null, last = 0;
 
 function resize() {
   const r = devicePixelRatio || 1; w = cv.clientWidth; h = cv.clientHeight;
@@ -95,18 +95,17 @@ function step(dt) {
     return;
   }
   const mv = (hold.R ? 1 : 0) - (hold.L ? 1 : 0);
-  if (mv) { dir = mv; x = Math.min(Math.max(x + mv * SPEED * dt / 1000, 70), w - 70); walkT += dt; } else walkT = 0;
+  if (mv) { dir = mv; x = Math.min(Math.max(x + mv * SPEED * dt / 1000, 70), w - 70); }
   idleT += mv ? dt * 2 : dt;
 }
 function draw() {
   ctx.clearRect(0, 0, w, h);
   const gy = h - GROUND, idleLen = MS.idle.reduce((a, b) => a + b);
   const f = act === 'idle' ? frameAt(F.idle, MS.idle, idleT % idleLen) : frameAt(F[act], MS[act], t);
-  const bob = walkT ? Math.abs(Math.sin(walkT / 90)) * -4 : 0;   // 還沒有走路動畫，先用上下晃動代替
   ctx.fillStyle = 'rgba(0,0,0,.28)';
   ctx.beginPath(); ctx.ellipse(x, gy, 58, 7, 0, 0, Math.PI * 2); ctx.fill();
   if (!img.complete || !img.naturalWidth) return;
-  ctx.save(); ctx.translate(x, gy + bob); ctx.scale(dir * SCALE, SCALE);
+  ctx.save(); ctx.translate(x, gy);   // 還沒有走路動畫，移動時維持架式平移 ctx.scale(dir * SCALE, SCALE);
   ctx.drawImage(img, f.x, f.y, f.w, f.h, f.ox + CENTER, f.oy, f.w, f.h);
   ctx.restore();
 }
