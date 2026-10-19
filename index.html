@@ -7,6 +7,7 @@
 <style>
 :root{--f:'Microsoft JhengHei','微軟正黑體','PingFang TC','Noto Sans TC',system-ui,sans-serif;color-scheme:light}
 *{box-sizing:border-box}
+html{touch-action:manipulation}
 body{margin:0;min-height:100vh;font-family:var(--f);color:#3B2D52;background:linear-gradient(135deg,#FFF0F7 0 50%,#EEF5FF 50% 100%);display:flex;align-items:center;justify-content:center;padding:24px 16px}
 main{width:100%;max-width:640px;display:flex;flex-direction:column;gap:20px;text-align:center}
 h1{margin:0;font-size:clamp(32px,8vw,48px);font-weight:900;letter-spacing:.06em}
@@ -24,7 +25,7 @@ a.kage{background:#A3242E;box-shadow:0 6px 0 #5E1118}
 a.pet{background:#E0457B;box-shadow:0 6px 0 #A82457}
 a.card:active{transform:translateY(3px)}
 a.card:focus-visible{outline:3px solid #3B2D52;outline-offset:3px}
-.stage{background:#2B2440;box-shadow:0 6px 0 #17122A;border-radius:24px;padding:14px 14px 16px;color:#fff;display:flex;flex-direction:column;gap:10px}
+.stage{touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;background:#2B2440;box-shadow:0 6px 0 #17122A;border-radius:24px;padding:14px 14px 16px;color:#fff;display:flex;flex-direction:column;gap:10px}
 .stage h2{margin:0;font-size:20px;font-weight:900}
 .stage h2 small{font-weight:400;font-size:14px;opacity:.85;margin-left:6px}
 #hero{display:block;width:100%;height:240px;border-radius:14px;background:linear-gradient(#3C3360,#58507F 78%,#3A3156 78%);touch-action:none}
@@ -133,6 +134,9 @@ for (const b of stage.querySelectorAll('.pad button')) {
   b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) press(k, true); } });
   b.addEventListener('keyup', e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); press(k, false); } });
 }
+// 手機連按按鈕時不要觸發雙擊放大
+stage.addEventListener('touchend', e => e.preventDefault(), {passive: false});
+stage.addEventListener('dblclick', e => e.preventDefault());
 addEventListener('resize', resize);
 resize(); requestAnimationFrame(loop);
 })();
